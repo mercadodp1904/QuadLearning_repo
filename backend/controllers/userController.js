@@ -6,15 +6,16 @@ import generateToken from '../utils/generateToken.js';
 // route    POST /api/users/auth
 // @access  Public
 const authUser = asyncHandler(async (req, res) => {
-    const { lrn, password } = req.body;
+    const { username, password } = req.body;
 
-    const user = await User.findOne({ lrn });
+    const user = await User.findOne({ username });
 
-    if(user) {
+    if(user && (await user.matchPassword(password))) {
         generateToken(res, user._id)
         res.status(201).json({
             _id: user._id,
-            lrn: user.lrn,
+            username: user.username,
+            
         })
     } else {
         res.status(400)
@@ -22,40 +23,16 @@ const authUser = asyncHandler(async (req, res) => {
     }
 });
 
-// @desc    Register a new user
-// route    POST /api/users
-// @access  Public
-const registerUser = asyncHandler(async (req, res) => {
-    const {lrn, password} = req.body;
 
-    const userExists = await User.findOne({lrn});
-
-    if (userExists) {
-        res.status(400);
-        throw new Error('User already exists')
-    }
-
-    const user = await User.create({    
-        lrn,
-        password
-    });
-
-    if(user) {
-        generateToken(res, user._id)
-        res.status(201).json({
-            _id: user._id,
-            lrn: user.lrn,
-        })
-    } else {
-        res.status(400)
-        throw new Error('Invalid user data');
-    }
-});
 
 // @desc    Logout user
 // route    POST /api/users/logout
 // @access  Public
 const logoutUser = asyncHandler(async (req, res) => {
+    res.cookie('jwt', '', {
+        httpOnly: true,
+        expires: new Date(0)
+    })
     res.status(200).json({message: 'Logout User'});
 });
 
@@ -63,20 +40,49 @@ const logoutUser = asyncHandler(async (req, res) => {
 // route    GET /api/users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
-    res.status(200).json({message: 'User Profile'});
+    const user = {
+        _id: req.user._id,
+        lrn: req.user.lrn
+    }
+    res.status(200).json({ user });
 });
 
 // @desc    Update user profile
 // route    PUT /api/users/profile
 // @access  Private
 const updateUserProfile = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+
+    if(user) {
+        user.name = req.body.name || user.lrn;
+        user.name = req.body.name || user.name; 
+    } else {
+        res.status(404);
+        throw new Error('User Not Found');
+    }
+
     res.status(200).json({message: 'Update User Profile'});
+});
+
+// @desc    Superadmin creates a new admin
+// @route   POST /api/superadmin/create-admin
+// @access  Private/Superadmin
+const createAdmin = asyncHandler(async (req, res) => {
+    const { username, password } = req.body;
+
+    // Check if username already exists
+    const userExists = await User.findOne({ username });
+    if (userExists) {
+        res.status(400);
+        throw new Error('Username already exists');
+    }
+
+    
 });
 
 export {
     authUser,
-    registerUser,
     logoutUser,
     getUserProfile,
-    updateUserProfile
+    updateUserProfile,
 };
