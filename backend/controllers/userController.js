@@ -6,16 +6,29 @@ import generateToken from '../utils/generateToken.js';
 // route    POST /api/users/auth
 // @access  Public
 const authUser = asyncHandler(async (req, res) => {
-    res.status(200).json({message: 'Auth User'});
+    const { lrn, password } = req.body;
+
+    const user = await User.findOne({ lrn });
+
+    if(user) {
+        generateToken(res, user._id)
+        res.status(201).json({
+            _id: user._id,
+            lrn: user.lrn,
+        })
+    } else {
+        res.status(400)
+        throw new Error('Invalid email or password');
+    }
 });
 
 // @desc    Register a new user
 // route    POST /api/users
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-    const {name, email, password} = req.body;
+    const {lrn, password} = req.body;
 
-    const userExists = await User.findOne({email});
+    const userExists = await User.findOne({lrn});
 
     if (userExists) {
         res.status(400);
@@ -23,8 +36,7 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     const user = await User.create({    
-        name,
-        email,
+        lrn,
         password
     });
 
@@ -32,8 +44,7 @@ const registerUser = asyncHandler(async (req, res) => {
         generateToken(res, user._id)
         res.status(201).json({
             _id: user._id,
-            name: user.name,
-            email: user.email
+            lrn: user.lrn,
         })
     } else {
         res.status(400)
