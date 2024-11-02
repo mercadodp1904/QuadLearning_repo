@@ -13,9 +13,13 @@ router.post('/logout', logoutUser);
 
 router
     .route('/profile')
-    .put(protect, updateGrade)
-    .post(protect, addGrade)
     .put(protect, updateProfile);
+
+router
+    .route('/grades')
+    .put(protect, updateGrade)
+    .post(protect, addGrade);
+
 
 export default router;
 //di ko sure kung eto na lahat -D
