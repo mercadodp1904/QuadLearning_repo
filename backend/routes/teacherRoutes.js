@@ -18,4 +18,4 @@ router
     .put(protect, updateProfile);
 
 export default router;
-
+//di ko sure kung eto na lahat -D
