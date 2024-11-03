@@ -1,19 +1,13 @@
 import express from 'express';
+
 import { protect, authorizeRoles} from '../middleware/authMiddleware.js';
+
 const router = express.Router();
-import {
-    viewGrades,
-  updateProfile
-} from '../controllers/studentController.js';
 
-router.post('/auth', authUser);
-router.post('/logout', logoutUser);
+// Example route for viewing grades
+router.get('/grades', protect, (req, res) => {
+    // Logic to get grades for the student
+    res.json({ message: 'Viewing student grades' });
+});
 
-router
-    .route('/profile')
-    .put(protect, updateProfile);
-
-router.get('/grades', protect, viewGrades);
-
-
-export default router; 
+export default router;

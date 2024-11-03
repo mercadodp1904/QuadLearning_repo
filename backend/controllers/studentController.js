@@ -1,53 +1,36 @@
 import asyncHandler from 'express-async-handler';
 import Grade from '../models/gradeModel.js';
 import User from '../models/userModel.js';
- 
+import Student from '../models/studentModel.js'; 
+import Subject from '../models/subjectModel.js'; // Import Subject model
+import Teacher from '../models/teacherModel.js'; // Import Teacher model
 
 // @desc    Get logged-in student's grades
 // @route   GET /api/students/grades
 // @access  Private/Student
 const viewGrades = asyncHandler(async (req, res) => {
-  // Assuming grades are stored in a separate Grade model and linked to student ID
-  const grades = await Grade.find({ studentId: req.user._id });
+  // Fetch grades associated with the logged-in student
+  const grades = await Grade.find({ studentId: req.user._id })
+    .populate({
+      path: 'subject',
+      model: Subject,
+      populate: {
+        path: 'teacher', // Assuming you have a teacher reference in the subject
+        model: Teacher,
+      },
+    });
 
   if (grades) {
-    res.json(grades);
+    // Format the grades data to include necessary details
+    const formattedGrades = grades.map(grade => ({
+      subject: grade.subject.name, // Assuming subject has a name field
+      teacher: grade.subject.teacher.name, // Assuming teacher has a name field
+      midterm: grade.midterm, // Adjust if midterm field is named differently
+      finals: grade.finals, // Adjust if finals field is named differently
+    }));
+
+    res.json(formattedGrades);
   } else {
     res.status(404).json({ message: 'Grades not found' });
   }
 });
-
-// @desc    Update logged-in student's profile
-// @route   PUT /api/students/profile
-// @access  Private/Student
-const updateProfile = asyncHandler(async (req, res) => {
-  const { name, age, address, contactNumber, additionalInfo } = req.body;
-
-  const user = await User.findById(req.user._id);
-
-  if (user) {
-    user.name = name || user.name;
-    user.age = age || user.age;
-    user.gender = age || user.gender;
-    user.address = address || user.address;
-    user.contactNumber = contactNumber || user.contactNumber;
-   
-
-    const updatedUser = await user.save();
-    res.json({
-      _id: updatedUser._id,
-      name: updatedUser.name,
-      age: updatedUser.age,
-      address: updatedUser.address,
-      contactNumber: updatedUser.contactNumber,
-      additionalInfo: updatedUser.additionalInfo,
-    });
-  } else {
-    res.status(404).json({ message: 'User not found' });
-  }
-});
-
-module.exports = {
-  viewGrades,
-  updateProfile,
-};
