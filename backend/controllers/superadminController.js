@@ -1,34 +1,81 @@
-import asyncHandler from 'express-async-handler';  
+import asyncHandler from 'express-async-handler';
 import User from '../models/userModel.js';
-import generateToken from '../utils/generateToken.js';
 
-// @desc    Superadmin creates a new admin
-// @route   POST /api/superadmin/create-admin
+// @desc    Create a new admin account
+// @route   POST /api/superadmin/admins
 // @access  Private/Superadmin
-const createAdmin = asyncHandler(async (req, res) => {
+const createAdminAccount = asyncHandler(async (req, res) => {
+    // Ensure req.user is defined and has role
+    if (!req.user || !req.user.role) {
+        return res.status(403).json({ message: 'Not authorized' });
+    }
+
     const { username, password } = req.body;
 
-    // Check if username already exists
-    const userExists = await User.findOne({ username });
-    if (userExists) {
-        res.status(400);
-        throw new Error('Username already exists');
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Please provide a username and password' });
     }
 
-    // Create a new user with 'admin' role
-    const admin = await User.create({
+    const existingAdmin = await User.findOne({ username });
+    if (existingAdmin) {
+        return res.status(400).json({ message: 'Admin account already exists' });
+    }
+
+    const newAdmin = await User.create({
         username,
-        password: await bcrypt.hash(password, 10),
+        password, // Hashing should occur in the User model
         role: 'admin',
-        profileCompleted: true, // Admin profile can be predefined as complete
     });
 
-    if (admin) {
-        res.status(201).json({ message: 'Admin created successfully' });
-    } else {
-        res.status(400);
-        throw new Error('Invalid data, admin could not be created');
-    }
+    res.status(201).json({
+        _id: newAdmin._id,
+        username: newAdmin.username,
+        role: newAdmin.role,
+    });
 });
 
-export { createAdmin }; 
+// @desc    Update an admin account
+// @route   PUT /api/admins/:id
+// @access  Private/Superadmin
+const updateAdminAccount = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { username, password } = req.body;
+
+    const admin = await User.findById(id);
+    if (!admin) {
+        return res.status(404).json({ message: 'Admin not found' });
+    }
+
+    admin.username = username || admin.username;
+    if (password) {
+        admin.password = password; // Hash password before saving in a real implementation
+    }
+
+    const updatedAdmin = await admin.save();
+    res.json({
+        _id: updatedAdmin._id,
+        username: updatedAdmin.username,
+        role: updatedAdmin.role,
+    });
+});
+
+// @desc    Delete an admin account
+// @route   DELETE /api/admins/:id
+// @access  Private/Superadmin
+const deleteAdminAccount = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const admin = await User.findById(id);
+    if (!admin) {
+        return res.status(404).json({ message: 'Admin not found' });
+    }
+
+    await admin.remove();
+    res.json({ message: 'Admin account deleted' });
+});
+
+export {
+    createAdminAccount,
+    updateAdminAccount,
+    deleteAdminAccount,
+};
