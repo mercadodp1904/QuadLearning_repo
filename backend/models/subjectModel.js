@@ -22,7 +22,8 @@ const subjectSchema = new mongoose.Schema({
     }],
     sections: [{ 
         type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Section' 
+        ref: 'Section', 
+        required: false
     }],
 });
 

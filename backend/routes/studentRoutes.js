@@ -1,11 +1,10 @@
 import express from 'express';
-
-import { protect, authorizeRoles} from '../middleware/authMiddleware.js';
+import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Example route for viewing grades
-router.get('/grades', protect, (req, res) => {
+// Example route for viewing grades, accessible only to authenticated students
+router.get('/grades', protect, authorizeRoles('student'), (req, res) => {
     // Logic to get grades for the student
     res.json({ message: 'Viewing student grades' });
 });
