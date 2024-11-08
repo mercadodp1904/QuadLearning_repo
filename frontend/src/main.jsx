@@ -13,6 +13,7 @@ import HomeScreen from './screens/HomeScreen';
 import LoginScreen from './screens/LoginScreen';
 import AdminHomeScreen from './AdminScreens/AdminHomeScreen';
 import AdminViewAllUsersScreen from './AdminScreens/AdminViewAllUsersScreen';
+import Strands from './AdminScreens/strands';
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -21,6 +22,8 @@ const router = createBrowserRouter(
       <Route path='/login' element={<LoginScreen />} />
       <Route path='/admin' element={<AdminHomeScreen />} />
       <Route path='/admin/view-all-users' element={<AdminViewAllUsersScreen />} />
+      <Route path='/admin/Strands' element={<Strands />} />
+      <Route path='/admin/AdminViewAllUsersScreen' element={<AdminViewAllUsersScreen />} />
     </Route>
   )
 );

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Nav } from 'react-bootstrap';
 import { LinkContainer } from 'react-router-bootstrap';
+import { Link } from 'react-router-dom';
 import './AdminSidebar.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
@@ -40,7 +41,7 @@ const AdminSidebar = () => {
                         <i className={`bi bi-chevron-${dropdowns.users ? 'up' : 'down'} ms-auto`}></i>
                     </div>
                     <div className={`sidebar-dropdown-content ${dropdowns.users ? 'show' : ''}`}>
-                        <LinkContainer to="/admin/students">
+                        <LinkContainer to="/admin/AdminViewAllUsersScreen">
                             <Nav.Link>View All Users</Nav.Link>
                         </LinkContainer>
                         <LinkContainer to="/admin/teachers">
@@ -63,8 +64,10 @@ const AdminSidebar = () => {
                         <LinkContainer to="/admin/manage-courses">
                             <Nav.Link>Manage Courses</Nav.Link>
                         </LinkContainer>
-                        <LinkContainer to="/admin/manage-strands">
-                            <Nav.Link>Manage Strands</Nav.Link>
+                        <LinkContainer to="/admin/strands">
+                        <Nav.Link as={Link} to="/admin/strands">
+                            Create Strand
+                        </Nav.Link>
                         </LinkContainer>
                         <LinkContainer to="/admin/manage-sections">
                             <Nav.Link>Manage Sections</Nav.Link>

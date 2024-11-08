@@ -6,6 +6,7 @@ import connectDB from './config/db.js';
 import userRoutes from './routes/userRoutes.js';
 import superadminRoutes from './routes/superadminRoutes.js';
 import { createPredefinedSuperAdmin } from './createSAdmin.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 dotenv.config(); // Load environment variables
 const port = process.env.PORT || 5000;
@@ -38,6 +39,7 @@ connectDB()
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/superadmin', superadminRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Basic route
 app.get('/', (req, res) => res.send('Server is ready'));
