@@ -1,21 +1,35 @@
 import { Container, Card, Button } from 'react-bootstrap';
 import { LinkContainer } from 'react-router-bootstrap';
+
 const Hero = () => {
   return (
-    <div className=' py-5'>
+    <div className='hero-section py-5'>
       <Container className='d-flex justify-content-center'>
-        <Card className='p-5 d-flex flex-column align-items-center hero-card bg-light w-75'>
-          <h1 className='text-center mb-4'>TNHS Student App Log In Form</h1>
-          <p className='text-center mb-4'>
-            This is a boilerplate for MERN authentication that stores a JWT in
-            an HTTP-Only cookie. It also uses Redux Toolkit and the React
-            Bootstrap library
+        <Card className='p-5 d-flex flex-column align-items-center hero-card bg-white w-75'>
+          {/* School Logo could be added here */}
+          <img 
+            src="./img/TVNHS.png" 
+            alt="School Logo" 
+            className="mb-4"
+            style={{ width: '100px' }}
+          />
+          
+          <h1 className='text-center mb-3 school-title'>
+            Welcome to<br />
+            <span className='highlight'>Tropical Village</span><br />
+            National High School
+          </h1>
+
+          <p className='text-center mb-4 welcome-text'>
+            Empowering minds, building futures.<br />
+            Your gateway to learning and excellence.
           </p>
-          <div className='d-flex'>
+
+          <div className='d-flex gap-3'>
             <LinkContainer to='/login'>
-                <Button variant='primary' className='me-3'>
-                 Sign In
-                </Button>
+              <Button variant='success' size='lg' className='get-started-btn'>
+                Get Started
+              </Button>
             </LinkContainer>
           </div>
         </Card>

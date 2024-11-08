@@ -8,4 +8,5 @@ router.route('/users').get(protect, authorizeRoles('admin'), getUserList);
 router.route('/:id').put(protect, authorizeRoles('admin'), updateUserAccount);
 router.route('/assign-student/:studentId').put(protect, authorizeRoles('admin'), assignStudentToTeacher);
 
+
 export default router;
