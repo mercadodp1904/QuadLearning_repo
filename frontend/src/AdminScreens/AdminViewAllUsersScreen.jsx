@@ -8,24 +8,33 @@ import AdminSidebar from "../AdminComponents/AdminSidebar";
 import '../AdminComponents/AdminTableList.css';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
-import axios from 'axios';
 
 const AdminViewAllUsersScreen = () => {
-
     const [show, setShow] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState(null);
-    const [accountsData, setAccountsData] = useState([]); // Add this state
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
-
+    const [loading, setLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [error, setError] = useState('');
+    const [users, setUsers] = useState([]);
+    const [newUser, setNewUser] = useState({
+        username: '',
+        password: '',
+        role: ''
+    });
+  
+    useEffect(() => {
+        const fetchUsers = async () => {
+            const response = await fetch('/api/admin/AdminViewAllUsersScreen');
+            const json = await response.json();
+        if(response.ok){
+            setUsers(json);
+        }
+        };
+        fetchUsers();
+    }, []);
 
-    const filteredAccounts = accountsData.filter(account => 
-        account.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        account.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        account.role.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
 
     const handleClose = () => {
         setShow(false);
@@ -37,13 +46,67 @@ const AdminViewAllUsersScreen = () => {
         setShow(true);
     };
 
-    const deleteHandler = (userId) => {
-        // Filter out the deleted user
-        const updatedAccounts = accountsData.filter(account => account.id !== userId);
-        setAccountsData(updatedAccounts);
-        handleClose(); // Close the modal after deletion
+  // Update deleteHandler to handle user deletion
+const deleteHandler = async (userId) => {
+    try {
+        const response = await fetch(`/api/admin/AdminViewAllUsersScreen/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            // Update the users state by filtering out the deleted user
+            setUsers(prevUsers => prevUsers.filter(user => user._id !== userId));
+            handleClose(); // Close the modal after deletion
+        } else {
+            const json = await response.json();
+            setError(json.message);
+        }
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        setError('Failed to delete user');
+    }
+};
+
+    const handleAddUser = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        
+        const userData = {
+            username: newUser.username,
+            password: newUser.password,
+            role: newUser.role
+        }
+
+        const response = await fetch('/api/admin/AdminViewAllUsersScreen', {
+            method: 'POST',
+            body: JSON.stringify(userData),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        const json = await response.json();
+
+        if(!response.ok){ 
+            setError(json.message);
+        }
+
+        if(response.ok){
+            setNewUser({ username: '', password: '', role: ''});
+            setLoading(false);
+            setShowAddModal(false);
+            console.log('User added successfully');
+        }
     };
 
+    const filteredAccounts = users?.filter(user => 
+        user?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user?.role?.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [];
         
     return ( 
         <>
@@ -100,41 +163,80 @@ const AdminViewAllUsersScreen = () => {
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Email</th>
+                        <th>Date Created</th>
                         <th>Role</th>
-                        <th>Status</th>
-                        <th>Action</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {filteredAccounts
-                        .slice(0, entriesPerPage)
-                        .map(account => (
-                            <tr key={account.id}>
-                                <td>{account.name}</td>
-                                <td>{account.email}</td>
-                                <td>{account.role}</td>
-                                <td>{account.status}</td>
-                                <td>
-                                    <button className='btn btn-primary custom-btn'>Edit</button>
-                                    <button 
-                                        className='btn btn-danger custom-btn' 
-                                        onClick={(e) => {
-                                            e.preventDefault();  // Prevent default behavior
-                                            handleShow(account.id);
-                                        }}
-                                    >Delete</button>
-                                    </td>
-                            </tr>
-                        ))}
-                </tbody>
+    {filteredAccounts
+        .slice(0, entriesPerPage)
+        .map(user => (
+            <tr key={user._id}>
+                <td>{user.username || user.name}</td>
+                <td>{user.createdAt}</td>
+                <td>{user.role}</td>
+                <td>
+                    <button className='btn btn-primary custom-btn'>Edit</button>
+                    <button 
+                        className='btn btn-danger custom-btn' 
+                        onClick={() => handleShow(user._id)}
+                    >
+                        Delete
+                    </button>
+                </td>
+            </tr>
+        ))}
+</tbody>
             </Table>  
             <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
     <Modal.Header closeButton>
         <Modal.Title>Add New User</Modal.Title>
     </Modal.Header>
     <Modal.Body>
-      
+        <Form onSubmit={handleAddUser}>
+            <Form.Group className="mb-3">
+                <Form.Label>Username</Form.Label>
+                <Form.Control
+                    type="text"
+                    value={newUser.username}
+                    onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                    required
+                />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Password</Form.Label>
+                <Form.Control
+                    type="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                    required
+                />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Role</Form.Label>
+                <Form.Select
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                    required
+                >
+                    <option value="">Select Role</option>
+                    <option value="student">Student</option>
+                    <option value="teacher">Teacher</option>
+                </Form.Select>
+            </Form.Group>
+
+            <div className="text-center mt-3">
+                <Button variant="secondary" onClick={() => setShowAddModal(false)} className="me-2">
+                    Cancel
+                </Button>
+                <Button variant="primary" type="submit">
+                    Add User
+                </Button>
+            </div>
+        </Form>
     </Modal.Body>
 </Modal>
 

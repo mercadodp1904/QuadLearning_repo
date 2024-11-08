@@ -160,7 +160,7 @@ const getAllSubjects = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/strands
 // @access  Private (admin role)
 const createStrand = asyncHandler(async (req, res) => {
-    const { name } = req.body;
+    const { name , description } = req.body;
 
     const strandExists = await Strand.findOne({ name });
     if (strandExists) {
@@ -168,8 +168,8 @@ const createStrand = asyncHandler(async (req, res) => {
         throw new Error('Strand already exists');
     }
 
-    const newStrand = await Strand.create({ name });
-    res.status(201).json(newStrand);
+    const newStrand = await Strand.create({ name  , description});
+    res.status(200).json(newStrand);
 });
 
 // @desc    Update a strand
