@@ -14,6 +14,8 @@ import LoginScreen from './screens/LoginScreen';
 import AdminHomeScreen from './AdminScreens/AdminHomeScreen';
 import AdminViewAllUsersScreen from './AdminScreens/AdminViewAllUsersScreen';
 import Strands from './AdminScreens/strands';
+import StudentHomeScreen from './StudentScreens/StudentHomeScreen';
+import TeacherHomeScreen from './TeacherScreens/TeacherHomeScreen';
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -21,9 +23,11 @@ const router = createBrowserRouter(
       <Route index={true} path='/' element={<HomeScreen />} />
       <Route path='/login' element={<LoginScreen />} />
       <Route path='/admin' element={<AdminHomeScreen />} />
-      <Route path='/admin/view-all-users' element={<AdminViewAllUsersScreen />} />
       <Route path='/admin/Strands' element={<Strands />} />
+      <Route path='/login/AdminScreens/AdminHomeScreen' element={<AdminHomeScreen />} />
       <Route path='/admin/AdminViewAllUsersScreen' element={<AdminViewAllUsersScreen />} />
+      <Route path='/login/StudentScreens/StudentHomeScreen' element={<StudentHomeScreen />} />
+      <Route path='/login/TeacherScreens/TeacherHomeScreen' element={<TeacherHomeScreen />} />
     </Route>
   )
 );

@@ -16,18 +16,33 @@ const AdminCreateStrand = () => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
 
-
     useEffect(() => {
         const fetchStrands = async () => {
-            const response = await fetch('/api/admin/Strands');
-            const json = await response.json();
-
-            if(response.ok){
-                setstudStrands(json);
+            const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+    
+            try {
+                const response = await fetch('/api/admin/getStrands', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`, // Add the Bearer token here
+                    },
+                });
+    
+                if (response.ok) {
+                    const json = await response.json();
+                    setstudStrands(json); // Set the data if the response is successful
+                } else {
+                    console.error('Failed to fetch strands:', response.status);
+                }
+            } catch (error) {
+                console.error('Error fetching strands:', error.message);
             }
         };
+    
         fetchStrands();
     }, []);
+    
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -39,11 +54,12 @@ const AdminCreateStrand = () => {
             description
         }
 
-        const response = await fetch('/api/admin/Strands', {
+        const response = await fetch('/api/admin/addStrands', {
             method: 'POST',
             body: JSON.stringify(strandData),
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`, // Add the Bearer token here
             }
         });
         const json = await response.json();

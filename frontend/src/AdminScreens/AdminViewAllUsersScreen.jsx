@@ -26,14 +26,31 @@ const AdminViewAllUsersScreen = () => {
   
     useEffect(() => {
         const fetchUsers = async () => {
-            const response = await fetch('/api/admin/AdminViewAllUsersScreen');
-            const json = await response.json();
-        if(response.ok){
-            setUsers(json);
-        }
+            const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+    
+            try {
+                const response = await fetch('/api/admin/getUsers', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`, // Add the Bearer token here
+                    },
+                });
+    
+                if (response.ok) {
+                    const json = await response.json();
+                    setUsers(json); // Set the users if the response is successful
+                } else {
+                    console.error('Failed to fetch users:', response.status);
+                }
+            } catch (error) {
+                console.error('Error fetching users:', error.message);
+            }
         };
+    
         fetchUsers();
     }, []);
+    
 
 
     const handleClose = () => {
@@ -48,8 +65,9 @@ const AdminViewAllUsersScreen = () => {
 
   // Update deleteHandler to handle user deletion
 const deleteHandler = async (userId) => {
+    const token = localStorage.getItem('token'); // Retrieve the token from localStorage
     try {
-        const response = await fetch(`/api/admin/AdminViewAllUsersScreen/${userId}`, {
+        const response = await fetch(`/api/admin/users/${userId}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json'
@@ -71,6 +89,7 @@ const deleteHandler = async (userId) => {
 };
 
     const handleAddUser = async (e) => {
+        const token = localStorage.getItem('token'); // Retrieve the token from localStorage
         e.preventDefault();
         setLoading(true);
         setError('');
@@ -81,11 +100,12 @@ const deleteHandler = async (userId) => {
             role: newUser.role
         }
 
-        const response = await fetch('/api/admin/AdminViewAllUsersScreen', {
+        const response = await fetch('/api/admin/addUsers', {
             method: 'POST',
             body: JSON.stringify(userData),
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`, // Add the Bearer token here
             }
         });
         const json = await response.json();
