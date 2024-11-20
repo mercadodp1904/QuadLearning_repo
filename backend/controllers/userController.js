@@ -17,18 +17,16 @@ const authUser = asyncHandler(async (req, res) => {
     // Check if user exists by username
     const user = await User.findOne({ username });
     if (!user) {
-        console.log('Invalid username:', username);
-        return res.status(401).json({ message: "Invalid username" });
+        //console.log('Invalid credentials attempt for:', username);
+        return res.status(401).json({ message: "Invalid credentials" });
     }
-
-    console.log('Stored password:', user.password);
 
     // Check if password matches
     const isMatch = await bcrypt.compare(password.trim(), user.password);
     console.log('Password match result:', isMatch);
     if (!isMatch) {
-        console.log('Invalid password for username:', username);
-        return res.status(401).json({ message: "Invalid password" });
+        //console.log('Invalid credentials for username:', username);
+        return res.status(401).json({ message: "Invalid credentials" });
     }
 
     // If credentials are valid, create a token and set it in a cookie
