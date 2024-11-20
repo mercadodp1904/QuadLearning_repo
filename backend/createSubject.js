@@ -3,13 +3,7 @@ import Subject from './models/subjectModel.js';  // Assuming the Subject model i
 import Semester from './models/semesterModel.js'; // Assuming you have a Semester model
 import User from './models/userModel.js'; // Assuming your teachers are stored in the 'User' model
 
-// Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/Schoolproj', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-})
-.then(() => console.log('Connected to MongoDB'))
-.catch((err) => console.error('Error connecting to MongoDB:', err));
+
 
 // Function to create predefined subjects
 const createPredefinedSubjects = async () => {

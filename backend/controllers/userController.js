@@ -13,14 +13,14 @@ const authUser = asyncHandler(async (req, res) => {
     const user = await User.findOne({ username });
     if (!user) {
         //console.log('Invalid credentials attempt for:', username);
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(401).json({ message: "Invalid username" });
     }
 
     // Check if password matches
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
         //console.log('Invalid credentials for username:', username);
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(401).json({ message: "Invalid password" });
     }
 
     // If credentials are valid, create a token and set it in a cookie
@@ -32,7 +32,6 @@ const authUser = asyncHandler(async (req, res) => {
         role: user.role,
     });
 });
-
 // @desc    Logout user
 // route    POST /api/users/logout
 // @access  Public

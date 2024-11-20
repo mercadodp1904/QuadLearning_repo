@@ -7,7 +7,8 @@ const sectionSchema = new mongoose.Schema({
     }, // Name of the section (e.g., Grade 11 STEM A)
     students: [{ 
         type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User' 
+        ref: 'User', 
+        required: false 
     }], // Students in this section
     teacher: { 
         type: mongoose.Schema.Types.ObjectId, 
