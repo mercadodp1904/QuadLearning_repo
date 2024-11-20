@@ -22,9 +22,6 @@ const createUserAccount = asyncHandler(async (req, res) => {
         throw new Error('Username already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, password: hashedPassword, role });
-
     if (role === 'teacher' && assignedSections && assignedSubjects) {
         newUser.sections = assignedSections;
         newUser.subjects = assignedSubjects;

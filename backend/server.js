@@ -8,12 +8,15 @@ import superadminRoutes from './routes/superadminRoutes.js';
 import { createPredefinedSuperAdmin } from './createSAdmin.js';
 
 import adminRoutes from './routes/adminRoutes.js';
+import teacherRoutes from './routes/teacherRoutes.js';
 
 import { createPredefinedStudents } from './createStudent.js';
 import { createPredefinedSemester } from './createSemester.js'; 
 import { createPredefinedTeachers } from './createTeacher.js'; 
 import { createPredefinedSubjects } from './createSubject.js';
 import { createPredefinedSection } from './createSection.js';
+import { createPredefinedAdmin } from './createAdmin.js';
+import { createPredefinedRStudent } from './createRStudent.js';
 
 
 dotenv.config(); // Load environment variables
@@ -39,6 +42,8 @@ connectDB()
         // createPredefinedTeachers();
         // createPredefinedSubjects();
         // createPredefinedSection();
+        // createPredefinedAdmin();
+         createPredefinedRStudent();
 
 
         // Start the server
@@ -55,6 +60,7 @@ connectDB()
 app.use('/api/users', userRoutes);
 app.use('/api/superadmin', superadminRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/teacher', teacherRoutes);
 
 // Basic route
 app.get('/', (req, res) => res.send('Server is ready'));
