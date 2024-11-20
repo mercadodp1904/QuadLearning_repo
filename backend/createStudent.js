@@ -63,10 +63,6 @@ const createPredefinedStudents = async () => {
             // Assign the strand reference
             student.strand = strand._id; // Set the strand field to the _id of the found strand
 
-            // Hash the password before saving to the database
-            const salt = await bcrypt.genSalt(10);
-            student.password = await bcrypt.hash(student.password, salt);
-
             // Create the student record in the database
             const createdStudent = await User.create(student);
             console.log(`Student ${createdStudent.name} created successfully`);
