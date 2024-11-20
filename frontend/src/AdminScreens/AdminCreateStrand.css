@@ -1,0 +1,9 @@
+.main-content {
+    padding: 20px;
+    margin-left: 250px; /* Adjust based on your sidebar width */
+}
+
+.form-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
