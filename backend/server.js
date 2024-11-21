@@ -6,15 +6,7 @@ import connectDB from './config/db.js';
 import userRoutes from './routes/userRoutes.js';
 import superadminRoutes from './routes/superadminRoutes.js';
 import { createPredefinedSuperAdmin } from './createSAdmin.js';
-
 import adminRoutes from './routes/adminRoutes.js';
-
-import { createPredefinedStudents } from './createStudent.js';
-import { createPredefinedSemester } from './createSemester.js'; 
-import { createPredefinedTeachers } from './createTeacher.js'; 
-import { createPredefinedSubjects } from './createSubject.js';
-import { createPredefinedSection } from './createSection.js';
-
 
 dotenv.config(); // Load environment variables
 const port = process.env.PORT || 5000;
@@ -31,15 +23,8 @@ connectDB()
     .then(() => {
         console.log('Connected to MongoDB');
 
-
-        // Create the predefined accounts (uncomment if needed)
-        // createPredefinedSuperAdmin();
-        // createPredefinedStudents();
-        // createPredefinedSemester();
-        // createPredefinedTeachers();
-        // createPredefinedSubjects();
-        // createPredefinedSection();
-
+        // Create the predefined superadmin account (uncomment if needed)
+        // await createPredefinedSuperAdmin();
 
         // Start the server
         app.listen(port, () => {

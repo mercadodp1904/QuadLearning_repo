@@ -9,7 +9,7 @@ import '../AdminComponents/AdminTableList.css';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 
-const AdminViewAllUsersScreen = () => {
+const AdminCreateTeacherAccount = () => {
     const [show, setShow] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -19,19 +19,17 @@ const AdminViewAllUsersScreen = () => {
     const [error, setError] = useState('');
     const [users, setUsers] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    
     const [newUser, setNewUser] = useState({
         username: '',
         password: '',
         role: ''
     });
-  
     useEffect(() => {
         const fetchUsers = async () => {
             const token = localStorage.getItem('token'); // Retrieve the token from localStorage
     
             try {
-                const response = await fetch('/api/admin/getUsers', {
+                const response = await fetch('/api/admin/users?role=teacher', { // Fetch only students
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -97,38 +95,44 @@ const AdminViewAllUsersScreen = () => {
         e.preventDefault();
         setLoading(true);
         setError('');
-        
+    
         const userData = {
             username: newUser.username,
             password: newUser.password,
-            role: newUser.role
-        }
-
-        const response = await fetch('/api/admin/addUsers', {
-            method: 'POST',
-            body: JSON.stringify(userData),
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`, // Add the Bearer token here
+            role: 'teacher' // Set role to 'teacher'
+        };
+    
+        try {
+            const response = await fetch('/api/admin/addUsers', {
+                method: 'POST',
+                body: JSON.stringify(userData),
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                }
+            });
+    
+            const json = await response.json();
+    
+            if (!response.ok) {
+                throw new Error(json.message || 'Failed to add user');
             }
-        });
-        const json = await response.json();
-
-         // Directly update the users state with the new user data
-         setUsers(prevUsers => [...prevUsers, json.data]); // Use json.data to get the new user object
-
-        if(!response.ok){ 
-            setError(json.message);
-        }
-
-        if(response.ok){
-            setNewUser({ username: '', password: '', role: ''});
+            
+            // Directly update the users state with the new user data
+            setUsers(prevUsers => [...prevUsers, json.data]); // Use json.data to get the new user object
+    
+            // Reset form and handle success
+            setNewUser({ username: '', password: '', role: '' });
             setLoading(false);
             setShowAddModal(false);
             console.log('User added successfully');
+        } catch (error) {
+            setLoading(false);
+            setError(error.message);
+            console.error('Error adding user:', error);
         }
     };
-
+    
     const filteredAccounts = users?.filter(user => 
         user?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -142,6 +146,7 @@ const AdminViewAllUsersScreen = () => {
         if (direction === 'next' && currentPage < totalPages) setCurrentPage(currentPage + 1);
     };
 
+        
     return ( 
         <>
         <AdminSidebar/>
@@ -193,7 +198,7 @@ const AdminViewAllUsersScreen = () => {
                 </InputGroup>
             </div>
         
-            <Table responsive hover className='table-striped table-bordered text-center'>
+                     <Table responsive hover className='table-striped table-bordered text-center'>
     <thead>
         <tr>
             <th>Name</th>
@@ -224,8 +229,7 @@ const AdminViewAllUsersScreen = () => {
     </tbody>
 </Table>
 
-
-             <div className="d-flex justify-content-between mt-3">
+            <div className="d-flex justify-content-between mt-3">
                                     <Button 
                                         variant="outline-primary" 
                                         size="sm"
@@ -244,6 +248,8 @@ const AdminViewAllUsersScreen = () => {
                                         Next
                                     </Button>
                                 </div> 
+
+
             <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
     <Modal.Header closeButton>
         <Modal.Title>Add New User</Modal.Title>
@@ -270,18 +276,15 @@ const AdminViewAllUsersScreen = () => {
                 />
             </Form.Group>
 
-            <Form.Group className="mb-3">
-                <Form.Label>Role</Form.Label>
-                <Form.Select
-                    value={newUser.role}
-                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                    required
-                >
-                    <option value="">Select Role</option>
-                    <option value="student">Student</option>
-                    <option value="teacher">Teacher</option>
-                </Form.Select>
-            </Form.Group>
+                    <Form.Group className="mb-3">
+                        <Form.Label>Role</Form.Label>
+                        <Form.Control
+                            type="text"
+                            value="Teacher" // Set the value to "Student"
+                            readOnly // Make the field read-only
+                            disabled // Optionally, you can also disable it
+                        />
+                    </Form.Group>
 
             <div className="text-center mt-3">
                 <Button variant="secondary" onClick={() => setShowAddModal(false)} className="me-2">
@@ -323,4 +326,4 @@ const AdminViewAllUsersScreen = () => {
      );
 }
  
-export default AdminViewAllUsersScreen;
+export default AdminCreateTeacherAccount;
