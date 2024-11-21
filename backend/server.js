@@ -43,9 +43,9 @@ connectDB()
         // createPredefinedSubjects();
         // createPredefinedSection();
         // createPredefinedAdmin();
-         createPredefinedRStudent();
+        // createPredefinedRStudent();
 
-
+         
         // Start the server
         app.listen(port, () => {
             console.log(`Server started on port ${port}`);

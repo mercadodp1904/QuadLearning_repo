@@ -87,12 +87,13 @@ const studentSchema = mongoose.Schema(
             },
         },
 
-        // Grades structure
+        // Grades structure with embedded subjects
         grades: [
             {
                 semester: {
                     type: String,
                     enum: ['1st', '2nd'],
+                    required: true,
                 },
                 year: {
                     type: String,
@@ -100,10 +101,12 @@ const studentSchema = mongoose.Schema(
                 },
                 subjects: [
                     {
-                        name: {
-                            type: String,
+                        subject: { // Reference to Subject model
+                            type: mongoose.Schema.Types.ObjectId,
+                            ref: 'Subject',
                             required: true,
                         },
+
                         midterm: {
                             type: Number, // Midterm grade
                         },
@@ -130,6 +133,7 @@ const studentSchema = mongoose.Schema(
     { timestamps: true } // Add createdAt and updatedAt fields
 );
 
+// Create the Student model
 const Student = mongoose.model('Student', studentSchema);
 
 export default Student;

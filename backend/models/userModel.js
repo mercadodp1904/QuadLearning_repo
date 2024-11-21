@@ -19,26 +19,17 @@ const userSchema = mongoose.Schema({
     sections: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Section',
-      /*   required: function() {
-            return this.role === 'student' || this.role === 'teacher';
-        } */
     }],
     strand: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Strand',
-    /*     required: function() {
-            return this.role === 'student';
-        } */
     },
     subjects: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Subject',
-   /*      required: function() {
-            return this.role === 'student';
-        } */
     }],
-}, { timestamps: true });
 
+}, { timestamps: true });
 
 
 const User = mongoose.model('User', userSchema);

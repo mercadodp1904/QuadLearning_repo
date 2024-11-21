@@ -12,17 +12,17 @@ import Semester from './models/semesterModel.js'; // Import the Semester model
 const predefinedStudents = [
     {
         username: 'student001',
-        password: 'password123', // In a real app, this should be hashed
+        password: 'password123',
         name: 'Juan Dela Cruz',
         role: 'student',
         age: 18,
         gender: 'Male',
         profileCompleted: true,
         isActive: true,
-        section: 'Grade 11 STEM A', // Reference to section
-        strand: 'STEM', // Add strand name
-        subjects: ['Mathematics', 'Science'], // List of subjects
-        semester: 'Semester 1', // Add semester name
+        section: 'Grade_11_STEM_A',
+        strand: 'STEM',
+        subjects: ['Mathematics', 'Science'],
+        semester: 'Semester 1',
     },
     {
         username: 'student002',
@@ -34,10 +34,10 @@ const predefinedStudents = [
         birthdate: '2007-06-24',
         profileCompleted: true,
         isActive: true,
-        section: 'Grade 11 STEM A', // Reference to section
-        strand: 'STEM', // Add strand name
+        section: 'Grade_11_STEM_A',
+        strand: 'STEM',
         subjects: ['English', 'History'],
-        semester: 'Semester 2', // Add semester name
+        semester: 'Semester 2',
     },
     {
         username: 'student003',
@@ -49,84 +49,79 @@ const predefinedStudents = [
         birthdate: '2005-11-30',
         profileCompleted: true,
         isActive: true,
-        section: 'Grade 11 STEM A', // Reference to section
-        strand: 'STEM', // Add strand name
+        section: 'Grade_11_STEM_A',
+        strand: 'STEM',
         subjects: ['Mathematics', 'English'],
-        semester: 'Summer Term', // Add semester name
+        semester: 'Summer Term',
     },
-    // Add more students here as needed
 ];
-
 
 // Function to create predefined students
 const createPredefinedStudents = async () => {
     try {
         await connectDB(); // Connect to the database
 
-        // Loop through predefined students
         for (let student of predefinedStudents) {
-            console.log('Creating student:', student); // Log to check student data
+            console.log('Processing student:', student);
 
-            if (!student.name || !student.username) {
-                console.log('Student data is incomplete:', student);
-                continue; // Skip creating this student if data is incomplete
+            // Fetch the IDs of related documents (section)
+            const sections = await Section.find({ name: student.section }).collation({ locale: 'en', strength: 2 });
+            if (!sections.length) {
+                console.error(`Section "${student.section}" not found. Skipping student "${student.name}".`);
+                continue;
+            }
+            console.log(`Sections found: ${sections.map(section => section.name).join(', ')}`);
+
+            const strand = await Strand.findOne({ name: student.strand }).select('_id');
+            if (!strand) {
+                console.log(`Strand "${student.strand}" not found. Skipping student ${student.name}.`);
+                continue;
             }
 
-            // Find the section by name
-            const section = await Section.findOne({ name: student.section });
-            if (section) {
-                student.section = section._id; // Set the section field to the _id of the found section
-            } else {
-                console.log(`Section ${student.section} not found for student ${student.name}`);
-                continue; // Skip creating this student if the section is not found
+            const subjects = await Subject.find({ name: { $in: student.subjects } }).select('_id');
+            if (subjects.length !== student.subjects.length) {
+                console.log(
+                    `Some subjects not found for student ${student.name}. Available subjects: ${subjects.map(
+                        (sub) => sub._id
+                    )}`
+                );
             }
 
-            // Find the strand by name
-            const strand = await Strand.findOne({ name: student.strand });
-            if (strand) {
-                student.strand = strand._id; // Set the strand field to the _id of the found strand
-            } else {
-                console.log(`Strand ${student.strand} not found for student ${student.name}`);
-                continue; // Skip creating this student if the strand is not found
+            const semester = await Semester.findOne({ name: student.semester }).select('_id');
+            if (!semester) {
+                console.log(`Semester "${student.semester}" not found. Skipping student "${student.name}".`);
+                continue;
             }
 
-            // Assign subjects references based on subject names
-            const subjectIds = [];
-            for (let subjectName of student.subjects) {
-                const subject = await Subject.findOne({ name: subjectName });
-                if (subject) {
-                    subjectIds.push(subject._id); // Push the subject _id to the array
-                } else {
-                    console.log(`Subject ${subjectName} not found for student ${student.name}`);
-                }
-            }
-            student.subjects = subjectIds; // Set the subjects field to the list of subject _ids
-
-            // Assign the semester reference based on the semester name
-            const semester = await Semester.findOne({ name: student.semester });
-            if (semester) {
-                student.semester = semester._id; // Set the semester field to the _id of the found semester
-            } else {
-                console.log(`Semester ${student.semester} not found for student ${student.name}`);
-                continue; // Skip creating this student if the semester is not found
-            }
-
-            // Hash the password before saving to the database
+            // Hash the password
             const salt = await bcrypt.genSalt(10);
             student.password = await bcrypt.hash(student.password, salt);
 
-            // Final check before creating the student
-            console.log('Final student object before creation:', student);
+            // Create the student object
+            const studentData = {
+                username: student.username,
+                password: student.password,
+                name: student.name,
+                role: student.role,
+                age: student.age,
+                gender: student.gender,
+                profileCompleted: student.profileCompleted,
+                isActive: student.isActive,
+                sections: sections.map((section) => section._id), // Store sections as an array of ObjectIds
+                strand: strand._id,
+                subjects: subjects.map((subject) => subject._id),
+                semester: semester._id,
+            };
 
-            // Create the student record in the database
-            const createdStudent = await User.create(student);
-            console.log(`Student ${createdStudent.name} created successfully`);
+            // Save the student to the database
+            const createdStudent = await User.create(studentData);
+            console.log(`Student "${createdStudent.name}" created successfully.`);
         }
 
-        mongoose.connection.close(); // Close the database connection after creating students
+        mongoose.connection.close(); // Close the database connection
     } catch (error) {
-        console.error('Error creating students:', error);
-        mongoose.connection.close();
+        console.error('Error creating predefined students:', error);
+        mongoose.connection.close(); // Close the connection in case of error
     }
 };
 
