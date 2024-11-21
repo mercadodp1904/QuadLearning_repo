@@ -6,9 +6,9 @@ import connectDB from './config/db.js';
 import userRoutes from './routes/userRoutes.js';
 import superadminRoutes from './routes/superadminRoutes.js';
 import { createPredefinedSuperAdmin } from './createSAdmin.js';
-
 import adminRoutes from './routes/adminRoutes.js';
 import teacherRoutes from './routes/teacherRoutes.js';
+
 
 import { createPredefinedStudents } from './createStudent.js';
 import { createPredefinedSemester } from './createSemester.js'; 
@@ -35,6 +35,7 @@ connectDB()
         console.log('Connected to MongoDB');
 
 
+
         // Create the predefined accounts (uncomment if needed)
         // createPredefinedSuperAdmin();
         // createPredefinedStudents();
@@ -45,7 +46,7 @@ connectDB()
         // createPredefinedAdmin();
         // createPredefinedRStudent();
 
-         
+
         // Start the server
         app.listen(port, () => {
             console.log(`Server started on port ${port}`);

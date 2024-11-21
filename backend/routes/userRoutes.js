@@ -7,8 +7,8 @@ import {
 } from '../controllers/userController.js';
 
 
-router.post('/auth', authUser);
 
+router.post('/auth', authUser);
 router.post('/logout', logoutUser);
 
 export default router;

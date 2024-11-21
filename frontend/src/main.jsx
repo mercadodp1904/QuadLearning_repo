@@ -14,16 +14,29 @@ import LoginScreen from './screens/LoginScreen';
 import AdminHomeScreen from './AdminScreens/AdminHomeScreen';
 import AdminViewAllUsersScreen from './AdminScreens/AdminViewAllUsersScreen';
 import Strands from './AdminScreens/strands';
-
+import StudentHomeScreen from './StudentScreens/StudentHomeScreen';
+import TeacherHomeScreen from './TeacherScreens/TeacherHomeScreen';
+import AdminCreateStudentAccount from './AdminScreens/AdminCreateStudentAccount';
+import AdminCreateTeacherAccount from './AdminScreens/AdminCreateTeacherAccount';
+import ManageSubjects from './AdminScreens/ManageSubjects';
+import ManageSemesters from './AdminScreens/ManageSemesters';
+import ManageSections from './AdminScreens/ManageSections';
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path='/' element={<App />}>
       <Route index={true} path='/' element={<HomeScreen />} />
       <Route path='/login' element={<LoginScreen />} />
       <Route path='/admin' element={<AdminHomeScreen />} />
-      <Route path='/admin/view-all-users' element={<AdminViewAllUsersScreen />} />
       <Route path='/admin/Strands' element={<Strands />} />
+      <Route path='/login/AdminScreens/AdminHomeScreen' element={<AdminHomeScreen />} />
       <Route path='/admin/AdminViewAllUsersScreen' element={<AdminViewAllUsersScreen />} />
+      <Route path='/login/StudentScreens/StudentHomeScreen' element={<StudentHomeScreen />} />
+      <Route path='/login/TeacherScreens/TeacherHomeScreen' element={<TeacherHomeScreen />} />
+      <Route path='/admin/AdminCreateStudentAccount/' element={<AdminCreateStudentAccount />} />
+      <Route path='/admin/AdminCreateTeacherAccount' element={<AdminCreateTeacherAccount />}/>
+      <Route path='/admin/ManageSubjects' element={<ManageSubjects />}/>
+      <Route path='/admin/ManageSemesters' element={<ManageSemesters />}/>
+      <Route path='/admin/ManageSections' element={<ManageSections />}/>
     </Route>
   )
 );

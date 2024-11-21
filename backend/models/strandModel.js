@@ -13,6 +13,10 @@ const strandSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Subject' 
     }], 
+    sections: [{ 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Section' 
+    }],
 });
 
 const Strand = mongoose.model('Strand', strandSchema);

@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import Grade from '../models/gradeModel.js';
+
 import User from '../models/userModel.js';
 import Section from '../models/sectionModel.js';
 import Student from '../models/studentModel.js';
@@ -10,7 +11,7 @@ import { fileURLToPath } from 'url';
 
 // Derive __dirname
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(__filename)
 
 // @desc    Get grades for a specific student
 // @route   GET /api/grades/student/:studentId
@@ -25,16 +26,16 @@ const getGradesByStudent = asyncHandler(async (req, res) => {
     }
 
     // Verify if the teacher is assigned to the same section as the student
-    const teacherSections = await Section.find({ teacher: req.user._id }).populate('students');
-    const student = await User.findById(studentId).populate('section');
+    const teacherSections = await Section.find({ teacherId: req.user._id });
+    const student = await User.findById(studentId).populate('sectionId'); // Ensure section info is populated
 
     if (!student || student.role !== 'student' || !student.isActive) {
         res.status(404);
-        throw new Error('Student not found or inactive');
+        throw new Error('Current student not found or inactive');
     }
 
     // Check if the student is in any of the teacher's sections
-    const isAssignedToSection = teacherSections.some(section => section.students.some(s => s._id.equals(student._id)));
+    const isAssignedToSection = teacherSections.some(section => section._id.equals(student.sectionId._id));
 
     if (!isAssignedToSection) {
         res.status(403);
@@ -86,7 +87,7 @@ const addGrade = asyncHandler(async (req, res) => {
 // @access  Private (teacher role)
 const updateGrade = asyncHandler(async (req, res) => {
     const { subject, grade, year } = req.body;
-    const { id } = req.params;
+    const { id } = req.params; // Get the grade ID from the URL
 
     // Check if the user making the request is a teacher
     if (req.user.role !== 'teacher') {
@@ -122,7 +123,7 @@ const updateGrade = asyncHandler(async (req, res) => {
 // @route   DELETE /api/grades/:id
 // @access  Private (teacher role)
 const deleteGrade = asyncHandler(async (req, res) => {
-    const { id } = req.params;
+    const { id } = req.params; // Get the grade ID from the URL
 
     // Check if the user making the request is a teacher
     if (req.user.role !== 'teacher') {
@@ -148,7 +149,7 @@ const deleteGrade = asyncHandler(async (req, res) => {
 // @route   PUT /api/teachers/profile
 // @access  Private (teacher role)
 const updateProfile = asyncHandler(async (req, res) => {
-    const { name, email, subject } = req.body;
+    const { name, email, subject } = req.body; // Capture the details to update
 
     // Find the teacher by ID
     const teacher = await User.findById(req.user._id);
@@ -159,9 +160,9 @@ const updateProfile = asyncHandler(async (req, res) => {
     }
 
     // Update the teacher's profile details
-    teacher.name = name || teacher.name;
+    teacher.name = name || teacher.name; // Keep existing value if not provided
     teacher.email = email || teacher.email;
-    teacher.subject = subject || teacher.subject;
+    teacher.subject = subject || teacher.subject; // Assuming you have a subject field
 
     const updatedTeacher = await teacher.save();
 
@@ -176,6 +177,7 @@ const updateProfile = asyncHandler(async (req, res) => {
 // @desc    Generate Form 137 for a student
 // @route   GET /api/grades/form137/:studentId
 // @access  Private (teacher role)
+
 const generateForm137 = asyncHandler(async (req, res, next) => {
     try {
         const { studentId } = req.params;
@@ -312,6 +314,7 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
             console.error('Error occurred during PDF generation:', error);
         }
     }
+
 });
 
 // @desc    Get students assigned to the adviser
@@ -320,12 +323,15 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 const getAdviserStudents = asyncHandler(async (req, res) => {
     const adviserId = req.user._id;
 
+    // Find sections where this teacher is an adviser
     const sections = await Section.find({ adviser: adviserId }).populate('students');
 
     const students = sections.flatMap(section => section.students);
 
     res.json(students);
 });
+
+
 
 
 export { 
