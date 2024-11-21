@@ -44,10 +44,10 @@ const AdminSidebar = () => {
                         <LinkContainer to="/admin/AdminViewAllUsersScreen">
                             <Nav.Link>View All Users</Nav.Link>
                         </LinkContainer>
-                        <LinkContainer to="/admin/teachers">
+                        <LinkContainer to="/admin/AdminCreateStudentAccount">
                             <Nav.Link>Add New Student Account</Nav.Link>
                         </LinkContainer>
-                        <LinkContainer to="/admin/admins">
+                        <LinkContainer to="/admin/AdminCreateTeacherAccount">
                             <Nav.Link>Add New Teacher Account</Nav.Link>
                         </LinkContainer>
                     </div>
@@ -61,16 +61,19 @@ const AdminSidebar = () => {
                         <i className={`bi bi-chevron-${dropdowns.academic ? 'up' : 'down'} ms-auto`}></i>
                     </div>
                     <div className={`sidebar-dropdown-content ${dropdowns.academic ? 'show' : ''}`}>
-                        <LinkContainer to="/admin/manage-courses">
-                            <Nav.Link>Manage Courses</Nav.Link>
+                        <LinkContainer to="/admin/ManageSubjects">
+                            <Nav.Link>Manage Subjects</Nav.Link>
                         </LinkContainer>
                         <LinkContainer to="/admin/strands">
                         <Nav.Link as={Link} to="/admin/strands">
-                            Create Strand
+                            Manage Strands
                         </Nav.Link>
                         </LinkContainer>
-                        <LinkContainer to="/admin/manage-sections">
+                        <LinkContainer to="/admin/ManageSections">
                             <Nav.Link>Manage Sections</Nav.Link>
+                        </LinkContainer>
+                        <LinkContainer to="/admin/ManageSemesters">
+                            <Nav.Link>Manage Semesters</Nav.Link>
                         </LinkContainer>
                     </div>
                 </div>
