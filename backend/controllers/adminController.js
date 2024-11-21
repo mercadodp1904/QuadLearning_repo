@@ -24,9 +24,6 @@ const createUserAccount = asyncHandler(async (req, res) => {
         throw new Error('Username already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, password: hashedPassword, role });
-
     if (role === 'teacher' && assignedSections && assignedSubjects) {
         newUser.sections = assignedSections;
         newUser.subjects = assignedSubjects;
@@ -387,7 +384,61 @@ const deleteSubject = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/semesters
 // @access  Private (admin role)
 const createSemester = asyncHandler(async (req, res) => {
-    const { name, startDate, endDate } = req.body;
+
+    const { name } = req.body;
+
+    // Check if a semester with the same name already exists
+    const existingSemester = await Semester.findOne({ name });
+    if (existingSemester) {
+        res.status(400);
+        throw new Error('Semester already exists');
+    }
+
+    // Create a new semester
+    const newSemester = await Semester.create({ name });
+
+    res.status(201).json(newSemester);
+});
+
+// @desc    Update a semester
+// @route   PUT /api/admin/semesters/:id
+// @access  Private (admin role)
+const updateSemester = asyncHandler(async (req, res) => {
+    const { name } = req.body;
+    const { id } = req.params;
+
+    const semester = await Semester.findById(id);
+    if (!semester) {
+        res.status(404);
+        throw new Error('Semester not found');
+    }
+
+    // Update the semester's name
+    semester.name = name || semester.name;
+
+    const updatedSemester = await semester.save();
+
+    res.json(updatedSemester);
+});
+
+// @desc    Delete a semester
+// @route   DELETE /api/admin/semesters/:id
+// @access  Private (admin role)
+const deleteSemester = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const semester = await Semester.findById(id);
+    if (!semester) {
+        res.status(404);
+        throw new Error('Semester not found');
+    }
+
+    await semester.remove();
+    res.json({ message: 'Semester deleted successfully' });
+});
+
+
+
 
     // Validate that the startDate and endDate are provided
     if (!startDate || !endDate) {
@@ -467,6 +518,9 @@ export {
     createUserAccount,
     updateUserAccount,
     deleteUserAccount,
+    createSemester,
+    updateSemester,
+    deleteSemester,
     createStrand,
     updateStrand,
     deleteStrand,

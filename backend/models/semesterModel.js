@@ -7,6 +7,7 @@ const semesterSchema = new mongoose.Schema(
         type: String, 
         required: true, 
         enum: ['1st Semester', '2nd Semester', 'Summer Term'], // Assuming two semesters per year, modify if necessary
+
     },
     startDate: {
         type: Date, // Track when the semester starts
