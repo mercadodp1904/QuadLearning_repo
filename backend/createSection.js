@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
-import Section from '../../placeholder/models/sectionModel.js';
-import User from '../../placeholder/models/userModel.js';
-import Subject from '../../placeholder/models/subjectModel.js';
-import Strand from '../../placeholder/models/strandModel.js';
+import Section from './models/sectionModel.js';
+import User from './models/userModel.js';
+import Subject from './models/subjectModel.js';
+import Strand from './models/strandModel.js';
 import connectDB from './config/db.js'; // Import your database connection
 
 const createPredefinedSection = async () => {

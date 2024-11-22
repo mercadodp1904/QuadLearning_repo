@@ -5,6 +5,7 @@ import User from '../models/userModel.js';
 import Section from '../models/sectionModel.js';
 import Student from '../models/studentModel.js';
 import PDFDocument from 'pdfkit';
+import blobStream from 'blob-stream';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -181,130 +182,114 @@ const updateProfile = asyncHandler(async (req, res) => {
 const generateForm137 = asyncHandler(async (req, res, next) => {
     try {
         const { studentId } = req.params;
-        const { additionalFields } = req.body;
-
-        // Fetch the student data
         const student = await Student.findById(studentId)
-            .populate('section strand grades.subjects.subject')
+            .populate('section strand grades.subjects.subject grades.semester')
             .lean();
-
+            console.log(student.grades); // Check if grades.semester is populated
         if (!student) {
             res.status(404);
             throw new Error('Student not found');
         }
 
-        // Initialize PDF Document
         const doc = new PDFDocument({ size: 'A4', margin: 30 });
-
-        // Create the 'pdfs' directory if it doesn't exist
         const pdfDirectory = path.join(__dirname, '../../pdfs');
         if (!fs.existsSync(pdfDirectory)) {
-            fs.mkdirSync(pdfDirectory, { recursive: true }); // Create the directory recursively if needed
+            fs.mkdirSync(pdfDirectory, { recursive: true });
         }
 
-        // Define file path for saving locally
-        const filePath = path.join(
-            __dirname,
-            `../../pdfs/form137-${student.name.replace(/\s+/g, '_')}.pdf`
-        );
-
-        // Create a write stream for saving the file
+        const sanitizedStudentName = student.name.replace(/[\/\\?%*:|"<>]/g, '_');
+        const filePath = path.join(pdfDirectory, `form137-${sanitizedStudentName}.pdf`);
         const writeStream = fs.createWriteStream(filePath);
 
-        // Set up response headers for downloading
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader(
-            'Content-Disposition',
-            `attachment; filename=form137-${student.name.replace(/\s+/g, '_')}.pdf`
-        );
+        res.setHeader('Content-Disposition', `attachment; filename=form137-${sanitizedStudentName}.pdf`);
 
-        // Pipe the PDF to both the response and the local file
         doc.pipe(res);
         doc.pipe(writeStream);
 
-        // Title Section
-        doc.fontSize(16).text('DepEd Form 137', { align: 'center' });
-        doc.moveDown(0.5);
+        doc.font('Helvetica');
 
-        // Student Information Section - formatted with labels and spaces
-        const fieldWidth = 200; // Label field width for alignment
+         // Header Section with Image Placeholders
+         const leftImageX = 30;
+         const leftImageY = 20;
+         const imageWidth = 50;
+         const imageHeight = 50;
+         doc.rect(leftImageX, leftImageY, imageWidth, imageHeight).stroke(); // Placeholder rectangle for the left image
+ 
+         const rightImageX = 500; // Adjust to the right side of the page
+         const rightImageY = 20;
+         doc.rect(rightImageX, rightImageY, imageWidth, imageHeight).stroke(); // Placeholder rectangle for the right image
+        doc.fontSize(16).text('Republic of the Philippines', 50, 20, { align: 'center' });
+        doc.fontSize(14).text('Department of Education', 50, 40, { align: 'center' });
+        doc.fontSize(12).text('Senior High School Student Permanent Record', 50, 60, { align: 'center' });
+        doc.moveDown();
 
-        const drawField = (label, value, yPosition) => {
-            const labelWidth = 100; // Fixed width for the label
-            const fieldWidth = 200; // Width for the value and underline
-            const lineOffset = 12; // Vertical offset for the underline
-        
-            // Draw the label
-            doc.fontSize(12)
-                .text(`${label}:`, 30, yPosition, { width: labelWidth });
-        
-            // Draw the value next to the label
-            doc.fontSize(12)
-                .text(value || '____________________', 30 + labelWidth, yPosition); // Value right next to the label
-        
-            // Draw the underline (line below the value)
-            doc.lineWidth(0.5)
-                .moveTo(30 + labelWidth, yPosition + lineOffset) // Position of the underline
-                .lineTo(30 + labelWidth + fieldWidth, yPosition + lineOffset) // Length of the underline
-                .stroke();
+        doc.fontSize(15).text('Learner Information', 230, 125, { underline: true });
+        const drawField = (label, value, x, y, width = 100) => {
+            doc.fontSize(9).text(label, x, y, { width });
+            doc.rect(x + width - 45, y - 2, 210, 12).stroke();
+            doc.text(value || '', x + width - 40, y, { width: 200 });
         };
-
-        let currentY = doc.y;
-
-        drawField('LRN', student.lrn, currentY); currentY += 40;
-        drawField('Name', student.name, currentY); currentY += 40;
-        drawField('Strand', student.strand?.name, currentY); currentY += 40;
-        drawField('Year Level', student.yearLevel, currentY); currentY += 40;
-        drawField('Section', student.section?.name, currentY); currentY += 40;
-        drawField('Address', student.address, currentY); currentY += 40;
-
-        // Teacher's Notes
-        const notes = additionalFields?.notes || 'No additional notes provided.';
-        doc.fontSize(12).text('Teacher\'s Notes:', 30, currentY, { width: 500, align: 'left' });
-        currentY += 20;
-        doc.fontSize(12).text(notes, 30, currentY, { width: 500, align: 'left' });
-        currentY += 40;
-
-        // Grades Section with Table
-        doc.fontSize(14).text('Grades:', { underline: true });
-        currentY += 20;
-
-        // Draw table headers
-        const tableTop = currentY;
-        const tableWidth = 500;
-        const columnWidth = tableWidth / 4; // Dividing the table into 4 columns
-
-        // Draw header row
-        doc.fontSize(12)
-            .text('Subject', 30, tableTop, { width: columnWidth, align: 'center' })
-            .text('Midterm', 30 + columnWidth, tableTop, { width: columnWidth, align: 'center' })
-            .text('Finals', 30 + 2 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
-            .text('Final Rating', 30 + 3 * columnWidth, tableTop, { width: columnWidth, align: 'center' });
+        doc.moveDown();
         
-        currentY = tableTop + 20; // Moving the currentY down after the header
 
-        // Draw table rows with subject grades
-        student.grades.forEach((grade) => {
-            grade.subjects.forEach((subject) => {
-                doc.fontSize(12)
-                    .text(subject.subject.name || 'N/A', 30, currentY, { width: columnWidth, align: 'center' })
-                    .text(subject.midterm || 'N/A', 30 + columnWidth, currentY, { width: columnWidth, align: 'center' })
-                    .text(subject.finals || 'N/A', 30 + 2 * columnWidth, currentY, { width: columnWidth, align: 'center' })
-                    .text(subject.finalRating || 'N/A', 30 + 3 * columnWidth, currentY, { width: columnWidth, align: 'center' });
-                currentY += 20; // Adding space for the next row
+        let startY = doc.y;
+
+
+        
+
+        drawField('LRN', student.lrn || 'N/A', 30, startY);
+        drawField('Name', student.name || 'N/A', 30, startY + 20);
+        drawField('Strand', student.strand?.name || 'N/A', 30, startY + 40);
+        drawField('Year Level', student.yearLevel || 'N/A', 30, startY + 60);
+        drawField('Section', student.section?.name || 'N/A', 30, startY + 80);
+        drawField('Address', student.address || 'N/A', 30, startY + 100);
+
+        doc.fontSize(15).text('Scholastic Grades\n', 230, 300, { underline: true });
+        doc.moveDown();
+        doc.fontSize(10).text('Semester: 1st Semester', { underline: true });
+        doc.moveDown();
+        const tableTop = doc.y + 10; 
+        const tableWidth = 400;
+        const columnWidth = tableWidth / 4;
+        
+
+        
+       
+       
+
+        doc.fontSize(9)
+            .text('Subject', 30, tableTop, { width: columnWidth, align: 'center' })
+            .text('Midterm', 30 + 2 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
+            .text('Finals', 30 + 3 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
+            .text('Final Rating', 30 + 4 * columnWidth, tableTop, { width: columnWidth, align: 'center' });
+
+        let currentY = tableTop + 20;
+
+        if (!student.grades || student.grades.length === 0) {
+            doc.fontSize(10).text('No grades available.', { align: 'center' });
+        } else {
+            student.grades.forEach((grade) => {
+                grade.subjects.forEach((subject) => {
+                    doc.fontSize(9)
+                        .text(subject.subject.name || 'N/A', 30, currentY, { width: columnWidth, align: 'center' })
+                        .text(subject.midterm || 'N/A', 30 + 2 * columnWidth, currentY, { width: columnWidth, align: 'center' })
+                        .text(subject.finals || 'N/A', 30 + 3 * columnWidth, currentY, { width: columnWidth, align: 'center' })
+                        .text(subject.finalRating || 'N/A', 30 + 4 * columnWidth, currentY, { width: columnWidth, align: 'center' });
+                    currentY += 20;
+                });
             });
-        });
+        }
 
-        // Finalize the PDF
         doc.end();
 
-        // Wait for the file to finish writing
         writeStream.on('finish', () => {
             console.log(`Form 137 saved to: ${filePath}`);
         });
 
         writeStream.on('error', (err) => {
             console.error('Error writing PDF to file:', err);
+            res.status(500).send('Error generating the PDF.');
         });
 
     } catch (error) {
@@ -314,9 +299,7 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
             console.error('Error occurred during PDF generation:', error);
         }
     }
-
 });
-
 // @desc    Get students assigned to the adviser
 // @route   GET /api/teachers/adviser/students
 // @access  Private (teacher role)
