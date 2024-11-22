@@ -87,16 +87,12 @@ const studentSchema = mongoose.Schema(
             },
         },
 
-        // Grades structure with embedded subjects
+        // Grades structure with linked Semester
         grades: [
             {
                 semester: {
-                    type: String,
-                    enum: ['1st', '2nd'],
-                    required: true,
-                },
-                year: {
-                    type: String,
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'Semester',
                     required: true,
                 },
                 subjects: [

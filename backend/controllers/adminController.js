@@ -3,9 +3,7 @@ import User from '../models/userModel.js';
 import Section from '../models/sectionModel.js';
 import Strand from '../models/strandModel.js';
 import Subject from '../models/subjectModel.js';
-import Semester from '../models/semesterModel.js';
 import bcrypt from 'bcryptjs';
-
 
 // @desc    Create user accounts for teacher or student
 // @route   POST /api/admin/users
@@ -40,12 +38,10 @@ const createUserAccount = asyncHandler(async (req, res) => {
             _id: newUser._id,
             username: newUser.username,
             role: newUser.role,
-            createdAt: newUser.createdAt
         },
         message: 'User account created successfully',
     });
 });
-
 // @desc    Get filtered user accounts by role, ordered by creation date
 // @route   GET /api/admin/users/list
 // @access  Private (admin role)
@@ -120,7 +116,7 @@ const deleteUserAccount = asyncHandler(async (req, res) => {
         throw new Error('User not found');
     }
 
-    await User.findByIdAndDelete(id);
+    await user.remove();
     res.json({ message: 'User account deleted successfully' });
 });
 
@@ -136,27 +132,23 @@ const getAllUsers = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/strands
 // @access  Private (admin role)
 const getAllStrands = asyncHandler(async (req, res) => {
-    const strands = await Strand.find({})
-        .populate('subjects', 'name')
-        .populate('sections', 'name');
-    res.status(200).json(strands);
+    const strands = await Strand.find();
+    res.json(strands);
 });
 
 // @desc    Get all sections
 // @route   GET /api/admin/sections
 // @access  Private (admin role)
 const getAllSections = asyncHandler(async (req, res) => {
-    const sections = await Section.find().populate('strand').populate('teacher').populate('subjects'); // Populate strand info
+    const sections = await Section.find().populate('strand'); // Populate strand info
     res.json(sections);
 });
-
-
 
 // @desc    Get all subjects
 // @route   GET /api/admin/subjects
 // @access  Private (admin role)
 const getAllSubjects = asyncHandler(async (req, res) => {
-    const subjects = await Subject.find().populate('semester');
+    const subjects = await Subject.find();
     res.json(subjects);
 });
 
@@ -165,40 +157,17 @@ const getAllSubjects = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/strands
 // @access  Private (admin role)
 const createStrand = asyncHandler(async (req, res) => {
-    const { name, description, subjects, sections } = req.body;
+    const { name , description } = req.body;
 
-    // Check if the strand already exists
     const strandExists = await Strand.findOne({ name });
     if (strandExists) {
         res.status(400);
         throw new Error('Strand already exists');
     }
 
-    // Ensure the subjects and sections are provided (or can be empty arrays)
-    if (!Array.isArray(subjects) || !Array.isArray(sections)) {
-        res.status(400);
-        throw new Error('Subjects and sections must be arrays');
-    }
-
-    // Create a new strand
-    const newStrand = await Strand.create({
-        name,
-        description,
-        subjects, // Store subjects as an array of ObjectId references
-        sections, // Store sections as an array of ObjectId references
-    });
-
-    // Populate subjects and sections in the response
-    const populatedStrand = await Strand.findById(newStrand._id)
-        .populate('subjects', 'name') // Include only the 'name' field of subjects
-        .populate('sections', 'name'); // Include only the 'name' field of sections
-
-    // Respond with the newly created strand
-    res.status(201).json(populatedStrand);
+    const newStrand = await Strand.create({ name  , description});
+    res.status(200).json(newStrand);
 });
-
-
-
 
 // @desc    Update a strand
 // @route   PUT /api/admin/strands/:id
@@ -239,38 +208,20 @@ const deleteStrand = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/sections
 // @access  Private (admin role)
 const createSection = asyncHandler(async (req, res) => {
-    const { name, strand, teacher, subjects } = req.body;
+    const { name, strandId } = req.body;
 
-    // Validate the strand
-    const strandRecord = await Strand.findById(strand);
-    if (!strandRecord) {
-        return res.status(404).json({ message: 'Strand not found' }); // Ensure valid JSON is sent
+    const strand = await Strand.findById(strandId);
+    if (!strand) {
+        res.status(404);
+        throw new Error('Strand not found');
     }
 
-    // Validate the teacher
-    const teacherRecord = await User.findById(teacher);
-    if (!teacherRecord) {
-        return res.status(404).json({ message: 'Teacher not found' });
-    }
+    const newSection = await Section.create({ name, strand: strandId });
+    strand.sections.push(newSection._id);
+    await strand.save();
 
-    // Create new section
-    const newSection = new Section({
-        name,
-        strand,
-        teacher,
-        subjects,
-    });
-
-    await newSection.save();
-
-    // Update strand with new section
-    strandRecord.sections.push(newSection._id);
-    await strandRecord.save();
-
-    // Send a successful response with JSON data
     res.status(201).json(newSection);
 });
-
 
 // @desc    Update a section
 // @route   PUT /api/admin/sections/:id
@@ -311,38 +262,17 @@ const deleteSection = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/subjects
 // @access  Private (admin role)
 const createSubject = asyncHandler(async (req, res) => {
-    const { name, code, semester } = req.body;
+    const { name, code } = req.body;
 
-    // Check if the subject already exists by its code
     const subjectExists = await Subject.findOne({ code });
     if (subjectExists) {
         res.status(400);
         throw new Error('Subject already exists');
     }
 
-    // Validate semester
-    if (!semester) {
-        res.status(400);
-        throw new Error('Semester is required');
-    }
-
-    // Validate that the semester exists in the database (assuming you have a Semester model)
-    const semesterExists = await Semester.findById(semester);
-    if (!semesterExists) {
-        res.status(400);
-        throw new Error('Invalid semester');
-    }
-
-    // Create the new subject with the semester reference
-    const newSubject = await Subject.create({
-        name,
-        code,
-        semester, // Save the semester reference
-    });
-
-    res.status(201).json(newSubject); // Respond with the newly created subject
+    const newSubject = await Subject.create({ name, code });
+    res.status(201).json(newSubject);
 });
-
 
 // @desc    Update a subject
 // @route   PUT /api/admin/subjects/:id
@@ -384,7 +314,6 @@ const deleteSubject = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/semesters
 // @access  Private (admin role)
 const createSemester = asyncHandler(async (req, res) => {
-
     const { name } = req.body;
 
     // Check if a semester with the same name already exists
@@ -398,6 +327,14 @@ const createSemester = asyncHandler(async (req, res) => {
     const newSemester = await Semester.create({ name });
 
     res.status(201).json(newSemester);
+});
+
+// @desc    Get all strands
+// @route   GET /api/admin/strands
+// @access  Private (admin role)
+const getAllSemesters = asyncHandler(async (req, res) => {
+    const semester = await Semester.find();
+    res.json(semester);
 });
 
 // @desc    Update a semester
@@ -439,80 +376,6 @@ const deleteSemester = asyncHandler(async (req, res) => {
 
 
 
-
-    // Validate that the startDate and endDate are provided
-    if (!startDate || !endDate) {
-        res.status(400);
-        throw new Error('Start date and End date are required');
-    }
-
-    // Check if a semester with the same name already exists
-    const existingSemester = await Semester.findOne({ name });
-    if (existingSemester) {
-        res.status(400);
-        throw new Error('Semester already exists');
-    }
-
-    // Create a new semester with the startDate and endDate
-    const newSemester = await Semester.create({
-        name,
-        startDate: new Date(startDate),  // Ensure startDate is a Date object
-        endDate: new Date(endDate),      // Ensure endDate is a Date object
-    });
-
-    // Respond with the newly created semester
-    res.status(201).json(newSemester);
-});
-
-
-// @desc    Update a semester
-// @route   PUT /api/admin/semesters/:id
-// @access  Private (admin role)
-const updateSemester = asyncHandler(async (req, res) => {
-    const { name } = req.body;
-    const { id } = req.params;
-
-    const semester = await Semester.findById(id);
-    if (!semester) {
-        res.status(404);
-        throw new Error('Semester not found');
-    }
-
-    // Update the semester's name
-    semester.name = name || semester.name;
-
-    const updatedSemester = await semester.save();
-
-    res.json(updatedSemester);
-});
-
-// @desc    Delete a semester
-// @route   DELETE /api/admin/semesters/:id
-// @access  Private (admin role)
-const deleteSemester = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-
-    // Find the semester by ID
-    const semester = await Semester.findById(id);
-    if (!semester) {
-        res.status(404);
-        throw new Error('Semester not found');
-    }
-
-    // Use deleteOne instead of remove
-    await Semester.deleteOne({ _id: id });
-
-    res.json({ message: 'Semester deleted successfully' });
-});
-
-// @desc    Get all strands
-// @route   GET /api/admin/strands
-// @access  Private (admin role)
-const getAllSemesters = asyncHandler(async (req, res) => {
-    const semester = await Semester.find();
-    res.json(semester);
-});
-
 // Exporting functions
 export { 
     createUserAccount,
@@ -534,9 +397,6 @@ export {
     getAllStrands,
     getAllSections,
     getAllSubjects,
-    getUserListByRole,
-    createSemester,
-    updateSemester,
-    deleteSemester,
-    getAllSemesters
+    getAllSemesters,
+    getUserListByRole
 };

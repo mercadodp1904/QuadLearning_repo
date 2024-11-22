@@ -4,6 +4,7 @@ import User from './models/userModel.js';
 import Section from './models/sectionModel.js'; 
 import Strand from './models/strandModel.js'; 
 import Subject from './models/subjectModel.js'; 
+import Semester from './models/semesterModel.js';  // Import Semester model
 
 const createPredefinedRStudent = async () => {
     try {
@@ -20,25 +21,10 @@ const createPredefinedRStudent = async () => {
             throw new Error('User not found.');
         }
 
-        // Debug: Log the populated user object to see the subjects and teachers
-        console.log('Populated user:', user);
-
         // Ensure subjects are populated correctly
         if (!user.subjects || user.subjects.length === 0) {
             throw new Error('Subjects not populated for the user.');
         }
-
-        // Log subjects to ensure teachers are included
-        user.subjects.forEach(subject => {
-            console.log(`Subject: ${subject.name}`);
-            if (subject.teachers && subject.teachers.length > 0) {
-                subject.teachers.forEach(teacher => {
-                    console.log(`Teacher: ${teacher.name} (ID: ${teacher._id})`);
-                });
-            } else {
-                console.log('No teachers found for this subject.');
-            }
-        });
 
         // Extract sections, strand, and subjects from the populated user
         const sections = user.sections; // Assuming this is an array of sections
@@ -48,6 +34,17 @@ const createPredefinedRStudent = async () => {
         // Ensure at least one section and strand exist before creating the student
         if (!sections || sections.length === 0 || !strand) {
             throw new Error('Sections or Strand not found for the user.');
+        }
+
+        // Fetch the semester using name and startDate (or endDate) for validation
+        const semester = await Semester.findOne({
+            name: '1st Semester',
+            startDate: { $gte: new Date('2024-11-30T00:00:00.000Z') },
+            endDate: { $lte: new Date('2025-01-17T00:00:00.000Z') }
+        });
+
+        if (!semester) {
+            throw new Error('Semester not found.');
         }
 
         // Predefined student data
@@ -80,7 +77,7 @@ const createPredefinedRStudent = async () => {
             },
             grades: [
                 {
-                    semester: '1st',
+                    semester: semester._id, // Use the semester's _id here
                     year: '2024',
                     subjects: subjects.map((subject) => ({
                         subject: subject._id, // Reference to Subject
@@ -98,9 +95,6 @@ const createPredefinedRStudent = async () => {
             ],
             contactNumber: '09123456789',
         };
-
-        // Debug: Log the student data before creating the student
-        console.log('Student Data:', studentData);
 
         // Create the student
         const student = await Student.create(studentData);
