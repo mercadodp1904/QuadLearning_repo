@@ -156,9 +156,15 @@ const getAllSections = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/subjects
 // @access  Private (admin role)
 const getAllSubjects = asyncHandler(async (req, res) => {
-    const subjects = await Subject.find().populate('semester');
+    const subjects = await Subject.find()
+        .populate('semester', 'name')
+        .populate('sections', 'name')
+        .populate('teachers', 'username'); // Ensure this is properly populated
+
     res.json(subjects);
 });
+
+
 
 
 // @desc    Create a new strand
@@ -204,7 +210,7 @@ const createStrand = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/strands/:id
 // @access  Private (admin role)
 const updateStrand = asyncHandler(async (req, res) => {
-    const { name } = req.body;
+    const { name, description, sections, subjects } = req.body;
     const { id } = req.params;
 
     const strand = await Strand.findById(id);
@@ -214,6 +220,9 @@ const updateStrand = asyncHandler(async (req, res) => {
     }
 
     strand.name = name;
+    strand.description = description;
+    strand.sections = sections;
+    strand.subjects = subjects;
     const updatedStrand = await strand.save();
 
     res.json(updatedStrand);
@@ -231,8 +240,8 @@ const deleteStrand = asyncHandler(async (req, res) => {
         throw new Error('Strand not found');
     }
 
-    await strand.remove();
-    res.json({ message: 'Strand deleted successfully' });
+    await Strand.findByIdAndDelete(id);
+    res.json({ message: 'Deleted successfully' });
 });
 
 // @desc    Create a new section
@@ -276,7 +285,7 @@ const createSection = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/sections/:id
 // @access  Private (admin role)
 const updateSection = asyncHandler(async (req, res) => {
-    const { name } = req.body;
+    const { name, strand, teacher, subjects } = req.body;
     const { id } = req.params;
 
     const section = await Section.findById(id);
@@ -286,6 +295,9 @@ const updateSection = asyncHandler(async (req, res) => {
     }
 
     section.name = name;
+    section.strand = strand;
+    section.teacher = teacher;
+    section.subjects = subjects;
     const updatedSection = await section.save();
 
     res.json(updatedSection);
@@ -303,7 +315,7 @@ const deleteSection = asyncHandler(async (req, res) => {
         throw new Error('Section not found');
     }
 
-    await section.remove();
+    await Section.findByIdAndDelete(id);
     res.json({ message: 'Section deleted successfully' });
 });
 
@@ -311,7 +323,7 @@ const deleteSection = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/subjects
 // @access  Private (admin role)
 const createSubject = asyncHandler(async (req, res) => {
-    const { name, code, semester } = req.body;
+    const { name, code, semester, teachers, sections } = req.body;
 
     // Check if the subject already exists by its code
     const subjectExists = await Subject.findOne({ code });
@@ -326,29 +338,41 @@ const createSubject = asyncHandler(async (req, res) => {
         throw new Error('Semester is required');
     }
 
-    // Validate that the semester exists in the database (assuming you have a Semester model)
+    // Validate that the semester exists in the database
     const semesterExists = await Semester.findById(semester);
     if (!semesterExists) {
         res.status(400);
         throw new Error('Invalid semester');
     }
 
-    // Create the new subject with the semester reference
+    // Validate that all teachers exist
+    if (teachers && teachers.length > 0) {
+        const validTeachers = await User.find({ '_id': { $in: teachers } });
+        if (validTeachers.length !== teachers.length) {
+            res.status(400);
+            throw new Error('Some teachers are invalid');
+        }
+    }
+
+    // Create the new subject with teachers
     const newSubject = await Subject.create({
         name,
         code,
-        semester, // Save the semester reference
+        semester,
+        teachers,  // This should now be an array of teacher IDs
+        sections,
     });
 
     res.status(201).json(newSubject); // Respond with the newly created subject
 });
 
 
+
 // @desc    Update a subject
 // @route   PUT /api/admin/subjects/:id
 // @access  Private (admin role)
 const updateSubject = asyncHandler(async (req, res) => {
-    const { name, code } = req.body;
+    const { name, code, semester, teacher, sections } = req.body;
     const { id } = req.params;
 
     const subject = await Subject.findById(id);
@@ -359,6 +383,9 @@ const updateSubject = asyncHandler(async (req, res) => {
 
     subject.name = name;
     subject.code = code;
+    subject.semester = semester;
+    subject.teacher = teacher;
+    subject.sections = sections;
     const updatedSubject = await subject.save();
 
     res.json(updatedSubject);
@@ -376,8 +403,8 @@ const deleteSubject = asyncHandler(async (req, res) => {
         throw new Error('Subject not found');
     }
 
-    await subject.remove();
-    res.json({ message: 'Subject deleted successfully' });
+    await Subject.findByIdAndDelete(id);
+    res.json({ message: 'User account deleted successfully' });
 });
 
 // @desc    Create a new semester
@@ -469,7 +496,7 @@ const deleteSemester = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/semesters/:id
 // @access  Private (admin role)
 const updateSemester = asyncHandler(async (req, res) => {
-    const { name } = req.body;
+    const { name, startDate, endDate } = req.body;
     const { id } = req.params;
 
     const semester = await Semester.findById(id);
@@ -480,6 +507,8 @@ const updateSemester = asyncHandler(async (req, res) => {
 
     // Update the semester's name
     semester.name = name || semester.name;
+    semester.startDate = startDate || semester.startDate;
+    semester.endDate = endDate || semester.endDate;
 
     const updatedSemester = await semester.save();
 

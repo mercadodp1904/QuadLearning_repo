@@ -4,7 +4,7 @@ import '../AdminComponents/AdminSidebar.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import { useState , useEffect } from 'react';
-import AdminSidebar from "../AdminComponents/AdminSidebar";
+import AdminSidebar from "../AdminComponents/AdminSidebar"; 
 import '../AdminComponents/AdminTableList.css';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
