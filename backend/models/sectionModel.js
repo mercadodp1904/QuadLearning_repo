@@ -9,11 +9,11 @@ const sectionSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User' 
     }], // Students in this section
-    teacher: { 
+    teacher: [{ 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User',
         required: false 
-    }, // Assigned teacher
+    }], // Assigned teacher
     subjects: [{ 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Subject',

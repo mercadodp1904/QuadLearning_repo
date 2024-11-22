@@ -20,7 +20,7 @@ const ManageSemesters = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [show, setShow] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
-
+    const [editModalShow, setEditModalShow] = useState(false);
     // Reusable fetchSemesters function
     const fetchSemesters = async () => {
         const token = localStorage.getItem('token'); // Retrieve the token from localStorage
@@ -109,18 +109,44 @@ const ManageSemesters = () => {
         } finally {
             setLoading(false);
         }
+        fetchSemesters();
     };
 
     
     const handleClose = () => {
         setShow(false);
-        setselectedSemesterId(null);  // Reset selectedUserId when modal closes
+        setselectedSemesterId(null);
     };
+    
 
     const handleShow = (semesterId) => {
         setselectedSemesterId(semesterId);  // Set the userId when showing modal
         setShow(true);
     };
+
+    const handleEditShow = (semesterId) => {
+        const semester = semesters.find((semester) => semester._id === semesterId);
+        if (semester) {
+            setselectedSemesterId(semesterId);
+            setName(semester.name);
+            setStartDate(semester.startDate);
+            setEndDate(semester.endDate);
+    
+            setEditModalShow(true);
+        } else {
+            console.error('Section not found');
+        }
+    };
+    
+    const handleCloseModal = () => {
+        setEditModalShow(false);
+        setselectedSemesterId(null);
+        setName('');
+        setStartDate('');
+        setEndDate('');
+        // Don't reset studSections unless necessary.
+    };
+    
     
     const deleteHandler = async (semesterId) => {
         const token = localStorage.getItem('token'); // Retrieve token
@@ -134,8 +160,11 @@ const ManageSemesters = () => {
             });
     
             if (response.ok) {
+                // Update semesters list
                 setSemesters(prevSemesters => prevSemesters.filter(semester => semester._id !== semesterId));
-                handleClose();  // Close the modal after deletion
+                
+                // Close the modal
+                handleClose();
             } else {
                 const error = await response.json();  // Log the error message from backend
                 console.error('Error deleting semester:', error.message);
@@ -144,6 +173,7 @@ const ManageSemesters = () => {
             console.error('Error deleting semester:', error.message);
         }
     };
+    
     
 
     // Filtering and Pagination
@@ -161,6 +191,46 @@ const ManageSemesters = () => {
         if (direction === 'prev' && currentPage > 1) setCurrentPage(currentPage - 1);
         if (direction === 'next' && currentPage < totalPages) setCurrentPage(currentPage + 1);
     };
+
+    const handleSaveChanges = async () => {
+        
+        const updatedSection = {
+            name,
+            startDate: startDate, // This could be the value selected from the dropdown
+            endDate: endDate, // Pass the selected subjects 
+        };
+    
+        const token = localStorage.getItem('token');
+    
+        try {
+            const response = await fetch(`/api/admin/semesters/${selectedSemesterId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(updatedSection),
+            });
+    
+            const result = await response.json();
+    
+            if (response.ok) {
+                // Successfully updated the semester
+                setSemesters((prevSemesters) =>
+                    prevSemesters.map((semester) =>
+                        semester._id === selectedSemesterId ? result : semester // Use `semester` instead of `section`
+                    )
+                );
+                handleCloseModal(); // Close modal after saving
+            } else {
+                console.error('Error updating strand:', result.message);
+            }
+        } catch (error) {
+            console.error('Failed to update strand:', error);
+        }
+        fetchSemesters(); // Refresh the data
+    };
+    
 
     return (
         <>
@@ -283,15 +353,18 @@ const ManageSemesters = () => {
                                                     <td>{new Date(semester.startDate).toLocaleDateString()}</td>
                                                     <td>{new Date(semester.endDate).toLocaleDateString()}</td>
                                                     <td>
-                                                        <Button variant="info" size="sm" className="me-2">
-                                                            Edit
-                                                        </Button>
-                                                        <button 
-                                                        className='btn btn-danger custom-btn' 
-                                                        onClick={() => handleShow(semester._id)}
-                                                    >
-                                                        Delete
-                                                    </button>
+                                                    <button
+                                             className="btn btn-primary custom-btn"
+                                                onClick={() => handleEditShow(semester._id)}
+                                             >
+                                                  Edit
+                                        </button>
+                                             <button
+                                            className="btn btn-danger custom-btn"
+                                            onClick={() => handleShow(semester._id)}
+                                        >
+                                             Delete
+                                         </button>
                                                     </td>
                                                 </tr>
                                             ))
@@ -345,6 +418,58 @@ const ManageSemesters = () => {
         </Button>
         </Modal.Footer>
       </Modal>
+       {/* Edit Modal */}
+       <Modal show={editModalShow} onHide={handleCloseModal}>
+                            <Modal.Header closeButton>
+                                <Modal.Title>Edit Semester</Modal.Title>
+                            </Modal.Header>
+                            <Modal.Body>
+                                {error && <div className="alert alert-danger">{error}</div>}
+                                <Form>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Semester Name</Form.Label>
+                                        <Form.Control
+                                            as="select"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                        >
+                                            <option value="">Select Semester</option>
+                                            <option value="1st Semester">1st Semester</option>
+                                            <option value="2nd Semester">2nd Semester</option>
+                                            <option value="Summer Term">Summer Term</option>
+                                        </Form.Control>
+                                    </Form.Group>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Start Date</Form.Label>
+                                        <Form.Control
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                        />
+                                    </Form.Group>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>End Date</Form.Label>
+                                        <Form.Control
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                        />
+                                    </Form.Group>
+                                </Form>
+                            </Modal.Body>
+                            <Modal.Footer>
+                                <Button variant="secondary" onClick={handleCloseModal}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="primary"
+                                    onClick={handleSaveChanges}
+                                    disabled={loading}
+                                >
+                                    {loading ? 'Updating...' : 'Update Semester'}
+                                </Button>
+                            </Modal.Footer>
+                        </Modal>
         </>
     );
 };
