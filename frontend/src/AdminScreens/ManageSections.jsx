@@ -4,7 +4,8 @@ import AdminSidebar from "../AdminComponents/AdminSidebar";
 import { useNavigate } from 'react-router-dom';
 import './AdminCreateStrand.css';
 import { FaSearch } from 'react-icons/fa';
-
+import Modal from 'react-bootstrap/Modal';
+import { set } from 'mongoose';
 const ManageSections = () => {
     const navigate = useNavigate();
     const [studSections, setStudSections] = useState([]);
@@ -20,7 +21,123 @@ const ManageSections = () => {
     const [users, setUsers] = useState([]);
     const [studSubjects, setStudSubjects] = useState([]);  // List of all subjects
     const [selectedSubjects, setSelectedSubjects] = useState([]);  // List of selected subject IDs
+    const [selectedTeachers, setSelectedTeachers] = useState([]);  // List of selected subject IDs
+    const [show, setShow] = useState(false);
+    const [editModalShow, setEditModalShow] = useState(false);
+    const [selectedSectionId, setSelectedSectionId] = useState(null);
+    
+    const handleClose = () => {
+        setShow(false);
+        setSelectedSectionId(null);  // Reset selectedUserId when modal closes
+    };
 
+    const handleShow = (sectionId) => {
+        setSelectedSectionId(sectionId);  // Set the userId when showing modal
+        setShow(true);
+    };
+
+      
+    const handleEditShow = (sectionId) => {
+        const section = studSections.find((section) => section._id === sectionId);
+        if (section) {
+            setSelectedSectionId(sectionId);
+            setName(section.name);
+            setLinkedStrand(section.strand);
+            setSelectedTeachers(section.teacher || []);
+            setSelectedSubjects(section.subject || []);  // Ensure it's an array
+    
+            setEditModalShow(true);
+        } else {
+            console.error('Section not found');
+        }
+    };
+    
+    const handleCloseModal = () => {
+        setEditModalShow(false);
+        setSelectedSectionId(null);
+        setName('');
+        setStudStrands('');
+        setSelectedTeachers([]);
+        setSelectedSubjects([]);
+        // Don't reset studSections unless necessary.
+    };
+    
+    
+
+    
+    
+    const handleSaveChanges = async () => {
+        
+        const updatedSection = {
+            name,
+            strand: linkedStrand, // This could be the value selected from the dropdown
+            teacher: selectedTeachers, // Pass the selected subjects
+            subjects: selectedSubjects, // Pass the selected sections
+        };
+    
+        const token = localStorage.getItem('token');
+    
+        try {
+            const response = await fetch(`/api/admin/sections/${selectedSectionId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(updatedSection),
+            });
+    
+            const result = await response.json();
+    
+            if (response.ok) {
+                // Successfully updated the strand
+                setStudSections((prevSections) =>
+                    prevSections.map((section) =>
+                        section._id === selectedSectionId ? result : section
+                    )
+                );
+                handleCloseModal(); // Close modal after saving
+            } else {
+                console.error('Error updating strand:', result.message);
+            }
+        } catch (error) {
+            console.error('Failed to update strand:', error);
+        }
+        fetchData(); // Refresh the data
+    };
+    
+    
+    
+    
+    
+
+    const deleteHandler = async (sectionId) => {
+        const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+        console.log("Deleting subject with ID:", sectionId);
+        try {
+            const response = await fetch(`/api/admin/sections/${sectionId}`, { // Corrected endpoint
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`, // Ensure token is included
+                }
+            });
+    
+            console.log("Response status:", response.status);
+            if (response.ok) {
+                setStudSections((prevSections) => prevSections.filter((section) => section._id !== sectionId));
+                handleClose(); // Close the modal after deletion
+            } else {
+                const json = await response.json();
+                console.error('Error response:', json);
+                setError(json.message);
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            setError('Failed to delete user');
+        }
+        fetchData();
+    };
     const fetchData = async () => {
         const token = localStorage.getItem('token');
         
@@ -31,37 +148,43 @@ const ManageSections = () => {
                 fetch('/api/admin/users?role=teacher', { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }),
                 fetch('/api/admin/getSubjects', { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }),
             ]);
-    
+        
             if (!sectionsResponse.ok || !strandsResponse.ok || !usersResponse.ok || !subjectsResponse.ok) {
                 throw new Error('Failed to fetch one or more resources');
             }
-    
+        
             const [sectionsData, strandsData, usersData, subjectsData] = await Promise.all([
                 sectionsResponse.json(),
                 strandsResponse.json(),
                 usersResponse.json(),
                 subjectsResponse.json(),
             ]);
-    
+        
             console.log('Fetched Sections:', sectionsData);
             console.log('Fetched Strands:', strandsData);
             console.log('Fetched Users:', usersData);
             console.log('Fetched Subjects:', subjectsData);
-    
-            setStudSections(sectionsData);
-            setStudStrands(strandsData);
-            setUsers(usersData);
-            setStudSubjects(subjectsData);
-    
+        
+            setStudSections(sectionsData || []);  // Set empty array if data is missing
+            setStudStrands(strandsData || []);  // Set empty array if data is missing
+            setUsers(usersData || []);
+            setStudSubjects(subjectsData || []);
+        
         } catch (error) {
             setError('An error occurred while fetching data');
             console.error('Error fetching data:', error.message);
         }
     };
-
+    
     useEffect(() => {
-        fetchData(); // Fetch data when the component mounts
+        fetchData();
     }, []);
+    
+    useEffect(() => {
+        console.log('Stud Sections:', studSections);
+        console.log('Stud Strands:', studStrands);
+    }, [studSections, studStrands]);
+    
     
     const handleSubmit = async (e) => {
         const token = localStorage.getItem('token'); // Retrieve the token from localStorage
@@ -71,8 +194,8 @@ const ManageSections = () => {
 
         const sectionData = {
             name,
-            teacher, // Use the selected teacher ID
             strand: linkedStrand,
+            teacher: selectedTeachers, // Use the selected teacher ID
             subjects: selectedSubjects,  // Use selectedSubjects here
         };
 
@@ -93,7 +216,7 @@ const ManageSections = () => {
             } else {
                 setName('');
                 setLinkedStrand('');
-                setTeacher(''); // Reset teacher after successful creation
+                setSelectedTeachers([]); // Reset teacher after successful creation
                 setSelectedSubjects([]); // Reset selected subjects after successful section creation
                 console.log('Section created successfully');
                 fetchData();  // Re-fetch Sections to update the table
@@ -152,29 +275,38 @@ const ManageSections = () => {
                                     </Form.Group>
 
                                     <Form.Group className="mb-3">
-                                        <Form.Label>Strands:</Form.Label>
-                                        <Form.Select
-                                            value={linkedStrand}
-                                            onChange={(e) => setLinkedStrand(e.target.value)}
-                                            required
-                                        >
-                                            <option value="">Select Strand</option>
-                                            {studStrands.map((strand) => (
+                                    <Form.Label>Strands:</Form.Label>
+                                    <Form.Select
+                                        value={linkedStrand}
+                                        onChange={(e) => setLinkedStrand(e.target.value)}
+                                        required
+                                    >
+                                        <option value="">Select Strand</option>
+                                        {Array.isArray(studStrands) && studStrands.length > 0 ? (
+                                            studStrands.map((strand) => (
                                                 <option key={strand._id} value={strand._id}>
                                                     {strand.name}
                                                 </option>
-                                            ))}
-                                        </Form.Select>
-                                    </Form.Group>
+                                            ))
+                                        ) : (
+                                            <option disabled>No strands available</option>  
+                                        )}
+                                    </Form.Select>
+                                </Form.Group>
+
+
 
                                     <Form.Group className="mb-3">
                                         <Form.Label>Teachers:</Form.Label>
                                         <Form.Select
-                                            value={teacher}
-                                            onChange={(e) => setTeacher(e.target.value)}
+                                        multiple
+                                            value={selectedTeachers}
+                                            onChange={(e) => {
+                                                const selected = Array.from(e.target.selectedOptions, option => option.value);
+                                                setSelectedTeachers(selected); // Update selected subjects
+                                            }}
                                             required
                                         >
-                                            <option value="">Select Teacher</option>
                                             {users.map((teacher) => (
                                                 <option key={teacher._id} value={teacher._id}>
                                                     {teacher.username}
@@ -186,22 +318,24 @@ const ManageSections = () => {
                                     <Form.Group className="mb-3">
                                         <Form.Label>Select Subjects:</Form.Label>
                                         <Form.Select
-                                            multiple
-                                            value={selectedSubjects} // Bind this to selectedSubjects
-                                            onChange={(e) => {
-                                                const selected = Array.from(e.target.selectedOptions, option => option.value);
-                                                setSelectedSubjects(selected); // Update selected subjects
-                                            }}
-                                            required
-                                        >
-                                            <option value="">Select Subjects</option>
-                                            {studSubjects.map((subject) => (
-                                                <option key={subject._id} value={subject._id}>
-                                                    {subject.name}
-                                                </option>
-                                            ))}
-                                        </Form.Select>
+                                        multiple
+                                        value={selectedSubjects}
+                                        onChange={(e) => {
+                                            const selected = Array.from(e.target.selectedOptions, option => option.value);
+                                            setSelectedSubjects(selected); // Update selected subjects
+                                        }}
+                                        required
+                                    >
+                                        {studSubjects.map((subject) => (
+                                            <option key={subject._id} value={subject._id}>
+                                                {subject.name}
+                                            </option>
+                                        ))}
+                                    </Form.Select>
+
                                     </Form.Group>
+
+
 
                                     <div className="d-flex gap-2">
                                         <Button
@@ -258,20 +392,39 @@ const ManageSections = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {currentEntries.map((section) => (
-                                            <tr key={section._id}>
-                                                <td>{section.name}</td>
-                                                <td>{section.strand.name}</td>
-                                                <td>{section.teacher.username}</td>
-                                                <td>{section.subjects.map((subject) => subject.name).join(', ')}</td>
-                                                <td>
-                                                    <Button variant="warning" onClick={() => handleEdit(section._id)}>
-                                                        Edit
-                                                    </Button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
+                                {currentEntries.map((section) => (
+                                    <tr key={section._id}>
+                                        <td>{section.name}</td>
+                                        <td>{section.strand ? section.strand.name : 'N/A'}</td>
+                                        <td>
+                                        {Array.isArray(section.teacher) && section.teacher.length > 0
+                                            ? section.teacher.map((teacher) => teacher.username).join(', ')
+                                            : 'N/A'}
+                                    </td>
+
+                                        <td>
+                                            {Array.isArray(section.subjects) && section.subjects.length > 0
+                                                ? section.subjects.map((subject) => subject.name).join(', ')
+                                                : 'N/A'}
+                                        </td>
+                                        <td>
+                                        <button
+                                             className="btn btn-primary custom-btn"
+                                                onClick={() => handleEditShow(section._id)}
+                                             >
+                                                  Edit
+                                        </button>
+                                             <button
+                                            className="btn btn-danger custom-btn"
+                                            onClick={() => handleShow(section._id)}
+                                        >
+                                             Delete
+                                         </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+
                                 </Table>
 
                                 <div className="d-flex justify-content-between">
@@ -296,6 +449,111 @@ const ManageSections = () => {
                             </Card.Body>
                         </Card>
                     </Container>
+                    <Modal show={show} onHide={handleClose} className='text-center'>
+        <Modal.Header closeButton className='text-center'>
+          <Modal.Title className='text-center w-100'>CONFIRMATION MESSAGE</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>The data will be erased and cannot be retrieved. Are you sure you want to continue?</Modal.Body>
+        <Modal.Footer className='justify-content-center'>
+        <Button variant="primary" className="px-4" onClick={() => setShow(false)}>
+            Cancel
+          </Button>
+      <Button 
+            variant="danger" 
+            className="px-4" 
+            onClick={() => selectedSectionId && deleteHandler(selectedSectionId)}
+        >
+            Confirm
+        </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={editModalShow} onHide={handleCloseModal}>
+    <Modal.Header closeButton>
+        <Modal.Title>Edit Section</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+        <Form>
+            {/* Strand Name */}
+            <Form.Group className="mb-3">
+                <Form.Label>Section Name</Form.Label>
+                <Form.Control
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                />
+            </Form.Group>
+
+                                        {/* Strand Description */}
+                                        <Form.Group className="mb-3">
+    <Form.Label>Strand</Form.Label>
+    <Form.Control
+        as="select"
+        value={linkedStrand || ""} // Default to an empty string
+        onChange={(e) => setLinkedStrand(e.target.value)}
+        required
+    >
+        <option value="">Select Strand</option>
+        {Array.isArray(studStrands) &&
+            studStrands.map((strand) => (
+                <option key={strand._id} value={strand._id}>
+                    {strand.name}
+                </option>
+            ))}
+    </Form.Control>
+</Form.Group>
+
+<Form.Group className="mb-3">
+    <Form.Label>Teachers</Form.Label>
+    <Form.Control
+        as="select"
+        multiple
+        value={selectedTeachers || []} // Default to an empty array
+        onChange={(e) =>
+            setSelectedTeachers([...e.target.selectedOptions].map((option) => option.value))
+        }
+        required
+    >
+        {users.map((teacher) => (
+            <option key={teacher._id} value={teacher._id}>
+                {teacher.username}
+            </option>
+        ))}
+    </Form.Control>
+</Form.Group>
+
+<Form.Group className="mb-3">
+    <Form.Label>Subjects</Form.Label>
+    <Form.Control
+        as="select"
+        multiple
+        value={selectedSubjects || []} // Default to an empty array
+        onChange={(e) =>
+            setSelectedSubjects([...e.target.selectedOptions].map((option) => option.value))
+        }
+        required
+    >
+        {studSubjects.map((subject) => (
+            <option key={subject._id} value={subject._id}>
+                {subject.name}
+            </option>
+        ))}
+    </Form.Control>
+</Form.Group>
+
+
+        </Form>
+    </Modal.Body>
+    <Modal.Footer>
+        <Button variant="secondary" onClick={handleCloseModal}>
+            Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSaveChanges}>
+            Save Changes
+        </Button>
+    </Modal.Footer>
+</Modal>
                 </main>
             </div>
         </>

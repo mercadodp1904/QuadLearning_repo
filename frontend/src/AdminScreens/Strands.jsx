@@ -4,6 +4,7 @@ import AdminSidebar from "../AdminComponents/AdminSidebar";
 import { useNavigate } from 'react-router-dom';
 import './AdminCreateStrand.css';
 import { FaSearch } from 'react-icons/fa';
+import Modal from 'react-bootstrap/Modal';
 
 const AdminCreateStrand = () => {
     const navigate = useNavigate();
@@ -19,7 +20,126 @@ const AdminCreateStrand = () => {
     const [selectedSubjects, setSelectedSubjects] = useState([]);  // List of selected subject IDs
     const [selectedSections, setSelectedSections] = useState([]);  // List of selected section IDs
     const [studSections, setStudSections] = useState([]);  // List of all sections
+    const [selectedStrandId, setSelectedStrandId] = useState(null);
+    const [show, setShow] = useState(false);
+    const [editModalShow, setEditModalShow] = useState(false);
+    const [sectionsData, setSectionsData] = useState([]);
+
+    const handleClose = () => {
+        setShow(false);
+        setSelectedStrandId(null);  // Reset selectedUserId when modal closes
+    };
+
+    const handleShow = (strandId) => {
+        setSelectedStrandId(strandId);  // Set the userId when showing modal
+        setShow(true);
+    };
+
+      
+    const handleEditShow = (strandId) => {
+        const strand = studStrands.find((strand) => strand._id === strandId);
+        if (strand) {
+            setSelectedStrandId(strandId);
+            setName(strand.name);
+            setDescription(strand.description);
     
+            // Make sure selectedSections is properly set when editing
+            setSelectedSections(strand.sections || []);  // Fallback to empty array if no sections
+            setStudSections(studSections);  // Ensure you have the full list of sections
+    
+            setEditModalShow(true);
+        } else {
+            console.error('Strand not found');
+        }
+    };
+    
+    
+   
+
+    const handleCloseModal = () => {
+    setEditModalShow(false);
+    setSelectedStrandId(null);
+    setName('');
+    setDescription('');
+    setSelectedSections([]);
+    // Don't reset studSections unless necessary.
+};
+
+    
+
+    
+    
+    const handleSaveChanges = async () => {
+        const updatedStrand = {
+            name,
+            description,
+            subjects: selectedSubjects, // Pass the selected subjects
+            sections: selectedSections, // Pass the selected sections
+        };
+    
+        const token = localStorage.getItem('token');
+    
+        try {
+            const response = await fetch(`/api/admin/strands/${selectedStrandId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(updatedStrand),
+            });
+    
+            const result = await response.json();
+    
+            if (response.ok) {
+                // Successfully updated the strand
+                setStudStrands((prevStrands) =>
+                    prevStrands.map((strand) =>
+                        strand._id === selectedStrandId ? result : strand
+                    )
+                );
+                handleCloseModal(); // Close modal after saving
+            } else {
+                console.error('Error updating strand:', result.message);
+            }
+        } catch (error) {
+            console.error('Failed to update strand:', error);
+        }
+        fetchData(); // Refresh the data
+    };
+    
+    
+    
+    
+    
+
+    const deleteHandler = async (strandId) => {
+        const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+        console.log("Deleting subject with ID:", strandId);
+        try {
+            const response = await fetch(`/api/admin/strands/${strandId}`, { // Corrected endpoint
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`, // Ensure token is included
+                }
+            });
+    
+            console.log("Response status:", response.status);
+            if (response.ok) {
+                setStudStrands(prevStrands => prevStrands.filter(strand => strand._id !== strandId));
+                handleClose(); // Close the modal after deletion
+            } else {
+                const json = await response.json();
+                console.error('Error response:', json);
+                setError(json.message);
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            setError('Failed to delete user');
+        }
+    };
+
     const fetchData = async () => {
         const token = localStorage.getItem('token');
     
@@ -55,14 +175,10 @@ const AdminCreateStrand = () => {
                     sectionResponse.json(),
                 ]);
     
-                // Check the structure of the data returned
-                console.log('Strands:', strandsJson);
-                console.log('Subjects:', subjectsJson);
-                console.log('Sections:', sectionsJson);
-    
+                // Set the sections to the entire list
+                setStudSections(sectionsJson);
                 setStudStrands(strandsJson);
                 setStudSubjects(subjectsJson);
-                setStudSections(sectionsJson);
             } else {
                 console.error('Failed to fetch data');
             }
@@ -70,6 +186,8 @@ const AdminCreateStrand = () => {
             console.error('Error fetching data:', error.message);
         }
     };
+    
+    
     
 
     // Fetch strands and subjects when the component mounts
@@ -189,11 +307,13 @@ const AdminCreateStrand = () => {
                                             }}
                                             required
                                         >
-                                            {studSections.map((section) => (
+                                            {studSections?.map((section) => (
                                                 <option key={section._id} value={section._id}>
                                                     {section.name}
                                                 </option>
                                             ))}
+
+                                        
                                         </Form.Select>
                                     </Form.Group>
 
@@ -292,12 +412,18 @@ const AdminCreateStrand = () => {
                                                         </td>
                                                         <td>{strand.subjects.map((subject) => subject.name).join(', ')}</td>
                                                         <td>
-                                                            <Button variant="info" size="sm" className="me-2">
+                                                        <button
+                                                                className="btn btn-primary custom-btn"
+                                                                onClick={() => handleEditShow(strand._id)}
+                                                            >
                                                                 Edit
-                                                            </Button>
-                                                            <Button variant="danger" size="sm">
-                                                                Delete
-                                                            </Button>
+                                                            </button>
+                                                            <button
+                                                            className="btn btn-danger custom-btn"
+                                                                onClick={() => handleShow(strand._id)}
+                                                            >
+                                                            Delete
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 ))
@@ -331,6 +457,104 @@ const AdminCreateStrand = () => {
                             </Card.Body>
                         </Card>
                     </Container>
+                    <Modal show={show} onHide={handleClose} className='text-center'>
+        <Modal.Header closeButton className='text-center'>
+          <Modal.Title className='text-center w-100'>CONFIRMATION MESSAGE</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>The data will be erased and cannot be retrieved. Are you sure you want to continue?</Modal.Body>
+        <Modal.Footer className='justify-content-center'>
+        <Button variant="primary" className="px-4" onClick={() => setShow(false)}>
+            Cancel
+          </Button>
+      <Button 
+            variant="danger" 
+            className="px-4" 
+            onClick={() => selectedStrandId && deleteHandler(selectedStrandId)}
+        >
+            Confirm
+        </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={editModalShow} onHide={handleCloseModal}>
+    <Modal.Header closeButton>
+        <Modal.Title>Edit Strand</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+        <Form>
+            {/* Strand Name */}
+            <Form.Group className="mb-3">
+                <Form.Label>Strand Name</Form.Label>
+                <Form.Control
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                />
+            </Form.Group>
+
+            {/* Strand Description */}
+            <Form.Group className="mb-3">
+                <Form.Label>Strand Description</Form.Label>
+                <Form.Control
+                    type="text"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    required
+                />
+            </Form.Group>
+
+            {/* Sections */}
+            <Form.Group className="mb-3">
+                <Form.Label>Sections</Form.Label>
+                <Form.Control
+                        as="select"
+                        multiple
+                        value={sectionsData}  // This should reflect selected sections, not all sections
+                        onChange={(e) => setSelectedSections([...e.target.selectedOptions].map(option => option.value))}
+                        required
+                    >
+                        {studSections.map((section) => ( // Use studSections here for the list of available sections
+                            <option key={section._id} value={section._id}>
+                                {section.name}
+                            </option>
+                        ))}
+                    </Form.Control>
+
+
+            </Form.Group>
+
+            {/* Subjects */}
+            <Form.Group className="mb-3">
+                <Form.Label>Subjects</Form.Label>
+                <Form.Control
+                    as="select"
+                    multiple
+                    value={selectedSubjects} // Use selectedSubjects state
+                    onChange={(e) =>
+                        setSelectedSubjects([...e.target.selectedOptions].map(option => option.value))
+                    }
+                    required
+                >
+                    {studSubjects.map((subject) => (
+                        <option key={subject._id} value={subject._id}>
+                            {subject.name}
+                        </option>
+                    ))}
+                </Form.Control>
+            </Form.Group>
+        </Form>
+    </Modal.Body>
+    <Modal.Footer>
+        <Button variant="secondary" onClick={handleCloseModal}>
+            Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSaveChanges}>
+            Save Changes
+        </Button>
+    </Modal.Footer>
+</Modal>
+
                 </main>
             </div>
         </>

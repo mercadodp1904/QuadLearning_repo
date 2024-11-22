@@ -4,110 +4,247 @@ import AdminSidebar from "../AdminComponents/AdminSidebar";
 import { useNavigate } from 'react-router-dom';
 import './AdminCreateStrand.css';
 import { FaSearch } from 'react-icons/fa';
+import Modal from 'react-bootstrap/Modal';
 
 const ManageSubjects = () => {
     const navigate = useNavigate();
+    const [show, setShow] = useState(false);
     const [studSubjects, setStudSubjects] = useState([]);
+    const [semesters, setSemesters] = useState([]);
+    const [teachers, setTeachers] = useState([]);
+    const [sections, setSections] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [name, setName] = useState('');
     const [code, setCode] = useState('');
+    const [semester, setSemester] = useState('');
+    const [teacher, setTeacher] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
-    const [semesters, setSemesters] = useState([]);
+    const [selectedSections, setSelectedSections] = useState([]);
+    const [selectedTeachers, setSelectedTeachers] = useState([]);
+    const [selectedSubjectId, setSelectedSubjectId] = useState(null);
+    const [editModalShow, setEditModalShow] = useState(false);
+    const [sectionsData, setSectionsData] = useState([]);
 
 
-    // Function to fetch semesters
-const fetchSemesters = async () => {
-    const token = localStorage.getItem('token');
+    const handleClose = () => {
+        setShow(false);
+        setSelectedSubjectId(null);  // Reset selectedUserId when modal closes
+    };
 
-    try {
-        const response = await fetch('/api/admin/getSemesters', { // Ensure the endpoint is correct
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-            },
-        });
+    const handleShow = (subjectId) => {
+        setSelectedSubjectId(subjectId);  // Set the userId when showing modal
+        setShow(true);
+    };
 
-        if (response.ok) {
-            const data = await response.json();
-            setSemesters(data); // Assuming the backend returns an array of semesters
+    
+    
+    const handleEditShow = (subjectId) => {
+        const subject = studSubjects.find((subj) => subj._id === subjectId);
+        if (subject) {
+            setSelectedSubjectId(subjectId);
+            setName(subject.name);
+            setCode(subject.code);
+            setSemester(subject.semester);
+            setTeacher(subject.teacher);
+            setSections(subject.sections);
+            setSelectedSections(subject.sections); // Set selected sections when the modal opens
+            setEditModalShow(true);
         } else {
-            console.error('Failed to fetch semesters:', response.status);
+            console.error('Subject not found');
         }
-    } catch (error) {
-        console.error('Error fetching semesters:', error.message);
-    }
-};
+    };
+    
+    
+    
 
-// Fetch semesters on component mount
-useEffect(() => {
-    fetchSemesters();
-}, []);
+    const handleCloseModal = () => {
+        setEditModalShow(false);
+        setSelectedSubjectId(null); // Reset selected subject data only when modal closes
+        setName('');  // Clear name
+        setCode('');  // Clear code
+        setSemester('');  // Clear semester
+        setTeacher('');  // Clear teacher
+        // Do not reset selectedSections, as you want to keep it after the modal closes.
+    };
+    
 
-    // Reusable fetchSubjects function
-    const fetchSubjects = async () => {
-        const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-
+    
+    
+    const handleSaveChanges = async () => {
+        const updatedSubject = {
+            name,
+            code,
+            semester,
+            teacher,
+            sections: selectedSections, // Ensure selectedSections is passed here
+        };
+    
+        const token = localStorage.getItem('token');
+    
         try {
-            const response = await fetch('/api/admin/getSubjects', {
-                method: 'GET',
+            const response = await fetch(`/api/admin/subjects/${selectedSubjectId}`, {
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`, // Add the Bearer token here
+                    Authorization: `Bearer ${token}`,
                 },
+                body: JSON.stringify(updatedSubject),
             });
-
+    
+            const result = await response.json();
+    
             if (response.ok) {
-                const json = await response.json();
-                setStudSubjects(json); // Set the data if the response is successful
+                // Successfully updated the subject
+                setStudSubjects((prevSubjects) =>
+                    prevSubjects.map((subject) =>
+                        subject._id === selectedSubjectId ? result : subject
+                    )
+                );
+                handleCloseModal();  // Close the modal after saving
             } else {
-                console.error('Failed to fetch subjects:', response.status);
+                console.error('Error updating subject:', result.message);
             }
         } catch (error) {
-            console.error('Error fetching subjects:', error.message);
+            console.error('Failed to update subject:', error);
+        }
+        fetchAllData();
+    };
+    
+    
+    
+    
+
+    const deleteHandler = async (subjectId) => {
+        const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+        console.log("Deleting subject with ID:", subjectId);
+        try {
+            const response = await fetch(`/api/admin/subjects/${subjectId}`, { // Corrected endpoint
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`, // Ensure token is included
+                }
+            });
+    
+            console.log("Response status:", response.status);
+            if (response.ok) {
+                setStudSubjects(prevSubjects => prevSubjects.filter(subject => subject._id !== subjectId));
+                handleClose(); // Close the modal after deletion
+            } else {
+                const json = await response.json();
+                console.error('Error response:', json);
+                setError(json.message);
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            setError('Failed to delete user');
         }
     };
 
-    // Fetch subjects when the component mounts
-    useEffect(() => {
-        fetchSubjects();
-    }, []);
-    const [semester, setSemester] = useState('');
-    const handleSubmit = async (e) => {
+    // Fetch subjects, semesters, teachers, and sections
+    const fetchAllData = async () => {
         const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+
+        try {
+            const [subjectsResponse, semestersResponse, teachersResponse, sectionsResponse] = await Promise.all([
+                fetch('/api/admin/getSubjects', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                }),
+                fetch('/api/admin/getSemesters', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                }),
+                fetch('/api/admin/users?role=teacher', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                }),
+                fetch('/api/admin/getSections', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                })
+            ]);
+
+            const [subjectsData, semestersData, teachersData, sectionsData] = await Promise.all([
+                subjectsResponse.json(),
+                semestersResponse.json(),
+                teachersResponse.json(),
+                sectionsResponse.json()
+            ]);
+
+            setStudSubjects(subjectsData);
+            setSemesters(semestersData);
+            setTeachers(teachersData);
+            setSections(sectionsData)
+            setSectionsData(sectionsData);
+
+        } catch (error) {
+            console.error('Error fetching data:', error.message);
+            setError('An error occurred while fetching data');
+        }
+    };
+
+    // Fetch data when the component mounts
+    useEffect(() => {
+        fetchAllData();
+    }, []);
+
+    // Handle form submission to create a new subject
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
-
+    
+        const token = localStorage.getItem('token');
+    
+        // Create subject data with only selected teachers
         const subjectData = {
             name,
             code,
             semester,
+            teachers: selectedTeachers, // Use the correct state for selected teachers
+            sections: selectedSections,
         };
-
+    
         try {
             const response = await fetch('/api/admin/addSubjects', {
                 method: 'POST',
                 body: JSON.stringify(subjectData),
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`, // Add the Bearer token here
+                    Authorization: `Bearer ${token}`,
                 },
             });
-
+    
             const json = await response.json();
-
+    
             if (!response.ok) {
                 setError(json.message || 'Failed to create subject');
             } else {
                 setName('');
                 setCode('');
+                setSemester('');
+                setTeacher('');
+                setSelectedSections([]);
+                setSelectedTeachers([]); // Reset selected teachers
                 console.log('Subject created successfully');
                 // Re-fetch subjects to update the table
-                fetchSubjects();
+                fetchAllData();
             }
         } catch (error) {
             setError('An error occurred while creating the subject');
@@ -116,11 +253,11 @@ useEffect(() => {
             setLoading(false);
         }
     };
+    
 
-    // Filtering and Pagination
-    const filteredSubjects = studSubjects.filter((subject) =>
-        subject.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredSubjects = Array.isArray(studSubjects)
+    ? studSubjects.filter((subject) => subject.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    : [];  // If it's not an array, return an empty array
 
     const indexOfLastEntry = currentPage * entriesPerPage;
     const indexOfFirstEntry = indexOfLastEntry - entriesPerPage;
@@ -174,32 +311,68 @@ useEffect(() => {
                                     </Form.Group>
 
                                     <Form.Group className="mb-3">
-                                    <Form.Label>Semester</Form.Label>
+                                        <Form.Label>Semester</Form.Label>
+                                        <Form.Control
+                                            as="select"
+                                            value={semester}
+                                            onChange={(e) => setSemester(e.target.value)}
+                                            required
+                                        >
+                                            <option value="">Select Semester</option>
+                                            {semesters.map((sem) => (
+                                                <option key={sem._id} value={sem._id}>
+                                                    {sem.name}
+                                                </option>
+                                            ))}
+                                        </Form.Control>
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-3">
+                                    <Form.Label>Teachers</Form.Label>
                                     <Form.Control
                                         as="select"
-                                        value={semester}
-                                        onChange={(e) => setSemester(e.target.value)} // Set the selected semester
+                                        multiple
+                                        value={selectedTeachers}  // Ensure this is the state you are using
+                                        onChange={(e) => setSelectedTeachers([...e.target.selectedOptions].map(option => option.value))}
                                         required
                                     >
-                                        <option value="">Select Semester</option>
-                                        {semesters.map((sem) => (
-                                            <option key={sem._id} value={sem._id}>
-                                                {sem.name}
+                                        {teachers.map((teacher) => (  // Use `teachers` here instead of `teachersData`
+                                            <option key={teacher._id} value={teacher._id}>
+                                                {teacher.username}
                                             </option>
                                         ))}
                                     </Form.Control>
                                 </Form.Group>
 
 
+
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Sections</Form.Label>
+                                        <Form.Control
+                                            as="select"
+                                            multiple
+                                            value={selectedSections} // Bind to selectedSections state
+                                            onChange={(e) => setSelectedSections([...e.target.selectedOptions].map(option => option.value))}
+                                            required
+                                        >
+                                            {sectionsData.map((section) => (
+                                                <option key={section._id} value={section._id}>
+                                                    {section.name}
+                                                </option>
+                                            ))}
+                                        </Form.Control>
+
+                                    </Form.Group>
+
                                     <div className="d-flex gap-2">
-                                        <Button 
-                                            variant="secondary" 
+                                        <Button
+                                            variant="secondary"
                                             onClick={() => navigate('/admin/ManageSubjects')}
                                         >
                                             Cancel
                                         </Button>
-                                        <Button 
-                                            variant="primary" 
+                                        <Button
+                                            variant="primary"
                                             type="submit"
                                             disabled={loading}
                                         >
@@ -214,7 +387,7 @@ useEffect(() => {
                                     {/* Entries Dropdown */}
                                     <div className="d-flex align-items-center">
                                         <span>Show</span>
-                                        <Form.Select 
+                                        <Form.Select
                                             size="sm"
                                             className="mx-2"
                                             style={{ width: 'auto' }}
@@ -229,68 +402,109 @@ useEffect(() => {
                                         <span>entries</span>
                                     </div>
 
-                                    {/* Search Bar */}
-                                    <InputGroup style={{ width: '300px' }}>
-                                        <InputGroup.Text>
-                                            <FaSearch />
-                                        </InputGroup.Text>
-                                        <Form.Control
-                                            placeholder="Search..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                        />
-                                    </InputGroup>
+                                    {/* Search Input */}
+                                    <div className="d-flex align-items-center">
+                                        <InputGroup>
+                                            <Form.Control
+                                                type="text"
+                                                placeholder="Search Subject Name"
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                            />
+                                            <InputGroup.Text>
+                                                <FaSearch />
+                                            </InputGroup.Text>
+                                        </InputGroup>
+                                    </div>
                                 </div>
 
-                                <Table striped bordered hover>
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Subject Code</th>
-                                            <th>Semester</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody> 
-                                        {currentEntries.length > 0 ? (
-                                            currentEntries.map((studSubjects) => (
-                                                <tr key={studSubjects._id}>
-                                                    <td>{studSubjects.name}</td>
-                                                    <td>{studSubjects.code}</td>
-                                                    <td>{studSubjects.semester.name}</td>
-                                                    <td>
-                                                        <Button variant="info" size="sm" className="me-2">
-                                                            Edit
-                                                        </Button>
-                                                        <Button variant="danger" size="sm">
-                                                            Delete
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan="3" className="text-center">No results found</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </Table>
+                               <Table striped bordered hover>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Code</th>
+                                        <th>Semester</th>
+                                        <th>Teacher</th>
+                                        <th>Sections</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+    {currentEntries.length > 0 ? (
+        currentEntries.map((subject) => (
+            <tr key={subject._id}>
+                <td>{subject.name}</td>
+                <td>{subject.code}</td>
+                <td>
+                    {subject.semester ? subject.semester.name : 'No Semester'}
+                </td>
+                                    <td>
+                        {subject.teachers && subject.teachers.length > 0 ? (
+                            subject.teachers
+                                .map((teacher) => teacher.username) // Map to get just the teacher usernames
+                                .sort() // Sort the usernames alphabetically
+                                .map((teacher, index) => (
+                                    <div key={index}>{teacher}</div> // Display each teacher on a new line
+                                ))
+                        ) : (
+                            <span>No teacher assigned</span>
+                        )}
+                    </td>
 
-                                <div className="d-flex justify-content-between mt-3">
-                                    <Button 
-                                        variant="outline-primary" 
-                                        size="sm"
-                                        disabled={currentPage === 1}
+
+
+                    <td>
+                        {subject.sections && subject.sections.length > 0 ? (
+                            subject.sections
+                                .map((section) => section.name) // Map to get just the teacher usernames
+                                .sort() // Sort the usernames alphabetically
+                                .map((section, index) => (
+                                    <div key={index}>{section}</div> // Display each teacher on a new line
+                                ))
+                        ) : (
+                            <span>No section assigned</span>
+                        )}
+                    </td>
+                <td>
+                                    <button
+                        className="btn btn-primary custom-btn"
+                        onClick={() => handleEditShow(subject._id)}
+                    >
+                        Edit
+                    </button>
+
+                    <button
+                              className="btn btn-danger custom-btn"
+                                onClick={() => handleShow(subject._id)}
+                            >
+                              Delete
+                            </button>
+                </td>
+            </tr>
+        ))
+    ) : (
+        <tr>
+            <td colSpan="6" className="text-center">No results found</td>
+        </tr>
+    )}
+</tbody>
+
+
+                            </Table>
+
+
+                                <div className="d-flex justify-content-between">
+                                    <Button
+                                        variant="secondary"
                                         onClick={() => handlePageChange('prev')}
+                                        disabled={currentPage === 1}
                                     >
                                         Previous
                                     </Button>
-                                    <span>Page {currentPage} of {totalPages}</span>
-                                    <Button 
-                                        variant="outline-primary" 
-                                        size="sm"
-                                        disabled={currentPage === totalPages}
+                                    <Button
+                                        variant="secondary"
                                         onClick={() => handlePageChange('next')}
+                                        disabled={currentPage === totalPages}
                                     >
                                         Next
                                     </Button>
@@ -298,6 +512,112 @@ useEffect(() => {
                             </Card.Body>
                         </Card>
                     </Container>
+                    <Modal show={show} onHide={handleClose} className='text-center'>
+        <Modal.Header closeButton className='text-center'>
+          <Modal.Title className='text-center w-100'>CONFIRMATION MESSAGE</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>The data will be erased and cannot be retrieved. Are you sure you want to continue?</Modal.Body>
+        <Modal.Footer className='justify-content-center'>
+        <Button variant="primary" className="px-4" onClick={() => setShow(false)}>
+            Cancel
+          </Button>
+      <Button 
+            variant="danger" 
+            className="px-4" 
+            onClick={() => selectedSubjectId && deleteHandler(selectedSubjectId)}
+        >
+            Confirm
+        </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={editModalShow} onHide={handleCloseModal}>
+    <Modal.Header closeButton>
+        <Modal.Title>Edit Subject</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+        <Form>
+            <Form.Group className="mb-3">
+                <Form.Label>Subject Name</Form.Label>
+                <Form.Control
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Subject Code</Form.Label>
+                <Form.Control
+                    type="text"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    required
+                />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Semester</Form.Label>
+                <Form.Control
+                    as="select"
+                    value={semester}
+                    onChange={(e) => setSemester(e.target.value)}
+                    required
+                >
+                    <option value="">Select Semester</option>
+                    {semesters.map((sem) => (
+                        <option key={sem._id} value={sem._id}>
+                            {sem.name}
+                        </option>
+                    ))}
+                </Form.Control>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Teacher</Form.Label>
+                <Form.Control
+                    as="select"
+                    value={teacher}
+                    onChange={(e) => setSelectedTeachers([...e.target.selectedOptions].map(option => option.value))}
+                    required
+                >
+                    {teachers.map((teacher) => (
+                        <option key={teacher._id} value={teacher._id}>
+                            {teacher.username}
+                        </option>
+                    ))}
+                </Form.Control>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Sections</Form.Label>
+                <Form.Control
+                    as="select"
+                    multiple
+                    value={sections}
+                     onChange={(e) => setSelectedSections([...e.target.selectedOptions].map(option => option.value))}
+                    required
+                >
+                    {sectionsData.map((section) => (
+                        <option key={section._id} value={section._id}>
+                            {section.name}
+                        </option>
+                    ))}
+                </Form.Control>
+            </Form.Group>
+        </Form>
+    </Modal.Body>
+    <Modal.Footer>
+        <Button variant="secondary" onClick={handleCloseModal}>
+            Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSaveChanges}>
+            Save Changes
+        </Button>
+    </Modal.Footer>
+</Modal>
+
                 </main>
             </div>
         </>
