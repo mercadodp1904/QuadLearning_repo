@@ -36,6 +36,16 @@ const AdminCreateStudentAccount = () => {
 
     const [selectedStrand, setSelectedStrand] = useState("");
     const [selectedSection, setSelectedSection] = useState("");
+    const getStrandName = (strandId) => {
+        const strand = strands.find((s) => s._id === strandId);
+        return strand ? strand.name : 'No Strand'; // Ensure it returns the correct name or a fallback
+    };
+    
+    const getSectionName = (sectionId) => {
+        const section = sections.find((s) => s._id === sectionId);
+        return section ? section.name : 'No Section'; // Ensure it returns the correct name or a fallback
+    };
+    
     
     useEffect(() => {
         const fetchData = async () => {
@@ -48,16 +58,16 @@ const AdminCreateStudentAccount = () => {
                     fetch('/api/admin/getSubjects', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
                     fetch('/api/admin/getSemesters', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
                 ]);
-            
+    
                 const handleResponse = async (res, label) => {
                     if (!res.ok) {
-                        const errorDetails = await res.clone().json(); // Use `clone()` to inspect the body
+                        const errorDetails = await res.clone().json();
                         console.error(`${label} Error:`, errorDetails);
-                        return null; // Return null if the response is not OK
+                        return null;
                     }
-                    return await res.json(); // Parse the JSON if the response is OK
+                    return await res.json();
                 };
-            
+    
                 const [user, strands, sections, subjects, semesters] = await Promise.all([
                     handleResponse(usersRes, 'Users'),
                     handleResponse(strandsRes, 'Strands'),
@@ -65,7 +75,11 @@ const AdminCreateStudentAccount = () => {
                     handleResponse(subjectsRes, 'Subjects'),
                     handleResponse(semestersRes, 'Semesters'),
                 ]);
-            
+    
+                if (user) {
+                    console.log('Fetched Users:', user); // Ensure this logs user data correctly
+                }
+    
                 if (strands && sections && subjects && semesters) {
                     setUsers(user);
                     setStrands(strands);
@@ -78,8 +92,6 @@ const AdminCreateStudentAccount = () => {
             } catch (error) {
                 console.error('Error fetching dropdown data:', error.message);
             }
-            
-            
         };
     
         fetchData();
@@ -165,18 +177,16 @@ const AdminCreateStudentAccount = () => {
     
     
 
-    // Filter users based on strand and section
-  const filteredUsers = users
-  .filter((user) => user.role === "student")
-  .filter((user) =>
-    selectedStrand ? user.strand === selectedStrand : true
-  )
-  .filter((user) =>
-    selectedSection ? user.section === selectedSection : true
-  )
-  .filter((user) =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    const filteredUsers = users
+    .filter((user) => user.role === "student")
+    .filter((user) => (selectedStrand ? user.strand === selectedStrand : true))
+    .filter((user) => (selectedSection ? user.section === selectedSection : true))
+    .filter((user) =>
+        user.username.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+console.log('Filtered Users:', filteredUsers);
+
+
 
     const totalPages = Math.ceil(filteredUsers.length / entriesPerPage);
 
@@ -219,7 +229,7 @@ const AdminCreateStudentAccount = () => {
                   >
                     <option value="">All Sections</option>
                     {sections
-                        .filter((section) => section.strand === newUser.strand)
+                        .filter((section) => section.strand === selectedStrand)
                         .map((section) => (
                             <option key={section._id} value={section._id}>
                                 {section.name}
@@ -269,45 +279,48 @@ const AdminCreateStudentAccount = () => {
             </div>
         
               {/* Table */}
-              <Table
-                  responsive
-                  hover
-                  className="table-striped table-bordered text-center"
-                >
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Strand</th>
-                      <th>Section</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsers
-                      .slice(
-                        (currentPage - 1) * entriesPerPage,
-                        currentPage * entriesPerPage
-                      )
-                      .map((user) => (
-                        <tr key={user._id}>
-                          <td>{user.username}</td>
-                          <td>{strands.find((s) => s._id === user.strand)?.name || "N/A"}</td>
-                          <td>{sections.find((s) => s._id === user.section)?.name || "N/A"}</td>
-                          <td>
-                            <button className="btn btn-primary custom-btn">
-                              Edit
-                            </button>
-                            <button
-                              className="btn btn-danger custom-btn"
-                                onClick={() => handleShow(user._id)}
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </Table>
+              <Table responsive hover className="table-striped table-bordered text-center">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Strand</th>
+      <th>Section</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {filteredUsers.length > 0 ? (
+  filteredUsers.map((user) => (
+    <tr key={user._id}>
+      <td>{user.username}</td>
+      <td>{user.strand ? user.strand.name : 'No Strand'}</td> {/* Safe access to strand.name */}
+      <td>
+        {user.sections && user.sections.length > 0
+          ? user.sections.map((section) => section.name).join(', ')
+          : 'No Sections'} {/* Safe access to sections */}
+      </td>
+      <td>
+        <button className="btn btn-primary custom-btn">Edit</button>
+        <button
+          className="btn btn-danger custom-btn"
+          onClick={() => handleShow(user._id)}
+        >
+          Delete
+        </button>
+      </td>
+    </tr>
+  ))
+) : (
+  <tr>
+    <td colSpan="4">No users found</td>
+  </tr>
+)}
+
+  </tbody>
+</Table>
+
+
+
 
 
                 <div className="d-flex justify-content-between mt-3">
@@ -331,125 +344,135 @@ const AdminCreateStudentAccount = () => {
                                 </div> 
 
 
-            <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
+                                <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
     <Modal.Header closeButton>
         <Modal.Title>Add New User</Modal.Title>
     </Modal.Header>
     <Modal.Body>
         <Form onSubmit={handleAddUser}>
+            {/* Username Field */}
             <Form.Group className="mb-3">
                 <Form.Label>Username</Form.Label>
                 <Form.Control
                     type="text"
-                    value={newUser.username}
+                    value={newUser.username || ''}
                     onChange={(e) => setNewUser({...newUser, username: e.target.value})}
                     required
                 />
             </Form.Group>
 
+            {/* Password Field */}
             <Form.Group className="mb-3">
                 <Form.Label>Password</Form.Label>
                 <Form.Control
                     type="password"
-                    value={newUser.password}
+                    value={newUser.password || ''}
                     onChange={(e) => setNewUser({...newUser, password: e.target.value})}
                     required
                 />
             </Form.Group>
 
-                    <Form.Group className="mb-3">
-                        <Form.Label>Role</Form.Label>
-                        <Form.Control
-                            type="text"
-                            value="Student" // Set the value to "Student"
-                            readOnly // Make the field read-only
-                            disabled // Optionally, you can also disable it
-                        />
-                    </Form.Group>
+            {/* Role Field (Read Only) */}
+            <Form.Group className="mb-3">
+                <Form.Label>Role</Form.Label>
+                <Form.Control
+                    type="text"
+                    value="Student" // Set the value to "Student"
+                    readOnly
+                    disabled
+                />
+            </Form.Group>
 
-                    <Form.Group className="mb-3">
-    <Form.Label>Strand</Form.Label>
-    <Form.Select
-        value={newUser.strand}
-        onChange={(e) => {
-            const selectedStrand = e.target.value;
-            setNewUser({ ...newUser, strand: selectedStrand, section: '', subjects: [] });
-        }}
-        required
-    >
-        <option value="">Select Strand</option>
-        {strands.map((strand) => (
-            <option key={strand._id} value={strand._id}>
-                {strand.name}
-            </option>
-        ))}
-    </Form.Select>
-</Form.Group>
+            {/* Strand Field */}
+            <Form.Group className="mb-3">
+                <Form.Label>Strand</Form.Label>
+                <Form.Select
+    value={newUser.strand || ''}
+    onChange={(e) => {
+        const selectedStrand = e.target.value;
+        setNewUser({
+            ...newUser,
+            strand: selectedStrand,  // Update the selected strand
+            section: '',  // Reset section to empty when a new strand is selected
+            subjects: []  // Reset subjects to empty
+        });
+    }}
+    required
+>
+    <option value="">Select Strand</option>
+    {strands.map((strand) => (
+        <option key={strand._id} value={strand._id}>
+            {strand.name}
+        </option>
+    ))}
+</Form.Select>
+            </Form.Group>
 
-<Form.Group className="mb-3">
-    <Form.Label>Section</Form.Label>
-    <Form.Select
-        value={newUser.section}
-        onChange={(e) => setNewUser({ ...newUser, section: e.target.value })}
-        required
-        disabled={!newUser.strand} // Disable if no strand is selected
-    >
-        <option value="">Select Section</option>
-        {sections
-            .filter((section) => section.strand === newUser.strand)
-            .map((section) => (
-                <option key={section._id} value={section._id}>
-                    {section.name}
-                </option>
-            ))}
-    </Form.Select>
-</Form.Group>
+            {/* Section Field */}
+            <Form.Group className="mb-3">
+                <Form.Label>Section</Form.Label>
+                <Form.Select
+                    value={newUser.section || ''}
+                    onChange={(e) => setNewUser({ ...newUser, section: e.target.value })}
+                    required
+                    disabled={!newUser.strand} // Disable if no strand is selected
+                >
+                    <option value="">Select Section</option>
+                    {sections
+                        .filter((section) => section.strand === newUser.strand) // Filter sections based on the selected strand
+                        .map((section) => (
+                            <option key={section._id} value={section._id}>
+                                {section.name}
+                            </option>
+                        ))}
+                </Form.Select>
+            </Form.Group>
 
+            {/* Subjects Field */}
+            <Form.Group className="mb-3">
+                <Form.Label>Subjects</Form.Label>
+                <Form.Select
+                    multiple
+                    value={newUser.subjects || []}
+                    onChange={(e) =>
+                        setNewUser({
+                            ...newUser,
+                            subjects: Array.from(e.target.selectedOptions, (option) => option.value),
+                        })
+                    }
+                    required
+                    disabled={!newUser.section} // Disable if no section is selected
+                >
+                    {subjects
+                        .filter((subject) =>
+                            subject.sections.includes(newUser.section) // Filter subjects based on the selected section
+                        )
+                        .map((subject) => (
+                            <option key={subject._id} value={subject._id}>
+                                {subject.name}
+                            </option>
+                        ))}
+                </Form.Select>
+            </Form.Group>
 
-<Form.Group className="mb-3">
-    <Form.Label>Subjects</Form.Label>
-    <Form.Select
-        multiple
-        value={newUser.subjects}
-        onChange={(e) =>
-            setNewUser({
-                ...newUser,
-                subjects: Array.from(e.target.selectedOptions, (option) => option.value),
-            })
-        }
-        required
-        disabled={!newUser.section} // Disable if no section is selected
-    >
-        {subjects
-            .filter((subject) =>
-                subject.sections.includes(newUser.section)
-            )
-            .map((subject) => (
-                <option key={subject._id} value={subject._id}>
-                    {subject.name}
-                </option>
-            ))}
-    </Form.Select>
-</Form.Group>
+            {/* Semester Field */}
+            <Form.Group className="mb-3">
+                <Form.Label>Semester</Form.Label>
+                <Form.Select
+                    value={newUser.semester || ''}
+                    onChange={(e) => setNewUser({ ...newUser, semester: e.target.value })}
+                    required
+                >
+                    <option value="">Select Semester</option>
+                    {semesters.map((semester) => (
+                        <option key={semester._id} value={semester._id}>
+                            {semester.name}
+                        </option>
+                    ))}
+                </Form.Select>
+            </Form.Group>
 
-
-<Form.Group className="mb-3">
-    <Form.Label>Semester</Form.Label>
-    <Form.Select
-        value={newUser.semester}
-        onChange={(e) => setNewUser({ ...newUser, semester: e.target.value })}
-        required
-    >
-        <option value="">Select Semester</option>
-        {semesters.map((semester) => (
-            <option key={semester._id} value={semester._id}>
-                {semester.name}
-            </option>
-        ))}
-    </Form.Select>
-</Form.Group>
-
-
+            {/* Modal Footer with Buttons */}
             <div className="text-center mt-3">
                 <Button variant="secondary" onClick={() => setShowAddModal(false)} className="me-2">
                     Cancel
@@ -462,24 +485,6 @@ const AdminCreateStudentAccount = () => {
     </Modal.Body>
 </Modal>
 
-      <Modal show={show} onHide={handleClose} className='text-center'>
-        <Modal.Header closeButton className='text-center'>
-          <Modal.Title className='text-center w-100'>CONFIRMATION MESSAGE</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>The data will be erased and cannot be retrieved. Are you sure you want to continue?</Modal.Body>
-        <Modal.Footer className='justify-content-center'>
-        <Button variant="primary" className="px-4" onClick={() => setShow(false)}>
-            Cancel
-          </Button>
-      <Button 
-            variant="danger" 
-            className="px-4" 
-            onClick={() => selectedUserId && deleteHandler(selectedUserId)}
-        >
-            Confirm
-        </Button>
-        </Modal.Footer>
-      </Modal>
       
         </Card.Body>
         </Card>

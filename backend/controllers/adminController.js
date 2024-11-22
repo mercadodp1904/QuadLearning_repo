@@ -55,18 +55,25 @@ const createUserAccount = asyncHandler(async (req, res) => {
 const getUserListByRole = asyncHandler(async (req, res) => {
     const { role, limit = 40 } = req.query; // role from dropdown, limit top 40
 
+    // Validate role
     if (!['teacher', 'student'].includes(role)) {
         res.status(400);
         throw new Error('Invalid role specified');
     }
 
+    // Fetch users and populate related fields
     const users = await User.find({ role })
         .sort({ createdAt: 1, username: 1 }) // Sort by timestamp and then alphabetically by username
         .limit(Number(limit))
-        .select('username password role createdAt'); // Select necessary fields only
+        .select('username password role createdAt') // Select necessary fields only
+        .populate('sections', 'name') // Populate section's name
+        .populate('subjects', 'name') // Populate subject's name
+        .populate('strand', 'name'); // Populate strand's name
 
+    // Send the populated users as the response
     res.json(users);
 });
+
 // @desc    Update user account
 // @route   PUT /api/admin/users/:id
 // @access  Private (admin role)
@@ -131,9 +138,14 @@ const deleteUserAccount = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/users
 // @access  Private (admin role)
 const getAllUsers = asyncHandler(async (req, res) => {
-    const users = await User.find().select('-password'); // Exclude password for security
+    const users = await User.find()
+        .select('-password') // Exclude the password field
+        .populate('strand', 'name') // Replace `strand` ID with the document, selecting only the `name` field
+        .populate('sections', 'name') // Replace `section` ID with the document, selecting only the `name` field
+        .populate('subjects', 'name'); // Replace `subjects` IDs with documents, selecting only the `name` field
     res.json(users);
 });
+
 
 // @desc    Get all strands
 // @route   GET /api/admin/strands
