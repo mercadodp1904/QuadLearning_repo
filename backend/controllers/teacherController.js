@@ -185,7 +185,8 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
         const student = await Student.findById(studentId)
             .populate('section strand grades.subjects.subject grades.semester')
             .lean();
-            console.log(student.grades); // Check if grades.semester is populated
+
+        console.log(student.grades); // Check if grades.semester is populated
         if (!student) {
             res.status(404);
             throw new Error('Student not found');
@@ -209,34 +210,31 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 
         doc.font('Helvetica');
 
-         // Header Section with Image Placeholders
-         const leftImageX = 30;
-         const leftImageY = 20;
-         const imageWidth = 50;
-         const imageHeight = 50;
-         doc.rect(leftImageX, leftImageY, imageWidth, imageHeight).stroke(); // Placeholder rectangle for the left image
- 
-         const rightImageX = 500; // Adjust to the right side of the page
-         const rightImageY = 20;
-         doc.rect(rightImageX, rightImageY, imageWidth, imageHeight).stroke(); // Placeholder rectangle for the right image
+        // Header Section
+        const leftImageX = 30;
+        const leftImageY = 20;
+        const imageWidth = 50;
+        const imageHeight = 50;
+        doc.rect(leftImageX, leftImageY, imageWidth, imageHeight).stroke(); // Placeholder for the left image
+
+        const rightImageX = 500; // Adjust to the right side of the page
+        const rightImageY = 20;
+        doc.rect(rightImageX, rightImageY, imageWidth, imageHeight).stroke(); // Placeholder for the right image
+
         doc.fontSize(16).text('Republic of the Philippines', 50, 20, { align: 'center' });
         doc.fontSize(14).text('Department of Education', 50, 40, { align: 'center' });
         doc.fontSize(12).text('Senior High School Student Permanent Record', 50, 60, { align: 'center' });
         doc.moveDown();
 
-        doc.fontSize(15).text('Learner Information', 230, 125, { underline: true });
+        doc.fontSize(15).text('Learner Information', 225, 100, { underline: true });
+        doc.moveDown();
         const drawField = (label, value, x, y, width = 100) => {
             doc.fontSize(9).text(label, x, y, { width });
             doc.rect(x + width - 45, y - 2, 210, 12).stroke();
             doc.text(value || '', x + width - 40, y, { width: 200 });
         };
-        doc.moveDown();
-        
 
         let startY = doc.y;
-
-
-        
 
         drawField('LRN', student.lrn || 'N/A', 30, startY);
         drawField('Name', student.name || 'N/A', 30, startY + 20);
@@ -245,41 +243,53 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
         drawField('Section', student.section?.name || 'N/A', 30, startY + 80);
         drawField('Address', student.address || 'N/A', 30, startY + 100);
 
-        doc.fontSize(15).text('Scholastic Grades\n', 230, 300, { underline: true });
-        doc.moveDown();
-        doc.fontSize(10).text('Semester: 1st Semester', { underline: true });
-        doc.moveDown();
-        const tableTop = doc.y + 10; 
-        const tableWidth = 400;
-        const columnWidth = tableWidth / 4;
+        doc.fontSize(15).text('Scholastic Grades\n', 220, 300, { underline: true });
+
+        const drawSemesterTable = (semesterTitle, semesterGrades) => {
+            doc.moveDown();
+            
+            // Center the semester title
+            const titleWidth = doc.widthOfString(semesterTitle);
+            const xPosition = 225;
+            doc.fontSize(10).text(semesterTitle, xPosition, doc.y, { underline: true });
+            
+            const tableTop = doc.y + 10;
+            const tableWidth = 400;
+            const columnWidth = tableWidth / 4;
         
-
+            // Draw table headers with centered alignment
+            doc.fontSize(9)
+                .text('Subject', 30, tableTop, { width: columnWidth, align: 'center' })
+                .text('Midterm', 30 + 2 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
+                .text('Finals', 30 + 3 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
+                .text('Final Rating', 30 + 4 * columnWidth, tableTop, { width: columnWidth, align: 'center' });
         
-       
-       
-
-        doc.fontSize(9)
-            .text('Subject', 30, tableTop, { width: columnWidth, align: 'center' })
-            .text('Midterm', 30 + 2 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
-            .text('Finals', 30 + 3 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
-            .text('Final Rating', 30 + 4 * columnWidth, tableTop, { width: columnWidth, align: 'center' });
-
-        let currentY = tableTop + 20;
-
-        if (!student.grades || student.grades.length === 0) {
-            doc.fontSize(10).text('No grades available.', { align: 'center' });
-        } else {
-            student.grades.forEach((grade) => {
-                grade.subjects.forEach((subject) => {
-                    doc.fontSize(9)
-                        .text(subject.subject.name || 'N/A', 30, currentY, { width: columnWidth, align: 'center' })
-                        .text(subject.midterm || 'N/A', 30 + 2 * columnWidth, currentY, { width: columnWidth, align: 'center' })
-                        .text(subject.finals || 'N/A', 30 + 3 * columnWidth, currentY, { width: columnWidth, align: 'center' })
-                        .text(subject.finalRating || 'N/A', 30 + 4 * columnWidth, currentY, { width: columnWidth, align: 'center' });
-                    currentY += 20;
+            let currentY = tableTop + 20;
+        
+            if (!semesterGrades || semesterGrades.length === 0) {
+                doc.fontSize(10).text('No grades available.', { align: 'center' });
+            } else {
+                // Loop through subjects and draw rows
+                semesterGrades.forEach((grade) => {
+                    grade.subjects.forEach((subject) => {
+                        doc.fontSize(9)
+                            .text(subject.subject.name || 'N/A', 30, currentY, { width: columnWidth, align: 'center' })
+                            .text(subject.midterm || 'N/A', 30 + 2 * columnWidth, currentY, { width: columnWidth, align: 'center' })
+                            .text(subject.finals || 'N/A', 30 + 3 * columnWidth, currentY, { width: columnWidth, align: 'center' })
+                            .text(subject.finalRating || 'N/A', 30 + 4 * columnWidth, currentY, { width: columnWidth, align: 'center' });
+                        currentY += 20;
+                    });
                 });
-            });
-        }
+            }
+            doc.moveDown();
+        };
+
+        // Filter grades by semester
+        const firstSemesterGrades = student.grades?.filter((grade) => grade.semester?.name === '1st Semester') || [];
+        const secondSemesterGrades = student.grades?.filter((grade) => grade.semester?.name === '2nd Semester') || [];
+
+        drawSemesterTable('Semester: 1st Semester', firstSemesterGrades);
+        drawSemesterTable('Semester: 2nd Semester', secondSemesterGrades);
 
         doc.end();
 
