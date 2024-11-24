@@ -1,22 +1,22 @@
 import mongoose from 'mongoose';
-import Student from './models/studentModel.js'; 
-import User from './models/userModel.js'; 
-import Section from './models/sectionModel.js'; 
-import Strand from './models/strandModel.js'; 
-import Subject from './models/subjectModel.js'; 
-import Semester from './models/semesterModel.js';  // Import Semester model
+import Student from './models/studentModel.js';
+import User from './models/userModel.js';
+import Section from './models/sectionModel.js';
+import Strand from './models/strandModel.js';
+import Subject from './models/subjectModel.js';
+import Semester from './models/semesterModel.js'; // Import Semester model
 
 const createPredefinedRStudent = async () => {
     try {
         // Fetch the user by username and populate associated fields
         const user = await User.findOne({ username: 'student001' })
-            .populate('sections')  // Populates the sections array
-            .populate('strand')    // Populates the strand field
+            .populate('sections') // Populates the sections array
+            .populate('strand') // Populates the strand field
             .populate({
                 path: 'subjects', // Populate the subjects array
-                populate: { path: 'teachers', model: 'User', select: 'username'} // Populate teachers inside subjects
+                populate: { path: 'teachers', model: 'User', select: 'username' }, // Populate teachers inside subjects
             });
-        
+
         if (!user) {
             throw new Error('User not found.');
         }
@@ -36,16 +36,12 @@ const createPredefinedRStudent = async () => {
             throw new Error('Sections or Strand not found for the user.');
         }
 
-        // Fetch the semester using name and startDate (or endDate) for validation
-        const semester = await Semester.findOne({
-            name: '1st Semester',
-            startDate: { $gte: new Date('2024-11-30T00:00:00.000Z') },
-            endDate: { $lte: new Date('2025-01-17T00:00:00.000Z') }
-        });
+        const firstSemester = await Semester.findById("673ffba5e2a9c5ea7906c125");
+        const secondSemester = await Semester.findById("673de694adff7c2a8853f881");
 
-        if (!semester) {
-            throw new Error('Semester not found.');
-        }
+        if (!firstSemester || !secondSemester) {
+            throw new Error("One or both semesters could not be found.");
+}
 
         // Predefined student data
         const studentData = {
@@ -77,7 +73,7 @@ const createPredefinedRStudent = async () => {
             },
             grades: [
                 {
-                    semester: semester._id, // Use the semester's _id here
+                    semester: firstSemester._id, // First semester grades
                     year: '2024',
                     subjects: subjects.map((subject) => ({
                         subject: subject._id, // Reference to Subject
@@ -87,7 +83,23 @@ const createPredefinedRStudent = async () => {
                         finalRating: 87.5,
                         action: 'PASSED',
                         teachers: subject.teachers.map(teacher => ({
-                            teacherName: teacher.name,  // Display teacher's name
+                            teacherName: teacher.username, // Display teacher's username
+                            teacherId: teacher._id,
+                        })),
+                    })),
+                },
+                {
+                    semester: secondSemester._id, // Second semester grades
+                    year: '2024',
+                    subjects: subjects.map((subject) => ({
+                        subject: subject._id, // Reference to Subject
+                        name: subject.name,
+                        midterm: 88,
+                        finals: 92,
+                        finalRating: 90,
+                        action: 'PASSED',
+                        teachers: subject.teachers.map(teacher => ({
+                            teacherName: teacher.username, // Display teacher's username
                             teacherId: teacher._id,
                         })),
                     })),
