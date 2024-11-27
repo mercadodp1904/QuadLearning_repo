@@ -31,13 +31,14 @@ const AdminCreateStudentAccount = () => {
         subjects: [],
         semester: '',
     });
-    
+
     const [strands, setStrands] = useState([]);
     const [sections, setSections] = useState([]);
     const [subjects, setSubjects] = useState([]);
     const [semesters, setSemesters] = useState([]);
     const [selectedStrand, setSelectedStrand] = useState("");
     const [selectedSection, setSelectedSection] = useState("");
+
 
     // Filtering the sections and subjects based on the selected strand and section
     useEffect(() => {
@@ -79,9 +80,13 @@ useEffect(() => {
     
 
     
+
     useEffect(() => {
+        console.log("useEffect triggered"); // Debug log
         const fetchData = async () => {
+            console.log("fetchData function executed"); // Debug log
             const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+    
             try {
                 const [usersRes, strandsRes, sectionsRes, subjectsRes, semestersRes] = await Promise.all([
                     fetch('/api/admin/users?role=student', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
@@ -95,12 +100,16 @@ useEffect(() => {
                     if (!res.ok) {
                         const errorDetails = await res.clone().json();
                         console.error(`${label} Error:`, errorDetails);
+
                         return null;
+
                     }
                     return await res.json();
                 };
     
+
                 const [user, strands, sections, subjects, semesters] = await Promise.all([
+
                     handleResponse(usersRes, 'Users'),
                     handleResponse(strandsRes, 'Strands'),
                     handleResponse(sectionsRes, 'Sections'),
@@ -108,6 +117,7 @@ useEffect(() => {
                     handleResponse(semestersRes, 'Semesters'),
                 ]);
     
+
                 if (user) {
                     console.log('Fetched Users:', user); // Ensure this logs user data correctly
                 }
@@ -121,17 +131,14 @@ useEffect(() => {
                 } else {
                     console.error('Failed to fetch some or all dropdown data');
                 }
+
             } catch (error) {
                 console.error('Error fetching dropdown data:', error.message);
             }
         };
     
         fetchData();
-    }, []);
-    
-    
-
-
+    }, []); // Empty dependency array ensures it runs once on mount
     const handleClose = () => {
         setShow(false);
         setSelectedUserId(null);  // Reset selectedUserId when modal closes
@@ -153,7 +160,7 @@ useEffect(() => {
                     Authorization: `Bearer ${token}`, // Ensure token is included
                 }
             });
-    
+
             console.log("Response status:", response.status);
             if (response.ok) {
                 setUsers(prevUsers => prevUsers.filter(user => user._id !== userId));
@@ -173,7 +180,7 @@ useEffect(() => {
         e.preventDefault();
         setLoading(true);
         setError('');
-    
+
         const userData = {
             username: newUser.username,
             password: newUser.password,
@@ -182,7 +189,7 @@ useEffect(() => {
             assignedSections: newUser.section, // Matches controller
             assignedSubjects: newUser.subjects, // Matches controller
         };
-    
+
         try {
             const token = localStorage.getItem('token');
             const response = await fetch('/api/admin/addUsers', {
@@ -193,10 +200,10 @@ useEffect(() => {
                     Authorization: `Bearer ${token}`,
                 },
             });
-    
+
             const json = await response.json();
             if (!response.ok) throw new Error(json.message || 'Failed to add user');
-    
+
             setUsers((prevUsers) => [...prevUsers, json.data]); // Update UI
             setNewUser({ username: '', password: '', role: 'student', strand: '', section: '', subjects: [] });
             setShowAddModal(false);
@@ -206,6 +213,7 @@ useEffect(() => {
             setLoading(false);
         }
     };
+
 
 // Update the editUser state
 const [editUser, setEditUser] = useState({
@@ -329,15 +337,17 @@ console.log('Filtered Users:', filteredUsers);
 
 
 
+
     const totalPages = Math.ceil(filteredUsers.length / entriesPerPage);
 
     const handlePageChange = (direction) => {
         if (direction === 'prev' && currentPage > 1) setCurrentPage(currentPage - 1);
         if (direction === 'next' && currentPage < totalPages) setCurrentPage(currentPage + 1);
     };
-        
-    return ( 
+
+    return (
         <>
+
         <AdminSidebar/>
         <div className='d-flex'>
         <main className="main-content flex-grow-1">
@@ -475,6 +485,7 @@ console.log('Filtered Users:', filteredUsers);
                 <div className="d-flex justify-content-between mt-3">
                                     <Button 
                                         variant="outline-primary" 
+
                                         size="sm"
                                         disabled={currentPage === 1}
                                         onClick={() => handlePageChange('prev')}
@@ -482,14 +493,15 @@ console.log('Filtered Users:', filteredUsers);
                                         Previous
                                     </Button>
                                     <span>Page {currentPage} of {totalPages}</span>
-                                    <Button 
-                                        variant="outline-primary" 
+                                    <Button
+                                        variant="outline-primary"
                                         size="sm"
                                         disabled={currentPage === totalPages}
                                         onClick={() => handlePageChange('next')}
                                     >
                                         Next
                                     </Button>
+
                                 </div> 
 
                                 {/* Add Modal */}
@@ -783,6 +795,7 @@ console.log('Filtered Users:', filteredUsers);
         </div>
             </>
      );
+
 }
- 
+
 export default AdminCreateStudentAccount;

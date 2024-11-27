@@ -17,7 +17,9 @@ const authUser = asyncHandler(async (req, res) => {
     // Check if user exists by username
     const user = await User.findOne({ username });
     if (!user) {
-        console.log('Invalid username:', username);
+
+        //console.log('Invalid credentials attempt for:', username);
+
         return res.status(401).json({ message: "Invalid username" });
     }
 
@@ -27,7 +29,9 @@ const authUser = asyncHandler(async (req, res) => {
     const isMatch = await bcrypt.compare(password.trim(), user.password);
     console.log('Password match result:', isMatch);
     if (!isMatch) {
-        console.log('Invalid password for username:', username);
+
+        //console.log('Invalid credentials for username:', username);
+
         return res.status(401).json({ message: "Invalid password" });
     }
 
@@ -43,8 +47,6 @@ const authUser = asyncHandler(async (req, res) => {
         },
     });
 });
-
-
 
 // @desc    Logout user
 // route    POST /api/users/logout

@@ -18,7 +18,8 @@ const subjectSchema = new mongoose.Schema({
     },
     teachers: [{  
         type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User' 
+        ref: 'User', 
+        required: false
     }],
     sections: [{ 
         type: mongoose.Schema.Types.ObjectId, 

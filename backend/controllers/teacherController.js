@@ -1,7 +1,18 @@
 import asyncHandler from 'express-async-handler';
 import Grade from '../models/gradeModel.js';
-import User from '../models/userModel.js'; 
-import Section from '../models/sectionModel.js'; 
+
+import User from '../models/userModel.js';
+import Section from '../models/sectionModel.js';
+import Student from '../models/studentModel.js';
+import PDFDocument from 'pdfkit';
+import blobStream from 'blob-stream';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Derive __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename)
 
 // @desc    Get grades for a specific student
 // @route   GET /api/grades/student/:studentId
@@ -167,37 +178,138 @@ const updateProfile = asyncHandler(async (req, res) => {
 // @desc    Generate Form 137 for a student
 // @route   GET /api/grades/form137/:studentId
 // @access  Private (teacher role)
-const generateForm137 = asyncHandler(async (req, res) => {
-    const { studentId } = req.params;
 
-    // Check if the user making the request is a teacher
-    if (req.user.role !== 'teacher') {
-        res.status(403);
-        throw new Error('Not authorized to generate Form 137');
+const generateForm137 = asyncHandler(async (req, res, next) => {
+    try {
+        const { studentId } = req.params;
+        const student = await Student.findById(studentId)
+            .populate('section strand grades.subjects.subject grades.semester')
+            .lean();
+
+        console.log(student.grades); // Check if grades.semester is populated
+        if (!student) {
+            res.status(404);
+            throw new Error('Student not found');
+        }
+
+        const doc = new PDFDocument({ size: 'A4', margin: 30 });
+        const pdfDirectory = path.join(__dirname, '../../pdfs');
+        if (!fs.existsSync(pdfDirectory)) {
+            fs.mkdirSync(pdfDirectory, { recursive: true });
+        }
+
+        const sanitizedStudentName = student.name.replace(/[\/\\?%*:|"<>]/g, '_');
+        const filePath = path.join(pdfDirectory, `form137-${sanitizedStudentName}.pdf`);
+        const writeStream = fs.createWriteStream(filePath);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=form137-${sanitizedStudentName}.pdf`);
+
+        doc.pipe(res);
+        doc.pipe(writeStream);
+
+        doc.font('Helvetica');
+
+        // Header Section
+        const leftImageX = 30;
+        const leftImageY = 20;
+        const imageWidth = 50;
+        const imageHeight = 50;
+        doc.rect(leftImageX, leftImageY, imageWidth, imageHeight).stroke(); // Placeholder for the left image
+
+        const rightImageX = 500; // Adjust to the right side of the page
+        const rightImageY = 20;
+        doc.rect(rightImageX, rightImageY, imageWidth, imageHeight).stroke(); // Placeholder for the right image
+
+        doc.fontSize(16).text('Republic of the Philippines', 50, 20, { align: 'center' });
+        doc.fontSize(14).text('Department of Education', 50, 40, { align: 'center' });
+        doc.fontSize(12).text('Senior High School Student Permanent Record', 50, 60, { align: 'center' });
+        doc.moveDown();
+
+        doc.fontSize(15).text('Learner Information', 225, 100, { underline: true });
+        doc.moveDown();
+        const drawField = (label, value, x, y, width = 100) => {
+            doc.fontSize(9).text(label, x, y, { width });
+            doc.rect(x + width - 45, y - 2, 210, 12).stroke();
+            doc.text(value || '', x + width - 40, y, { width: 200 });
+        };
+
+        let startY = doc.y;
+
+        drawField('LRN', student.lrn || 'N/A', 30, startY);
+        drawField('Name', student.name || 'N/A', 30, startY + 20);
+        drawField('Strand', student.strand?.name || 'N/A', 30, startY + 40);
+        drawField('Year Level', student.yearLevel || 'N/A', 30, startY + 60);
+        drawField('Section', student.section?.name || 'N/A', 30, startY + 80);
+        drawField('Address', student.address || 'N/A', 30, startY + 100);
+
+        doc.fontSize(15).text('Scholastic Grades\n', 220, 300, { underline: true });
+
+        const drawSemesterTable = (semesterTitle, semesterGrades) => {
+            doc.moveDown();
+            
+            // Center the semester title
+            const titleWidth = doc.widthOfString(semesterTitle);
+            const xPosition = 225;
+            doc.fontSize(10).text(semesterTitle, xPosition, doc.y, { underline: true });
+            
+            const tableTop = doc.y + 10;
+            const tableWidth = 400;
+            const columnWidth = tableWidth / 4;
+        
+            // Draw table headers with centered alignment
+            doc.fontSize(9)
+                .text('Subject', 30, tableTop, { width: columnWidth, align: 'center' })
+                .text('Midterm', 30 + 2 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
+                .text('Finals', 30 + 3 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
+                .text('Final Rating', 30 + 4 * columnWidth, tableTop, { width: columnWidth, align: 'center' });
+        
+            let currentY = tableTop + 20;
+        
+            if (!semesterGrades || semesterGrades.length === 0) {
+                doc.fontSize(10).text('No grades available.', { align: 'center' });
+            } else {
+                // Loop through subjects and draw rows
+                semesterGrades.forEach((grade) => {
+                    grade.subjects.forEach((subject) => {
+                        doc.fontSize(9)
+                            .text(subject.subject.name || 'N/A', 30, currentY, { width: columnWidth, align: 'center' })
+                            .text(subject.midterm || 'N/A', 30 + 2 * columnWidth, currentY, { width: columnWidth, align: 'center' })
+                            .text(subject.finals || 'N/A', 30 + 3 * columnWidth, currentY, { width: columnWidth, align: 'center' })
+                            .text(subject.finalRating || 'N/A', 30 + 4 * columnWidth, currentY, { width: columnWidth, align: 'center' });
+                        currentY += 20;
+                    });
+                });
+            }
+            doc.moveDown();
+        };
+
+        // Filter grades by semester
+        const firstSemesterGrades = student.grades?.filter((grade) => grade.semester?.name === '1st Semester') || [];
+        const secondSemesterGrades = student.grades?.filter((grade) => grade.semester?.name === '2nd Semester') || [];
+
+        drawSemesterTable('Semester: 1st Semester', firstSemesterGrades);
+        drawSemesterTable('Semester: 2nd Semester', secondSemesterGrades);
+
+        doc.end();
+
+        writeStream.on('finish', () => {
+            console.log(`Form 137 saved to: ${filePath}`);
+        });
+
+        writeStream.on('error', (err) => {
+            console.error('Error writing PDF to file:', err);
+            res.status(500).send('Error generating the PDF.');
+        });
+
+    } catch (error) {
+        if (!res.headersSent) {
+            next(error);
+        } else {
+            console.error('Error occurred during PDF generation:', error);
+        }
     }
-
-    // Fetch grades for the student
-    const grades = await Grade.find({ studentId }).populate('subject').sort({ year: 1 });
-
-    if (!grades.length) {
-        res.status(404);
-        throw new Error('No grades found for this student');
-    }
-
-    // Generate a summary for Form 137
-    const form137Data = {
-        studentId,
-        grades: grades.map(grade => ({
-            subject: grade.subject.name, // Assuming you have a 'name' field in your subject model
-            year: grade.year,
-            grade: grade.grade,
-        })),
-    };
-
-    // Return the Form 137 data
-    res.json(form137Data); // Adjust this according to how you want to present the data
 });
-
 // @desc    Get students assigned to the adviser
 // @route   GET /api/teachers/adviser/students
 // @access  Private (teacher role)
@@ -212,7 +324,9 @@ const getAdviserStudents = asyncHandler(async (req, res) => {
     res.json(students);
 });
 
-// Export functions
+
+
+
 export { 
     getGradesByStudent, 
     addGrade, 
