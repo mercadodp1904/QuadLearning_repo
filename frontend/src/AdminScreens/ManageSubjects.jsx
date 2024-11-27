@@ -11,19 +11,16 @@ const ManageSubjects = () => {
     const [show, setShow] = useState(false);
     const [studSubjects, setStudSubjects] = useState([]);
     const [semesters, setSemesters] = useState([]);
-    const [teachers, setTeachers] = useState([]);
     const [sections, setSections] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [name, setName] = useState('');
     const [code, setCode] = useState('');
     const [semester, setSemester] = useState('');
-    const [teacher, setTeacher] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedSections, setSelectedSections] = useState([]);
-    const [selectedTeachers, setSelectedTeachers] = useState([]);
     const [selectedSubjectId, setSelectedSubjectId] = useState(null);
     const [editModalShow, setEditModalShow] = useState(false);
     const [sectionsData, setSectionsData] = useState([]);
@@ -48,7 +45,6 @@ const ManageSubjects = () => {
             setName(subject.name);
             setCode(subject.code);
             setSemester(subject.semester);
-            setTeacher(subject.teacher);
             setSections(subject.sections);
             setSelectedSections(subject.sections); // Set selected sections when the modal opens
             setEditModalShow(true);
@@ -66,7 +62,6 @@ const ManageSubjects = () => {
         setName('');  // Clear name
         setCode('');  // Clear code
         setSemester('');  // Clear semester
-        setTeacher('');  // Clear teacher
         // Do not reset selectedSections, as you want to keep it after the modal closes.
     };
     
@@ -78,7 +73,6 @@ const ManageSubjects = () => {
             name,
             code,
             semester,
-            teacher,
             sections: selectedSections, // Ensure selectedSections is passed here
         };
     
@@ -144,12 +138,12 @@ const ManageSubjects = () => {
         }
     };
 
-    // Fetch subjects, semesters, teachers, and sections
+    // Fetch subjects, semesters, and sections
     const fetchAllData = async () => {
         const token = localStorage.getItem('token'); // Retrieve the token from localStorage
 
         try {
-            const [subjectsResponse, semestersResponse, teachersResponse, sectionsResponse] = await Promise.all([
+            const [subjectsResponse, semestersResponse, sectionsResponse] = await Promise.all([
                 fetch('/api/admin/getSubjects', {
                     method: 'GET',
                     headers: {
@@ -158,13 +152,6 @@ const ManageSubjects = () => {
                     },
                 }),
                 fetch('/api/admin/getSemesters', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                }),
-                fetch('/api/admin/users?role=teacher', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -180,16 +167,14 @@ const ManageSubjects = () => {
                 })
             ]);
 
-            const [subjectsData, semestersData, teachersData, sectionsData] = await Promise.all([
+            const [subjectsData, semestersData, sectionsData] = await Promise.all([
                 subjectsResponse.json(),
                 semestersResponse.json(),
-                teachersResponse.json(),
                 sectionsResponse.json()
             ]);
 
             setStudSubjects(subjectsData);
             setSemesters(semestersData);
-            setTeachers(teachersData);
             setSections(sectionsData)
             setSectionsData(sectionsData);
 
@@ -212,12 +197,11 @@ const ManageSubjects = () => {
     
         const token = localStorage.getItem('token');
     
-        // Create subject data with only selected teachers
+        // Create subject data with only selected 
         const subjectData = {
             name,
             code,
             semester,
-            teachers: selectedTeachers, // Use the correct state for selected teachers
             sections: selectedSections,
         };
     
@@ -239,9 +223,7 @@ const ManageSubjects = () => {
                 setName('');
                 setCode('');
                 setSemester('');
-                setTeacher('');
                 setSelectedSections([]);
-                setSelectedTeachers([]); // Reset selected teachers
                 console.log('Subject created successfully');
                 // Re-fetch subjects to update the table
                 fetchAllData();
@@ -328,25 +310,6 @@ const ManageSubjects = () => {
                                     </Form.Group>
 
                                     <Form.Group className="mb-3">
-                                    <Form.Label>Teachers</Form.Label>
-                                    <Form.Control
-                                        as="select"
-                                        multiple
-                                        value={selectedTeachers}  // Ensure this is the state you are using
-                                        onChange={(e) => setSelectedTeachers([...e.target.selectedOptions].map(option => option.value))}
-                                        required
-                                    >
-                                        {teachers.map((teacher) => (  // Use `teachers` here instead of `teachersData`
-                                            <option key={teacher._id} value={teacher._id}>
-                                                {teacher.username}
-                                            </option>
-                                        ))}
-                                    </Form.Control>
-                                </Form.Group>
-
-
-
-                                    <Form.Group className="mb-3">
                                         <Form.Label>Sections</Form.Label>
                                         <Form.Control
                                             as="select"
@@ -424,7 +387,6 @@ const ManageSubjects = () => {
                                         <th>Name</th>
                                         <th>Code</th>
                                         <th>Semester</th>
-                                        <th>Teacher</th>
                                         <th>Sections</th>
                                         <th>Actions</th>
                                     </tr>
@@ -438,28 +400,13 @@ const ManageSubjects = () => {
                 <td>
                     {subject.semester ? subject.semester.name : 'No Semester'}
                 </td>
-                                    <td>
-                        {subject.teachers && subject.teachers.length > 0 ? (
-                            subject.teachers
-                                .map((teacher) => teacher.username) // Map to get just the teacher usernames
-                                .sort() // Sort the usernames alphabetically
-                                .map((teacher, index) => (
-                                    <div key={index}>{teacher}</div> // Display each teacher on a new line
-                                ))
-                        ) : (
-                            <span>No teacher assigned</span>
-                        )}
-                    </td>
-
-
-
                     <td>
                         {subject.sections && subject.sections.length > 0 ? (
                             subject.sections
-                                .map((section) => section.name) // Map to get just the teacher usernames
-                                .sort() // Sort the usernames alphabetically
+                                .map((section) => section.name) 
+                                .sort() 
                                 .map((section, index) => (
-                                    <div key={index}>{section}</div> // Display each teacher on a new line
+                                    <div key={index}>{section}</div>
                                 ))
                         ) : (
                             <span>No section assigned</span>
@@ -569,22 +516,6 @@ const ManageSubjects = () => {
                     {semesters.map((sem) => (
                         <option key={sem._id} value={sem._id}>
                             {sem.name}
-                        </option>
-                    ))}
-                </Form.Control>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-                <Form.Label>Teacher</Form.Label>
-                <Form.Control
-                    as="select"
-                    value={teacher}
-                    onChange={(e) => setSelectedTeachers([...e.target.selectedOptions].map(option => option.value))}
-                    required
-                >
-                    {teachers.map((teacher) => (
-                        <option key={teacher._id} value={teacher._id}>
-                            {teacher.username}
                         </option>
                     ))}
                 </Form.Control>
