@@ -78,8 +78,16 @@ const getUserListByRole = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/users/:id
 // @access  Private (admin role)
 const updateUserAccount = asyncHandler(async (req, res) => {
-    const { username, role, password } = req.body;
+    const { strand, assignedSections, assignedSubjects, semester } = req.body;
     const { id } = req.params;
+
+    console.log('Update request received:', {
+        userId: id,
+        strand,
+        assignedSections,
+        assignedSubjects,
+        semester
+    });
 
     if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
         res.status(403);
@@ -88,29 +96,46 @@ const updateUserAccount = asyncHandler(async (req, res) => {
 
     const user = await User.findById(id);
     if (!user) {
+        console.log('User not found with ID:', id);
         res.status(404);
         throw new Error('User not found');
     }
 
-    if (username && username !== user.username) {
-        const usernameExists = await User.findOne({ username });
-        if (usernameExists) {
-            res.status(400);
-            throw new Error('Username already taken');
+    try {
+        // Update strand if provided
+        if (strand) {
+            user.strand = strand;
         }
-        user.username = username;
+
+        // Update section if provided
+        if (assignedSections) {
+            user.sections = [assignedSections];
+        }
+
+        // Update subjects if provided
+        if (assignedSubjects) {
+            user.subjects = assignedSubjects;
+        }
+
+        // Update semester if provided
+        if (semester) {
+            user.semester = semester;
+        }
+
+        const updatedUser = await user.save();
+        console.log('User updated successfully:', updatedUser);
+
+        const populatedUser = await User.findById(updatedUser._id)
+            .populate('strand', 'name')
+            .populate('sections', 'name')
+            .populate('subjects', 'name');
+
+        res.json(populatedUser);
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(400);
+        throw new Error(`Failed to update user: ${error.message}`);
     }
-
-    if (password) {
-        user.password = await bcrypt.hash(password, 10);
-    }
-
-    const updatedUser = await user.save();
-
-    res.json({
-        _id: updatedUser._id,
-        username: updatedUser.username,
-    });
 });
 
 // @desc    Delete user account
@@ -186,7 +211,7 @@ const getAllSubjects = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/strands
 // @access  Private (admin role)
 const createStrand = asyncHandler(async (req, res) => {
-    const { name, description, subjects, sections } = req.body;
+    const { name, description } = req.body;
 
     // Check if the strand already exists
     const strandExists = await Strand.findOne({ name });
@@ -195,27 +220,19 @@ const createStrand = asyncHandler(async (req, res) => {
         throw new Error('Strand already exists');
     }
 
-    // Ensure the subjects and sections are provided (or can be empty arrays)
-    if (!Array.isArray(subjects) || !Array.isArray(sections)) {
-        res.status(400);
-        throw new Error('Subjects and sections must be arrays');
-    }
-
-    // Create a new strand
+    // Create a new strand with only name and description
     const newStrand = await Strand.create({
         name,
-        description,
-        subjects, // Store subjects as an array of ObjectId references
-        sections, // Store sections as an array of ObjectId references
+        description
     });
 
-    // Populate subjects and sections in the response
-    const populatedStrand = await Strand.findById(newStrand._id)
-        .populate('subjects', 'name') // Include only the 'name' field of subjects
-        .populate('sections', 'name'); // Include only the 'name' field of sections
+    if (!newStrand) {
+        res.status(400);
+        throw new Error('Failed to create strand');
+    }
 
     // Respond with the newly created strand
-    res.status(201).json(populatedStrand);
+    res.status(201).json(newStrand);
 });
 
 
@@ -225,7 +242,7 @@ const createStrand = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/strands/:id
 // @access  Private (admin role)
 const updateStrand = asyncHandler(async (req, res) => {
-    const { name, description, sections, subjects } = req.body;
+    const { name, description } = req.body;
     const { id } = req.params;
 
     const strand = await Strand.findById(id);
@@ -236,8 +253,6 @@ const updateStrand = asyncHandler(async (req, res) => {
 
     strand.name = name;
     strand.description = description;
-    strand.sections = sections;
-    strand.subjects = subjects;
     const updatedStrand = await strand.save();
 
     res.json(updatedStrand);
@@ -271,18 +286,11 @@ const createSection = asyncHandler(async (req, res) => {
         return res.status(404).json({ message: 'Strand not found' }); // Ensure valid JSON is sent
     }
 
-    // Validate the teacher
-    const teacherRecord = await User.findById(teacher);
-    if (!teacherRecord) {
-        return res.status(404).json({ message: 'Teacher not found' });
-    }
 
     // Create new section
     const newSection = new Section({
         name,
         strand,
-        teacher,
-        subjects,
     });
 
     await newSection.save();
@@ -300,7 +308,7 @@ const createSection = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/sections/:id
 // @access  Private (admin role)
 const updateSection = asyncHandler(async (req, res) => {
-    const { name, strand, teacher, subjects } = req.body;
+    const { name, strand } = req.body;
     const { id } = req.params;
 
     const section = await Section.findById(id);
@@ -311,8 +319,6 @@ const updateSection = asyncHandler(async (req, res) => {
 
     section.name = name;
     section.strand = strand;
-    section.teacher = teacher;
-    section.subjects = subjects;
     const updatedSection = await section.save();
 
     res.json(updatedSection);
@@ -338,7 +344,7 @@ const deleteSection = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/subjects
 // @access  Private (admin role)
 const createSubject = asyncHandler(async (req, res) => {
-    const { name, code, semester, teachers, sections } = req.body;
+    const { name, code, semester, sections } = req.body;
 
     // Check if the subject already exists by its code
     const subjectExists = await Subject.findOne({ code });
@@ -358,23 +364,13 @@ const createSubject = asyncHandler(async (req, res) => {
     if (!semesterExists) {
         res.status(400);
         throw new Error('Invalid semester');
-    }
-
-    // Validate that all teachers exist
-    if (teachers && teachers.length > 0) {
-        const validTeachers = await User.find({ '_id': { $in: teachers } });
-        if (validTeachers.length !== teachers.length) {
-            res.status(400);
-            throw new Error('Some teachers are invalid');
-        }
-    }
+    }   
 
     // Create the new subject with teachers
     const newSubject = await Subject.create({
         name,
         code,
         semester,
-        teachers,  // This should now be an array of teacher IDs
         sections,
     });
 
@@ -387,7 +383,7 @@ const createSubject = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/subjects/:id
 // @access  Private (admin role)
 const updateSubject = asyncHandler(async (req, res) => {
-    const { name, code, semester, teacher, sections } = req.body;
+    const { name, code, semester, sections } = req.body;
     const { id } = req.params;
 
     const subject = await Subject.findById(id);
@@ -399,7 +395,6 @@ const updateSubject = asyncHandler(async (req, res) => {
     subject.name = name;
     subject.code = code;
     subject.semester = semester;
-    subject.teacher = teacher;
     subject.sections = sections;
     const updatedSubject = await subject.save();
 

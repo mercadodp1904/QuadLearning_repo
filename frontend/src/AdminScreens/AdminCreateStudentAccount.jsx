@@ -11,6 +11,7 @@ import Button from 'react-bootstrap/Button';
 
 const AdminCreateStudentAccount = () => {
     const [show, setShow] = useState(false);
+    const [editModalShow, setEditModalShow] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
@@ -19,6 +20,8 @@ const AdminCreateStudentAccount = () => {
     const [error, setError] = useState('');
     const [users, setUsers] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
+    const [filteredSections, setFilteredSections] = useState([]);
+    const [filteredSubjects, setFilteredSubjects] = useState([]);
     const [newUser, setNewUser] = useState({
         username: '',
         password: '',
@@ -33,19 +36,48 @@ const AdminCreateStudentAccount = () => {
     const [sections, setSections] = useState([]);
     const [subjects, setSubjects] = useState([]);
     const [semesters, setSemesters] = useState([]);
-
     const [selectedStrand, setSelectedStrand] = useState("");
     const [selectedSection, setSelectedSection] = useState("");
-    const getStrandName = (strandId) => {
-        const strand = strands.find((s) => s._id === strandId);
-        return strand ? strand.name : 'No Strand'; // Ensure it returns the correct name or a fallback
-    };
+
+    // Filtering the sections and subjects based on the selected strand and section
+    useEffect(() => {
+    if (newUser.strand) {
+        console.log('Current strand:', newUser.strand);
+        console.log('All sections:', sections);
+        // Update the filter to match the data structure
+        const sectionsForStrand = sections.filter(section => section.strand._id === newUser.strand);
+        // or if strand is stored as just the ID:
+        // const sectionsForStrand = sections.filter(section => section.strand === newUser.strand);
+        console.log('Filtered sections:', sectionsForStrand);
+        setFilteredSections(sectionsForStrand);
+        setNewUser(prev => ({
+            ...prev,
+            section: '',
+            subjects: []
+        }));
+    } else {
+        setFilteredSections([]);
+    }
+}, [newUser.strand, sections]);
+
+useEffect(() => {
+    if (newUser.section) {
+        console.log('Current section:', newUser.section);
+        console.log('All subjects:', subjects);
+        // Update the filter to match the data structure
+        const subjectsForSection = subjects.filter(subject => 
+            subject.sections && subject.sections.some(sec => sec._id === newUser.section)
+            // or if sections are stored as just IDs:
+            // subject.sections && subject.sections.includes(newUser.section)
+        );
+        console.log('Filtered subjects:', subjectsForSection);
+        setFilteredSubjects(subjectsForSection);
+    } else {
+        setFilteredSubjects([]);
+    }
+}, [newUser.section, subjects]);
     
-    const getSectionName = (sectionId) => {
-        const section = sections.find((s) => s._id === sectionId);
-        return section ? section.name : 'No Section'; // Ensure it returns the correct name or a fallback
-    };
-    
+
     
     useEffect(() => {
         const fetchData = async () => {
@@ -174,6 +206,115 @@ const AdminCreateStudentAccount = () => {
             setLoading(false);
         }
     };
+
+// Update the editUser state
+const [editUser, setEditUser] = useState({
+    id: '',
+    strand: '',
+    section: '',
+    subjects: [],
+    semester: ''
+});
+// Update useEffect for sections filtering
+useEffect(() => {
+    if (editUser.strand) {
+        console.log('Filtering sections for strand:', editUser.strand);
+        const sectionsForStrand = sections.filter(section => 
+            section.strand._id === editUser.strand
+        );
+        console.log('Filtered sections:', sectionsForStrand);
+        setFilteredSections(sectionsForStrand);
+    } else if (newUser.strand) {
+        const sectionsForStrand = sections.filter(section => 
+            section.strand._id === newUser.strand
+        );
+        setFilteredSections(sectionsForStrand);
+    } else {
+        setFilteredSections([]);
+    }
+}, [newUser.strand, editUser.strand, sections]);
+
+// Update useEffect for subjects filtering  
+useEffect(() => {
+    if (editUser.section) {
+        console.log('Filtering subjects for section:', editUser.section);
+        const subjectsForSection = subjects.filter(subject => 
+            subject.sections && subject.sections.some(sec => sec._id === editUser.section)
+        );
+        console.log('Filtered subjects:', subjectsForSection);
+        setFilteredSubjects(subjectsForSection);
+    } else if (newUser.section) {
+        const subjectsForSection = subjects.filter(subject => 
+            subject.sections && subject.sections.some(sec => sec._id === newUser.section)
+        );
+        setFilteredSubjects(subjectsForSection);
+    } else {
+        setFilteredSubjects([]);
+    }
+}, [newUser.section, editUser.section, subjects]);
+// Update handleEditShow
+const handleEditShow = (user) => {
+    setEditUser({
+        id: user._id,
+        strand: user.strand?._id || '',
+        section: user.sections?.[0]?._id || '',
+        subjects: user.subjects?.map(subject => subject._id) || [],
+        semester: user.semester?._id || ''
+    });
+    setEditModalShow(true);
+};
+
+const handleEditClose = () => {
+    setEditModalShow(false);
+    setEditUser({
+        id: '',
+        username: '',
+        strand: '',
+        section: '',
+        subjects: []
+    });
+};
+
+const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+        // Add console.log to debug the request
+        console.log('Sending update request for user:', editUser);
+
+        const response = await fetch(`/api/admin/users/${editUser.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+            body: JSON.stringify({
+                strand: editUser.strand,
+                assignedSections: editUser.section,
+                assignedSubjects: editUser.subjects,
+                semester: editUser.semester
+            }),
+        });
+        // Add response logging
+        console.log('Response status:', response.status);
+        const data = await response.json();
+        console.log('Response data:', data);
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to update user');
+        }
+        handleEditClose();
+    } catch (error) {
+        setError(error.message);
+        console.error('Error:', error);
+    } finally {
+        setLoading(false);
+        fetchData();
+    }
+   
+};
     
     
 
@@ -288,35 +429,43 @@ console.log('Filtered Users:', filteredUsers);
       <th>Actions</th>
     </tr>
   </thead>
-  <tbody>
+{/* Update the Table body rendering */}
+<tbody>
   {filteredUsers.length > 0 ? (
-  filteredUsers.map((user) => (
-    <tr key={user._id}>
-      <td>{user.username}</td>
-      <td>{user.strand ? user.strand.name : 'No Strand'}</td> {/* Safe access to strand.name */}
-      <td>
-        {user.sections && user.sections.length > 0
-          ? user.sections.map((section) => section.name).join(', ')
-          : 'No Sections'} {/* Safe access to sections */}
-      </td>
-      <td>
-        <button className="btn btn-primary custom-btn">Edit</button>
+    filteredUsers.map((user) => (
+      <tr key={user._id}>
+        <td>{user.username}</td>
+        <td>{user.strand ? user.strand.name : 'No Strand'}</td> {/* Access strand.name */}
+        <td>
+          {user.sections && user.sections.length > 0
+            ? user.sections.map((section) => section.name).join(', ')
+            : 'No Sections'} {/* Access section.name and join if multiple */}
+        </td>
+        <td>
         <button
-          className="btn btn-danger custom-btn"
-          onClick={() => handleShow(user._id)}
-        >
-          Delete
-        </button>
-      </td>
+                    className="btn btn-primary custom-btn"
+                    onClick={() => {
+                        console.log('Edit button clicked for user:', user); // Debug log
+                        handleEditShow(user);
+                    }}
+                >
+                    Edit
+                </button>
+          <button
+            className="btn btn-danger custom-btn"
+            onClick={() => handleShow(user._id)}
+          >
+            Delete
+          </button>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan="4">No users found</td>
     </tr>
-  ))
-) : (
-  <tr>
-    <td colSpan="4">No users found</td>
-  </tr>
-)}
-
-  </tbody>
+  )}
+</tbody>
 </Table>
 
 
@@ -343,7 +492,7 @@ console.log('Filtered Users:', filteredUsers);
                                     </Button>
                                 </div> 
 
-
+                                {/* Add Modal */}
                                 <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
     <Modal.Header closeButton>
         <Modal.Title>Add New User</Modal.Title>
@@ -392,9 +541,9 @@ console.log('Filtered Users:', filteredUsers);
         const selectedStrand = e.target.value;
         setNewUser({
             ...newUser,
-            strand: selectedStrand,  // Update the selected strand
-            section: '',  // Reset section to empty when a new strand is selected
-            subjects: []  // Reset subjects to empty
+            strand: selectedStrand,
+            section: '',
+            subjects: []
         });
     }}
     required
@@ -409,51 +558,50 @@ console.log('Filtered Users:', filteredUsers);
             </Form.Group>
 
             {/* Section Field */}
-            <Form.Group className="mb-3">
-                <Form.Label>Section</Form.Label>
-                <Form.Select
-                    value={newUser.section || ''}
-                    onChange={(e) => setNewUser({ ...newUser, section: e.target.value })}
-                    required
-                    disabled={!newUser.strand} // Disable if no strand is selected
-                >
-                    <option value="">Select Section</option>
-                    {sections
-                        .filter((section) => section.strand === newUser.strand) // Filter sections based on the selected strand
-                        .map((section) => (
-                            <option key={section._id} value={section._id}>
-                                {section.name}
-                            </option>
-                        ))}
-                </Form.Select>
-            </Form.Group>
+<Form.Group className="mb-3">
+    <Form.Label>Section</Form.Label>
+    <Form.Select
+    value={newUser.section || ''}
+    onChange={(e) => setNewUser({ ...newUser, section: e.target.value, subjects: [] })}
+    required
+    disabled={!newUser.strand}
+>
+    <option value="">Select Section</option>
+    {filteredSections.map((section) => (
+        <option key={section._id} value={section._id}>
+            {section.name}
+        </option>
+    ))}
+</Form.Select>
+</Form.Group>
 
-            {/* Subjects Field */}
-            <Form.Group className="mb-3">
-                <Form.Label>Subjects</Form.Label>
-                <Form.Select
-                    multiple
-                    value={newUser.subjects || []}
-                    onChange={(e) =>
-                        setNewUser({
-                            ...newUser,
-                            subjects: Array.from(e.target.selectedOptions, (option) => option.value),
-                        })
-                    }
-                    required
-                    disabled={!newUser.section} // Disable if no section is selected
-                >
-                    {subjects
-                        .filter((subject) =>
-                            subject.sections.includes(newUser.section) // Filter subjects based on the selected section
-                        )
-                        .map((subject) => (
-                            <option key={subject._id} value={subject._id}>
-                                {subject.name}
-                            </option>
-                        ))}
-                </Form.Select>
-            </Form.Group>
+{/* Subjects Field */}
+<Form.Group className="mb-3">
+    <Form.Label>Subjects</Form.Label>
+    <Form.Select
+        multiple
+        value={newUser.subjects || []}
+        onChange={(e) => {
+            const selectedValues = Array.from(e.target.selectedOptions, option => option.value);
+            setNewUser({
+                ...newUser,
+                subjects: selectedValues
+            });
+        }}
+        required
+        disabled={!newUser.section}
+        style={{ height: '150px' }} // Make the multiple select box taller
+    >
+        {filteredSubjects.map((subject) => (
+            <option key={subject._id} value={subject._id}>
+                {subject.name}
+            </option>
+        ))}
+    </Form.Select>
+    <Form.Text className="text-muted">
+        Hold Ctrl (Windows) or Command (Mac) to select multiple subjects
+    </Form.Text>
+</Form.Group>
 
             {/* Semester Field */}
             <Form.Group className="mb-3">
@@ -485,7 +633,149 @@ console.log('Filtered Users:', filteredUsers);
     </Modal.Body>
 </Modal>
 
-      
+{/* Delete Modal */}
+<Modal show={show} onHide={handleClose}>
+    <Modal.Header closeButton>
+        <Modal.Title>Confirm Delete</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+        Are you sure you want to delete this user?
+    </Modal.Body>
+    <Modal.Footer>
+        <Button variant="secondary" onClick={handleClose}>
+            Cancel
+        </Button>
+        <Button variant="danger" onClick={() => deleteHandler(selectedUserId)}>
+            Delete
+        </Button>
+    </Modal.Footer>
+</Modal>
+
+{/* Edit Modal */}
+<Modal show={editModalShow} onHide={handleEditClose}>
+    <Modal.Header closeButton>
+        <Modal.Title>Edit Student Account</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+        <Form onSubmit={handleEditSubmit}>
+            {/* Strand Field */}
+            <Form.Group className="mb-3">
+                <Form.Label>Strand</Form.Label>
+                <Form.Select
+                    value={editUser.strand || ''}
+                    onChange={(e) => {
+                        const selectedStrand = e.target.value;
+                        setEditUser({
+                            ...editUser,
+                            strand: selectedStrand,
+                            section: '',
+                            subjects: []
+                        });
+                    }}
+                    required
+                >
+                    <option value="">Select Strand</option>
+                    {strands.map((strand) => (
+                        <option key={strand._id} value={strand._id}>
+                            {strand.name}
+                        </option>
+                    ))}
+                </Form.Select>
+            </Form.Group>
+
+            {/* Section Field */}
+            <Form.Group className="mb-3">
+                <Form.Label>Section</Form.Label>
+                <Form.Select
+                    value={editUser.section || ''}
+                    onChange={(e) => setEditUser({ 
+                        ...editUser, 
+                        section: e.target.value,
+                        subjects: []
+                    })}
+                    required
+                    disabled={!editUser.strand}
+                >
+                    <option value="">Select Section</option>
+                    {filteredSections.map((section) => (
+                        <option key={section._id} value={section._id}>
+                            {section.name}
+                        </option>
+                    ))}
+                </Form.Select>
+            </Form.Group>
+
+            {/* Subjects Field */}
+            <Form.Group className="mb-3">
+                <Form.Label>Subjects</Form.Label>
+                <Form.Select
+                    multiple
+                    value={editUser.subjects || []}
+                    onChange={(e) => {
+                        const selectedValues = Array.from(
+                            e.target.selectedOptions,
+                            option => option.value
+                        );
+                        setEditUser({
+                            ...editUser,
+                            subjects: selectedValues
+                        });
+                    }}
+                    required
+                    disabled={!editUser.section}
+                    style={{ height: '150px' }}
+                >
+                    {filteredSubjects.map((subject) => (
+                        <option key={subject._id} value={subject._id}>
+                            {subject.name}
+                        </option>
+                    ))}
+                </Form.Select>
+                <Form.Text className="text-muted">
+                    Hold Ctrl (Windows) or Command (Mac) to select multiple subjects
+                </Form.Text>
+            </Form.Group>
+
+            {/* Semester Field */}
+            <Form.Group className="mb-3">
+                <Form.Label>Semester</Form.Label>
+                <Form.Select
+                    value={editUser.semester || ''}
+                    onChange={(e) => setEditUser({ 
+                        ...editUser, 
+                        semester: e.target.value 
+                    })}
+                    required
+                >
+                    <option value="">Select Semester</option>
+                    {semesters.map((semester) => (
+                        <option key={semester._id} value={semester._id}>
+                            {semester.name}
+                        </option>
+                    ))}
+                </Form.Select>
+            </Form.Group>
+
+            {/* Error message */}
+            {error && <div className="alert alert-danger">{error}</div>}
+
+            {/* Modal Footer with Buttons */}
+            <div className="d-flex gap-2 justify-content-end">
+                <Button variant="secondary" onClick={handleEditClose}>
+                    Cancel
+                </Button>
+                <Button 
+                    variant="primary" 
+                    type="submit"
+                    disabled={loading}
+                >
+                    {loading ? 'Updating...' : 'Update Student'}
+                </Button>
+            </div>
+        </Form>
+    </Modal.Body>
+</Modal>
+
         </Card.Body>
         </Card>
         </Container>

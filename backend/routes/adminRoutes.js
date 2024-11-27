@@ -11,6 +11,7 @@ router.route('/users/:id').delete(protect, authorizeRoles('admin'), deleteUserAc
 router.route('/addUsers').post(protect, authorizeRoles('admin'), createUserAccount);
 router.route('/getUsers').get(protect, authorizeRoles('admin'), getAllUsers);
 router.route('/users').get(protect, authorizeRoles('admin'), getUserListByRole);
+router.route('/users/:id').put(protect, authorizeRoles('admin'), updateUserAccount);
 
 router.route('/addStrands').post(protect, authorizeRoles('admin'), createStrand);
 router.route('/getStrands').get(protect, authorizeRoles('admin'), getAllStrands);
