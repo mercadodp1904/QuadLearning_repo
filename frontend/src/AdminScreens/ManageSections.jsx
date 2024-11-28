@@ -316,18 +316,19 @@ const ManageSections = () => {
 
                                 <Table striped bordered hover responsive>
                                     <thead>
-                                        <tr>
+                                        <tr className='text-center'>
                                             <th>Section Name</th>
                                             <th>Strand</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody className='text-center'>
                                 {currentEntries.map((section) => (
                                     <tr key={section._id}>
                                         <td>{section.name}</td>
                                         <td>{section.strand ? section.strand.name : 'N/A'}</td>
                                         <td>
+                                        <div className="button-group">
                                         <button
                                              className="btn btn-primary custom-btn"
                                                 onClick={() => handleEditShow(section._id)}
@@ -340,6 +341,7 @@ const ManageSections = () => {
                                         >
                                              Delete
                                          </button>
+                                         </div>
                                         </td>
                                     </tr>
                                 ))}

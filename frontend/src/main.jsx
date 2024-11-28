@@ -13,7 +13,7 @@ import HomeScreen from './screens/HomeScreen';
 import LoginScreen from './screens/LoginScreen';
 import AdminHomeScreen from './AdminScreens/AdminHomeScreen';
 import AdminViewAllUsersScreen from './AdminScreens/AdminViewAllUsersScreen';
-import Strands from './AdminScreens/strands';
+import Strands from './AdminScreens/Strands';
 import StudentHomeScreen from './StudentScreens/StudentHomeScreen';
 import TeacherHomeScreen from './TeacherScreens/TeacherHomeScreen';
 import AdminCreateStudentAccount from './AdminScreens/AdminCreateStudentAccount';

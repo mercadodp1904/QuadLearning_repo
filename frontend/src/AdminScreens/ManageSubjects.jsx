@@ -382,7 +382,7 @@ const ManageSubjects = () => {
                                 </div>
 
                                <Table striped bordered hover>
-                                <thead>
+                                <thead className='text-center'>
                                     <tr>
                                         <th>Name</th>
                                         <th>Code</th>
@@ -391,7 +391,7 @@ const ManageSubjects = () => {
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody className='text-center'>
     {currentEntries.length > 0 ? (
         currentEntries.map((subject) => (
             <tr key={subject._id}>

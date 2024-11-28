@@ -1,4 +1,4 @@
-/* Update sidebar styles */
+/* Base sidebar styles */
 .sidebar {
     position: fixed;
     left: 0;
@@ -13,20 +13,28 @@
     flex-direction: column;
 }
 
+/* Header styles */
 .sidebar-header {
     display: flex;
     align-items: center;
-    justify-content: center;  /* Center horizontally */
+    justify-content: center;
     gap: 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: 20px;
     padding-bottom: 15px;
 }
+
 .sidebar-header h3 {
     margin: 0;
     font-size: 1.2rem;
     font-weight: 600;
-    text-align: center;  /* Center text */
+    text-align: center;
+}
+
+/* Dropdown and link styles */
+.sidebar-dropdown {
+    position: relative;
+    margin-bottom: 5px;
 }
 
 .sidebar-link {
@@ -36,24 +44,29 @@
     color: white !important;
     text-decoration: none;
     border-radius: 5px;
-    margin-bottom: 5px;
     cursor: pointer;
-    transition: all 0.3s;
-    width: 100%;  /* Ensure full width */
+    transition: all 0.3s ease;
+    gap: 10px;
 }
 
 .sidebar-link:hover {
     background-color: rgba(255, 255, 255, 0.1);
+    border-left: 4px solid #fff;
+    padding-left: 11px; /* Compensate for border */
 }
 
 .sidebar-link i {
-    margin-right: 10px;
+    width: 24px;
+    text-align: center;
     font-size: 1.1rem;
-    width: 24px;  /* Fixed width for icons */
-    text-align: center;  /* Center icons */
 }
 
+.sidebar-link span {
+    flex-grow: 1;
+    text-align: left;
+}
 
+/* Dropdown content styles */
 .sidebar-dropdown-content {
     max-height: 0;
     overflow: hidden;
@@ -63,61 +76,70 @@
     border-radius: 5px;
 }
 
-/* Center the text within links */
-.sidebar-link span {
-    flex-grow: 1;  /* Take up available space */
-    text-align: left;  /* Keep text aligned left */
-    margin-left: 10px;  /* Space after icon */
+/* Update the dropdown content styles */
+.sidebar-dropdown-content .nav-link {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px 10px 48px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    gap: 12px; /* Add gap between icon and text */
 }
 
+.sidebar-dropdown-content .nav-link i {
+    width: 20px; /* Fixed width for icons */
+    text-align: center;
+    margin-right: 10px; /* Add right margin to icons */
+}
 
 .sidebar-dropdown-content.show {
     max-height: 500px;
     opacity: 1;
 }
 
+.sidebar-dropdown-content a {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px 10px 48px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.sidebar-dropdown-content a:hover {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+    padding-left: 53px;
+}
+
+/* Chevron animation */
 .sidebar-link i.bi-chevron-down {
-    transition: all 0.3s ease-in-out;
+    transition: transform 0.3s ease-in-out;
 }
 
 .sidebar-dropdown.active .sidebar-link i.bi-chevron-down {
     transform: rotate(180deg);
 }
 
-.sidebar-dropdown-content a {
-    transition: all 0.2s ease;
-    padding: 10px 15px 10px 48px;
-    opacity: 0.8;
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.sidebar-dropdown-content a:hover {
-    color: white;
-    background-color: rgba(255, 255, 255, 0.1);
-    opacity: 1;
-}
-
-.ms-auto {
-    margin-left: auto !important;
-}
-
-
-.logout-link i {
-    color: #ffffff;  
-}
-
-.logout-link:hover i {
-    color: #ff2b2b;  
-}
-
+/* Footer styles */
 .sidebar-footer {
     margin-top: auto;
     padding-top: 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Responsive adjustments */
+.logout-link i {
+    color: #ffffff;
+}
+
+.logout-link:hover i {
+    color: #ff2b2b;
+}
+
+/* Responsive styles */
 @media (max-width: 992px) {
     .main-content .container-fluid {
         padding-right: 1rem;
@@ -125,15 +147,16 @@
     }
 }
 
-/* Mobile styles */
 @media (max-width: 768px) {
     .sidebar {
         transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
     }
 
     .sidebar.open {
         transform: translateX(0);
     }
+
     .sidebar-toggle-btn {
         position: fixed;
         top: 1rem;
@@ -159,6 +182,7 @@
         border: none;
         font-size: 1.5rem;
         cursor: pointer;
+        color: white;
     }
 
     .sidebar-overlay {
@@ -170,4 +194,11 @@
         background: rgba(0, 0, 0, 0.5);
         z-index: 999;
     }
+}
+
+/* Add this to your CSS file */
+.button-group {
+    display: flex;
+    gap: 10px; /* Adjust the gap as needed */
+    justify-content: center; /* Center the buttons */
 }

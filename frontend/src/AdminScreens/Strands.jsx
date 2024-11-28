@@ -292,20 +292,21 @@ const AdminCreateStrand = () => {
                                 </div>
 
                                 <Table striped bordered hover>
-                                <thead>
+                                <thead className='text-center'>
                                     <tr>
                                         <th>Name</th>
                                         <th>Description</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody className='text-center'>
                                             {currentEntries.length > 0 ? (
                                                 currentEntries.map((strand) => (
                                                     <tr key={strand._id}>
                                                         <td>{strand.name}</td>
                                                         <td>{strand.description}</td>
                                                         <td>
+                                                        <div className="button-group">
                                                         <button
                                                                 className="btn btn-primary custom-btn"
                                                                 onClick={() => handleEditShow(strand._id)}
@@ -318,6 +319,7 @@ const AdminCreateStrand = () => {
                                                             >
                                                             Delete
                                                             </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))

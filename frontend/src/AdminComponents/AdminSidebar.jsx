@@ -27,31 +27,39 @@ const AdminSidebar = () => {
             </div>
 
             <Nav className="flex-column flex-grow-1">
-                <LinkContainer to="/admin/dashboard">
+                <LinkContainer to="/admin">
                     <Nav.Link className="sidebar-link">
-                    <i className="bi bi-house-door"></i> Home
+                        <i className="bi bi-house-door"></i> Home
                     </Nav.Link>
                 </LinkContainer>
 
-                {/* Users Management Dropdown */}
-                <div className="sidebar-dropdown">
-                    <div className="sidebar-link" onClick={() => toggleDropdown('users')}>
-                        <i className="bi bi-people"></i>
-                        <span>Users Management</span>
-                        <i className={`bi bi-chevron-${dropdowns.users ? 'up' : 'down'} ms-auto`}></i>
-                    </div>
-                    <div className={`sidebar-dropdown-content ${dropdowns.users ? 'show' : ''}`}>
-                        <LinkContainer to="/admin/AdminViewAllUsersScreen">
-                            <Nav.Link>View All Users</Nav.Link>
-                        </LinkContainer>
-                        <LinkContainer to="/admin/AdminCreateStudentAccount">
-                            <Nav.Link>Add New Student Account</Nav.Link>
-                        </LinkContainer>
-                        <LinkContainer to="/admin/AdminCreateTeacherAccount">
-                            <Nav.Link>Add New Teacher Account</Nav.Link>
-                        </LinkContainer>
-                    </div>
-                </div>
+<div className="sidebar-dropdown">
+    <div className="sidebar-link" onClick={() => toggleDropdown('users')}>
+        <i className="bi bi-people-fill"></i>
+        <span>Users Management</span>
+        <i className={`bi bi-chevron-${dropdowns.users ? 'up' : 'down'} ms-auto`}></i>
+    </div>
+    <div className={`sidebar-dropdown-content ${dropdowns.users ? 'show' : ''}`}>
+        <LinkContainer to="/admin/AdminViewAllUsersScreen">
+            <Nav.Link>
+                <i className="bi bi-person-lines-fill"></i>
+                View All Users
+            </Nav.Link>
+        </LinkContainer>
+        <LinkContainer to="/admin/AdminCreateStudentAccount">
+            <Nav.Link>
+                <i className="bi bi-person-plus-fill"></i>
+                Add Student Account
+            </Nav.Link>
+        </LinkContainer>
+        <LinkContainer to="/admin/AdminCreateTeacherAccount">
+            <Nav.Link>
+                <i className="bi bi-person-badge-fill"></i>
+                Add Teacher Account
+            </Nav.Link>
+        </LinkContainer>
+    </div>
+</div>
 
                 {/* Academic Management Dropdown */}
                 <div className="sidebar-dropdown">

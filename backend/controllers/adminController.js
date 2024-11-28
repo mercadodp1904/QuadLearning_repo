@@ -102,14 +102,15 @@ const updateUserAccount = asyncHandler(async (req, res) => {
     }
 
     try {
-        // Update strand if provided
+        // Update strand if provided (for students)
         if (strand) {
             user.strand = strand;
         }
 
-        // Update section if provided
+        // Update sections if provided (handle as array for teachers)
         if (assignedSections) {
-            user.sections = [assignedSections];
+            // For teachers, keep as array; for students, wrap in array
+            user.sections = user.role === 'teacher' ? assignedSections : [assignedSections];
         }
 
         // Update subjects if provided

@@ -92,42 +92,6 @@ const AdminViewAllUsersScreen = () => {
         }
     };
 
-    const handleAddUser = async (e) => {
-        const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        
-        const userData = {
-            username: newUser.username,
-            password: newUser.password,
-            role: newUser.role
-        }
-
-        const response = await fetch('/api/admin/addUsers', {
-            method: 'POST',
-            body: JSON.stringify(userData),
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`, // Add the Bearer token here
-            }
-        });
-        const json = await response.json();
-
-         // Directly update the users state with the new user data
-         setUsers(prevUsers => [...prevUsers, json.data]); // Use json.data to get the new user object
-
-        if(!response.ok){ 
-            setError(json.message);
-        }
-
-        if(response.ok){
-            setNewUser({ username: '', password: '', role: ''});
-            setLoading(false);
-            setShowAddModal(false);
-            console.log('User added successfully');
-        }
-    };
 
     const filteredAccounts = users?.filter(user => 
         user?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -141,7 +105,7 @@ const AdminViewAllUsersScreen = () => {
         if (direction === 'prev' && currentPage > 1) setCurrentPage(currentPage - 1);
         if (direction === 'next' && currentPage < totalPages) setCurrentPage(currentPage + 1);
     };
-
+    
     return ( 
         <>
         <AdminSidebar/>
@@ -172,15 +136,6 @@ const AdminViewAllUsersScreen = () => {
                     <span>entries</span>
                 </div>
 
-                <div>
-                <button 
-            className='btn btn-primary mx-5 px-3 custom-width-btn'
-                    onClick={() => setShowAddModal(true)}
-                >
-                    Add Users
-                </button>
-                </div>
-
                 <InputGroup style={{ width: '200px' }}>
                     <InputGroup.Text>
                         <FaSearch />
@@ -199,7 +154,6 @@ const AdminViewAllUsersScreen = () => {
             <th>Name</th>
             <th>Date Created</th>
             <th>Role</th>
-            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -210,15 +164,6 @@ const AdminViewAllUsersScreen = () => {
                     <td>{user.username || user.name}</td>
                     <td>{user.createdAt}</td>
                     <td>{user.role}</td>
-                    <td>
-                        <button className='btn btn-primary custom-btn'>Edit</button>
-                        <button 
-                            className='btn btn-danger custom-btn' 
-                            onClick={() => handleShow(user._id)}
-                        >
-                            Delete
-                        </button>
-                    </td>
                 </tr>
             ))}
     </tbody>
@@ -244,57 +189,6 @@ const AdminViewAllUsersScreen = () => {
                                         Next
                                     </Button>
                                 </div> 
-            <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
-    <Modal.Header closeButton>
-        <Modal.Title>Add New User</Modal.Title>
-    </Modal.Header>
-    <Modal.Body>
-        <Form onSubmit={handleAddUser}>
-            <Form.Group className="mb-3">
-                <Form.Label>Username</Form.Label>
-                <Form.Control
-                    type="text"
-                    value={newUser.username}
-                    onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                    required
-                />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-                <Form.Label>Password</Form.Label>
-                <Form.Control
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                    required
-                />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-                <Form.Label>Role</Form.Label>
-                <Form.Select
-                    value={newUser.role}
-                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                    required
-                >
-                    <option value="">Select Role</option>
-                    <option value="student">Student</option>
-                    <option value="teacher">Teacher</option>
-                </Form.Select>
-            </Form.Group>
-
-            <div className="text-center mt-3">
-                <Button variant="secondary" onClick={() => setShowAddModal(false)} className="me-2">
-                    Cancel
-                </Button>
-                <Button variant="primary" type="submit">
-                    Add User
-                </Button>
-            </div>
-        </Form>
-    </Modal.Body>
-</Modal>
-
       <Modal show={show} onHide={handleClose} className='text-center'>
         <Modal.Header closeButton className='text-center'>
           <Modal.Title className='text-center w-100'>CONFIRMATION MESSAGE</Modal.Title>

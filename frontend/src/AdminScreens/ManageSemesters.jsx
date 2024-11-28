@@ -337,7 +337,7 @@ const ManageSemesters = () => {
                                 </div>
 
                                 <Table striped bordered hover>
-                                    <thead>
+                                    <thead className='text-center'>
                                         <tr>
                                             <th>Term</th>
                                             <th>Start Date</th>
@@ -345,7 +345,7 @@ const ManageSemesters = () => {
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody> 
+                                    <tbody className='text-center'> 
                                         {currentEntries.length > 0 ? (
                                             currentEntries.map((semester) => (
                                                 <tr key={semester._id}>
@@ -353,6 +353,7 @@ const ManageSemesters = () => {
                                                     <td>{new Date(semester.startDate).toLocaleDateString()}</td>
                                                     <td>{new Date(semester.endDate).toLocaleDateString()}</td>
                                                     <td>
+                                                    <div className="button-group">
                                                     <button
                                              className="btn btn-primary custom-btn"
                                                 onClick={() => handleEditShow(semester._id)}
@@ -365,7 +366,9 @@ const ManageSemesters = () => {
                                         >
                                              Delete
                                          </button>
+                                         </div>
                                                     </td>
+                                                    
                                                 </tr>
                                             ))
                                         ) : (
