@@ -8,15 +8,7 @@ const strandSchema = new mongoose.Schema({
     },
     description: { 
         type: String 
-    },
-    subjects: [{ 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Subject' 
-    }], 
-    sections: [{ 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Section' 
-    }],
+    }
 });
 
 const Strand = mongoose.model('Strand', strandSchema);

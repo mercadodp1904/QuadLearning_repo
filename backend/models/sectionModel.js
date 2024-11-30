@@ -15,16 +15,17 @@ const sectionSchema = new mongoose.Schema({
         ref: 'User',
         required: false 
     }], // Assigned teacher
-    subjects: [{ 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Subject',
-        required: false // Optional, in case subjects aren't assigned initially
-    }], // Assigned subjects
     strand: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Strand',
         required: true 
     }, // Reference to the strand
+    advisoryClass: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User', // Link to a teacher who is assigned as the advisor
+        required: false, // Advisory class is optional, can be updated later
+        default: null, // Default is null
+      },
 }, { 
     timestamps: true 
 });
