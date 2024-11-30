@@ -55,9 +55,7 @@ const predefinedTeachers = [
 const createPredefinedTeachers = async () => {
     try {
         for (let teacher of predefinedTeachers) {
-            // Hash the password before saving to the database
-            const salt = await bcrypt.genSalt(10);
-            teacher.password = await bcrypt.hash(teacher.password, salt);
+
 
             // Create the teacher record in the database
             const createdTeacher = await User.create(teacher);

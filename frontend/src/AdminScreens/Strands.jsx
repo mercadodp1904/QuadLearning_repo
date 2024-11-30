@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import './AdminCreateStrand.css';
 import { FaSearch } from 'react-icons/fa';
 import Modal from 'react-bootstrap/Modal';
-
+import Header from '../components/Header';
 const AdminCreateStrand = () => {
     const navigate = useNavigate();
     const [studStrands, setStudStrands] = useState([]);
@@ -203,6 +203,7 @@ const AdminCreateStrand = () => {
 
     return (
         <>
+        <Header/>
             <AdminSidebar />
             <div className='d-flex'>
                 <main className="main-content flex-grow-1">

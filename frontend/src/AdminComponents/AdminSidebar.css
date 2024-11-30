@@ -1,3 +1,7 @@
+*{
+    font-family: 'Open Sans', sans-serif;
+}
+
 /* Base sidebar styles */
 .sidebar {
     position: fixed;

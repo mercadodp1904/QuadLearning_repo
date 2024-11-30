@@ -8,6 +8,7 @@ import AdminSidebar from "../AdminComponents/AdminSidebar";
 import '../AdminComponents/AdminTableList.css';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
+import Header from '../components/Header';
 
 const AdminCreateStudentAccount = () => {
     const [show, setShow] = useState(false);
@@ -22,116 +23,114 @@ const AdminCreateStudentAccount = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [filteredSections, setFilteredSections] = useState([]);
     const [filteredSubjects, setFilteredSubjects] = useState([]);
+    // Add these new state variables
+    const [selectedYearLevel, setSelectedYearLevel] = useState('');
+    const [availableSubjects, setAvailableSubjects] = useState([]);
     const [newUser, setNewUser] = useState({
         username: '',
         password: '',
-        role: 'student', // Default to student
+        role: 'student',
         strand: '',
         section: '',
         subjects: [],
         semester: '',
+        yearLevel: '',
     });
-    
+
     const [strands, setStrands] = useState([]);
     const [sections, setSections] = useState([]);
     const [subjects, setSubjects] = useState([]);
     const [semesters, setSemesters] = useState([]);
     const [selectedStrand, setSelectedStrand] = useState("");
     const [selectedSection, setSelectedSection] = useState("");
+    const [yearLevels, setYearLevels] = useState([]);
 
-    // Filtering the sections and subjects based on the selected strand and section
-    useEffect(() => {
-    if (newUser.strand) {
-        console.log('Current strand:', newUser.strand);
-        console.log('All sections:', sections);
-        // Update the filter to match the data structure
-        const sectionsForStrand = sections.filter(section => section.strand._id === newUser.strand);
-        // or if strand is stored as just the ID:
-        // const sectionsForStrand = sections.filter(section => section.strand === newUser.strand);
-        console.log('Filtered sections:', sectionsForStrand);
-        setFilteredSections(sectionsForStrand);
-        setNewUser(prev => ({
-            ...prev,
-            section: '',
-            subjects: []
-        }));
-    } else {
-        setFilteredSections([]);
-    }
-}, [newUser.strand, sections]);
 
+  // Add a new useEffect to filter subjects based on strand, semester, and year level
 useEffect(() => {
-    if (newUser.section) {
-        console.log('Current section:', newUser.section);
-        console.log('All subjects:', subjects);
-        // Update the filter to match the data structure
-        const subjectsForSection = subjects.filter(subject => 
-            subject.sections && subject.sections.some(sec => sec._id === newUser.section)
-            // or if sections are stored as just IDs:
-            // subject.sections && subject.sections.includes(newUser.section)
-        );
-        console.log('Filtered subjects:', subjectsForSection);
-        setFilteredSubjects(subjectsForSection);
-    } else {
-        setFilteredSubjects([]);
-    }
-}, [newUser.section, subjects]);
-    
+    if (newUser.strand && newUser.semester && newUser.yearLevel) {
+        console.log('Filtering subjects for:', {
+            strand: newUser.strand,
+            semester: newUser.semester,
+            yearLevel: newUser.yearLevel
+        });
 
+        // Filter subjects that match all criteria
+        const filteredSubjects = subjects.filter(subject => 
+            subject.strand._id === newUser.strand &&
+            subject.semester._id === newUser.semester &&
+            subject.yearLevel._id === newUser.yearLevel
+        );
+
+        console.log('Filtered subjects:', filteredSubjects);
+        setAvailableSubjects(filteredSubjects);
+    } else {
+        setAvailableSubjects([]);
+    }
+}, [newUser.strand, newUser.semester, newUser.yearLevel, subjects]);
     
-    useEffect(() => {
         const fetchData = async () => {
+            console.log("fetchData function executed"); // Debug log
             const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+    
             try {
-                const [usersRes, strandsRes, sectionsRes, subjectsRes, semestersRes] = await Promise.all([
+                const [usersRes, strandsRes, sectionsRes, subjectsRes, semestersRes, yearLevelsRes] = await Promise.all([
                     fetch('/api/admin/users?role=student', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
                     fetch('/api/admin/getStrands', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
                     fetch('/api/admin/getSections', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
                     fetch('/api/admin/getSubjects', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
                     fetch('/api/admin/getSemesters', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
+                    fetch('/api/admin/yearLevels', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
                 ]);
     
                 const handleResponse = async (res, label) => {
                     if (!res.ok) {
                         const errorDetails = await res.clone().json();
                         console.error(`${label} Error:`, errorDetails);
+
                         return null;
+
                     }
                     return await res.json();
                 };
     
-                const [user, strands, sections, subjects, semesters] = await Promise.all([
+
+                const [user, strands, sections, subjects, semesters, yearLevels] = await Promise.all([
+
                     handleResponse(usersRes, 'Users'),
                     handleResponse(strandsRes, 'Strands'),
                     handleResponse(sectionsRes, 'Sections'),
                     handleResponse(subjectsRes, 'Subjects'),
                     handleResponse(semestersRes, 'Semesters'),
+                    handleResponse(yearLevelsRes, 'Year Levels'),
                 ]);
     
+
                 if (user) {
                     console.log('Fetched Users:', user); // Ensure this logs user data correctly
                 }
     
-                if (strands && sections && subjects && semesters) {
+                if (strands && sections && subjects && semesters && yearLevels) {
                     setUsers(user);
                     setStrands(strands);
                     setSections(sections);
                     setSubjects(subjects);
                     setSemesters(semesters);
+                    setYearLevels(yearLevels);
                 } else {
                     console.error('Failed to fetch some or all dropdown data');
                 }
+
             } catch (error) {
                 console.error('Error fetching dropdown data:', error.message);
             }
         };
     
+
+    useEffect(() => {
         fetchData();
     }, []);
     
-    
-
-
     const handleClose = () => {
         setShow(false);
         setSelectedUserId(null);  // Reset selectedUserId when modal closes
@@ -153,7 +152,7 @@ useEffect(() => {
                     Authorization: `Bearer ${token}`, // Ensure token is included
                 }
             });
-    
+
             console.log("Response status:", response.status);
             if (response.ok) {
                 setUsers(prevUsers => prevUsers.filter(user => user._id !== userId));
@@ -171,41 +170,57 @@ useEffect(() => {
 
     const handleAddUser = async (e) => {
         e.preventDefault();
-        setLoading(true);
-        setError('');
+        const token = localStorage.getItem('token');
     
         const userData = {
             username: newUser.username,
             password: newUser.password,
-            role: 'student', // Hardcoded as student
+            role: 'student',
+            sections: [newUser.section],  // Wrap the section ID in an array
             strand: newUser.strand,
-            assignedSections: newUser.section, // Matches controller
-            assignedSubjects: newUser.subjects, // Matches controller
+            yearLevel: newUser.yearLevel,
+            semester: newUser.semester,
+            subjects: newUser.subjects
         };
     
+        console.log('Sending User Data:', userData);
+    
         try {
-            const token = localStorage.getItem('token');
             const response = await fetch('/api/admin/addUsers', {
                 method: 'POST',
-                body: JSON.stringify(userData),
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
+                body: JSON.stringify(userData),
             });
     
-            const json = await response.json();
-            if (!response.ok) throw new Error(json.message || 'Failed to add user');
+            const data = await response.json();
+            console.log('Response Data:', data);
     
-            setUsers((prevUsers) => [...prevUsers, json.data]); // Update UI
-            setNewUser({ username: '', password: '', role: 'student', strand: '', section: '', subjects: [] });
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to create user');
+            }
+    
+            setNewUser({
+                username: '',
+                password: '',
+                role: 'student',
+                strand: '',
+                section: '',
+                subjects: [],
+                semester: '',
+                yearLevel: ''
+            });
+            
             setShowAddModal(false);
+            fetchData();
         } catch (error) {
+            console.error('Error:', error);
             setError(error.message);
-        } finally {
-            setLoading(false);
         }
     };
+
 
 // Update the editUser state
 const [editUser, setEditUser] = useState({
@@ -329,15 +344,17 @@ console.log('Filtered Users:', filteredUsers);
 
 
 
+
     const totalPages = Math.ceil(filteredUsers.length / entriesPerPage);
 
     const handlePageChange = (direction) => {
         if (direction === 'prev' && currentPage > 1) setCurrentPage(currentPage - 1);
         if (direction === 'next' && currentPage < totalPages) setCurrentPage(currentPage + 1);
     };
-        
-    return ( 
+
+    return (
         <>
+        <Header/>
         <AdminSidebar/>
         <div className='d-flex'>
         <main className="main-content flex-grow-1">
@@ -425,7 +442,9 @@ console.log('Filtered Users:', filteredUsers);
     <tr>
       <th>Name</th>
       <th>Strand</th>
+      <th>Year Level</th>
       <th>Section</th>
+      <th>Subjects</th>
       <th>Actions</th>
     </tr>
   </thead>
@@ -436,10 +455,16 @@ console.log('Filtered Users:', filteredUsers);
       <tr key={user._id}>
         <td>{user.username}</td>
         <td>{user.strand ? user.strand.name : 'No Strand'}</td> {/* Access strand.name */}
+        <td>{user.yearLevel ? user.yearLevel.name : 'No Year Level'}</td> {/* Access yearLevel.name */}
         <td>
           {user.sections && user.sections.length > 0
             ? user.sections.map((section) => section.name).join(', ')
             : 'No Sections'} {/* Access section.name and join if multiple */}
+        </td>
+        <td>
+        {user.subjects && user.subjects.length > 0
+            ? user.subjects.map((subject) => subject.name).join(', ')
+            : 'No Subjects'} {/* Access subject.name and join if multiple */}
         </td>
         <td>
         <button
@@ -469,12 +494,10 @@ console.log('Filtered Users:', filteredUsers);
 </Table>
 
 
-
-
-
                 <div className="d-flex justify-content-between mt-3">
                                     <Button 
                                         variant="outline-primary" 
+
                                         size="sm"
                                         disabled={currentPage === 1}
                                         onClick={() => handlePageChange('prev')}
@@ -482,14 +505,15 @@ console.log('Filtered Users:', filteredUsers);
                                         Previous
                                     </Button>
                                     <span>Page {currentPage} of {totalPages}</span>
-                                    <Button 
-                                        variant="outline-primary" 
+                                    <Button
+                                        variant="outline-primary"
                                         size="sm"
                                         disabled={currentPage === totalPages}
                                         onClick={() => handlePageChange('next')}
                                     >
                                         Next
                                     </Button>
+
                                 </div> 
 
                                 {/* Add Modal */}
@@ -532,93 +556,132 @@ console.log('Filtered Users:', filteredUsers);
                 />
             </Form.Group>
 
-            {/* Strand Field */}
-            <Form.Group className="mb-3">
-                <Form.Label>Strand</Form.Label>
-                <Form.Select
-    value={newUser.strand || ''}
-    onChange={(e) => {
-        const selectedStrand = e.target.value;
-        setNewUser({
-            ...newUser,
-            strand: selectedStrand,
-            section: '',
-            subjects: []
-        });
-    }}
-    required
->
-    <option value="">Select Strand</option>
-    {strands.map((strand) => (
-        <option key={strand._id} value={strand._id}>
-            {strand.name}
-        </option>
-    ))}
-</Form.Select>
-            </Form.Group>
+                {/* Year Level Selection */}
+    <Form.Group className="mb-3">
+        <Form.Label>Year Level</Form.Label>
+        <Form.Select
+            value={newUser.yearLevel}
+            onChange={(e) => setNewUser(prev => ({
+                ...prev,
+                yearLevel: e.target.value,
+                // Reset dependent fields
+                semester: '',
+                section: '',
+                subjects: []
+            }))}
+            required
+        >
+            <option value="">Select Year Level</option>
+            {yearLevels.map(yearLevel => (
+                <option key={yearLevel._id} value={yearLevel._id}>
+                    {yearLevel.name}
+                </option>
+            ))}
+        </Form.Select>
+    </Form.Group>
 
-            {/* Section Field */}
-<Form.Group className="mb-3">
-    <Form.Label>Section</Form.Label>
-    <Form.Select
-    value={newUser.section || ''}
-    onChange={(e) => setNewUser({ ...newUser, section: e.target.value, subjects: [] })}
-    required
-    disabled={!newUser.strand}
->
-    <option value="">Select Section</option>
-    {filteredSections.map((section) => (
-        <option key={section._id} value={section._id}>
-            {section.name}
-        </option>
-    ))}
-</Form.Select>
-</Form.Group>
+    {/* Strand Selection */}
+    <Form.Group className="mb-3">
+        <Form.Label>Strand</Form.Label>
+        <Form.Select
+            value={newUser.strand}
+            onChange={(e) => setNewUser(prev => ({
+                ...prev,
+                strand: e.target.value,
+                // Reset dependent fields
+                section: '',
+                semester: '',
+                subjects: []
+            }))}
+            required
+        >
+            <option value="">Select Strand</option>
+            {strands.map(strand => (
+                <option key={strand._id} value={strand._id}>
+                    {strand.name}
+                </option>
+            ))}
+        </Form.Select>
+    </Form.Group>
 
-{/* Subjects Field */}
-<Form.Group className="mb-3">
-    <Form.Label>Subjects</Form.Label>
-    <Form.Select
-        multiple
-        value={newUser.subjects || []}
-        onChange={(e) => {
-            const selectedValues = Array.from(e.target.selectedOptions, option => option.value);
-            setNewUser({
-                ...newUser,
-                subjects: selectedValues
-            });
-        }}
-        required
-        disabled={!newUser.section}
-        style={{ height: '150px' }} // Make the multiple select box taller
-    >
-        {filteredSubjects.map((subject) => (
-            <option key={subject._id} value={subject._id}>
-                {subject.name}
-            </option>
-        ))}
-    </Form.Select>
-    <Form.Text className="text-muted">
-        Hold Ctrl (Windows) or Command (Mac) to select multiple subjects
-    </Form.Text>
-</Form.Group>
+    {/* Semester Selection */}
+    <Form.Group className="mb-3">
+        <Form.Label>Semester</Form.Label>
+        <Form.Select
+            value={newUser.semester}
+            onChange={(e) => setNewUser(prev => ({
+                ...prev,
+                semester: e.target.value,
+                // Reset dependent fields
+                subjects: []
+            }))}
+            required
+            disabled={!newUser.strand || !newUser.yearLevel}
+        >
+            <option value="">Select Semester</option>
+            {semesters
+                .filter(semester => 
+                    semester.strand._id === newUser.strand &&
+                    semester.yearLevel._id === newUser.yearLevel
+                )
+                .map(semester => (
+                    <option key={semester._id} value={semester._id}>
+                        {semester.name}
+                    </option>
+                ))
+            }
+        </Form.Select>
+    </Form.Group>
 
-            {/* Semester Field */}
-            <Form.Group className="mb-3">
-                <Form.Label>Semester</Form.Label>
-                <Form.Select
-                    value={newUser.semester || ''}
-                    onChange={(e) => setNewUser({ ...newUser, semester: e.target.value })}
-                    required
-                >
-                    <option value="">Select Semester</option>
-                    {semesters.map((semester) => (
-                        <option key={semester._id} value={semester._id}>
-                            {semester.name}
-                        </option>
-                    ))}
-                </Form.Select>
-            </Form.Group>
+    {/* Section Selection */}
+    <Form.Group className="mb-3">
+        <Form.Label>Section</Form.Label>
+        <Form.Select
+            value={newUser.section}
+            onChange={(e) => setNewUser(prev => ({
+                ...prev,
+                section: e.target.value
+            }))}
+            required
+            disabled={!newUser.strand}
+        >
+            <option value="">Select Section</option>
+            {filteredSections.map(section => (
+                <option key={section._id} value={section._id}>
+                    {section.name}
+                </option>
+            ))}
+        </Form.Select>
+    </Form.Group>
+
+    {/* Subjects Selection */}
+    <Form.Group className="mb-3">
+        <Form.Label>Subjects</Form.Label>
+        {availableSubjects.length > 0 ? (
+            availableSubjects.map(subject => (
+                <div key={subject._id} className="mb-2">
+                    <Form.Check
+                        type="checkbox"
+                        id={subject._id}
+                        label={subject.name}
+                        checked={newUser.subjects.includes(subject._id)}
+                        onChange={(e) => {
+                            setNewUser(prev => ({
+                                ...prev,
+                                subjects: e.target.checked
+                                    ? [...prev.subjects, subject._id]
+                                    : prev.subjects.filter(id => id !== subject._id)
+                            }));
+                        }}
+                    />
+                </div>
+            ))
+        ) : (
+            <p className="text-muted">
+                Please select strand, year level, and semester to view available subjects
+            </p>
+        )}
+    </Form.Group>
 
             {/* Modal Footer with Buttons */}
             <div className="text-center mt-3">
@@ -783,6 +846,7 @@ console.log('Filtered Users:', filteredUsers);
         </div>
             </>
      );
+
 }
- 
+
 export default AdminCreateStudentAccount;

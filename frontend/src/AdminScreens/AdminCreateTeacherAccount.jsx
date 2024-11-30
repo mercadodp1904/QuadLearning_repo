@@ -8,7 +8,8 @@ import AdminSidebar from "../AdminComponents/AdminSidebar";
 import '../AdminComponents/AdminTableList.css';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
-
+import Header from '../components/Header';
+import Alert from 'react-bootstrap/Alert';
 const AdminCreateTeacherAccount = () => {
     const [show, setShow] = useState(false);
     const [editModalShow, setEditModalShow] = useState(false);
@@ -20,13 +21,16 @@ const AdminCreateTeacherAccount = () => {
     const [error, setError] = useState('');
     const [users, setUsers] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
+    const [availableSubjects, setAvailableSubjects] = useState([]);
+    const [advisorySections, setAdvisorySections] = useState([]);
     const [newUser, setNewUser] = useState({
         username: '',
         password: '',
         role: 'teacher',
         sections: [],
         subjects: [],
-        semester: '',
+        semesters: [],
+        advisorySection: '' // Add this field
     });
     
     const [sections, setSections] = useState([]);
@@ -40,46 +44,48 @@ const AdminCreateTeacherAccount = () => {
         semester: ''
     });
 
+        // First, modify your fetchData function to get available advisory sections
+const fetchData = async () => {
+    const token = localStorage.getItem('token');
+    try {
+        const [usersRes, sectionsRes, subjectsRes, semestersRes, advisorySectionsRes] = await Promise.all([
+            fetch('/api/admin/users?role=teacher', { 
+                headers: { Authorization: `Bearer ${token}` } 
+            }),
+            fetch('/api/admin/getSections', { 
+                headers: { Authorization: `Bearer ${token}` } 
+            }),
+            fetch('/api/admin/getSubjects', { 
+                headers: { Authorization: `Bearer ${token}` } 
+            }),
+            fetch('/api/admin/getSemesters', { 
+                headers: { Authorization: `Bearer ${token}` } 
+            }),
+            // New fetch for advisory sections (sections without advisers)
+            fetch('/api/admin/advisorySections', { 
+                headers: { Authorization: `Bearer ${token}` } 
+            })
+        ]);
+
+        const [users, sections, subjects, semesters, advisorySections] = await Promise.all([
+            usersRes.json(),
+            sectionsRes.json(),
+            subjectsRes.json(),
+            semestersRes.json(),
+            advisorySectionsRes.json()
+        ]);
+
+        setUsers(users);
+        setSections(sections);
+        setSubjects(subjects);
+        setSemesters(semesters);
+        setAdvisorySections(advisorySections); // Set available advisory sections
+    } catch (error) {
+        console.error('Error fetching data:', error);
+    }
+};
+
     useEffect(() => {
-        const fetchData = async () => {
-            const token = localStorage.getItem('token');
-            try {
-                const [usersRes, sectionsRes, subjectsRes, semestersRes] = await Promise.all([
-                    fetch('/api/admin/users?role=teacher', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
-                    fetch('/api/admin/getSections', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
-                    fetch('/api/admin/getSubjects', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
-                    fetch('/api/admin/getSemesters', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
-                ]);
-
-                const handleResponse = async (res, label) => {
-                    if (!res.ok) {
-                        const errorDetails = await res.clone().json();
-                        console.error(`${label} Error:`, errorDetails);
-                        return null;
-                    }
-                    return await res.json();
-                };
-
-                const [user, sections, subjects, semesters] = await Promise.all([
-                    handleResponse(usersRes, 'Users'),
-                    handleResponse(sectionsRes, 'Sections'),
-                    handleResponse(subjectsRes, 'Subjects'),
-                    handleResponse(semestersRes, 'Semesters'),
-                ]);
-
-                if (user && sections && subjects && semesters) {
-                    setUsers(user);
-                    setSections(sections);
-                    setSubjects(subjects);
-                    setSemesters(semesters);
-                } else {
-                    console.error('Failed to fetch some or all dropdown data');
-                }
-            } catch (error) {
-                console.error('Error fetching dropdown data:', error.message);
-            }
-        };
-
         fetchData();
     }, []);
 
@@ -120,62 +126,92 @@ const AdminCreateTeacherAccount = () => {
         }
     };
 
-    const handleAddUser = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
+    // Update handleAddUser to properly handle the advisory section
+const handleAddUser = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-        const userData = {
-            username: newUser.username,
-            password: newUser.password,
-            role: 'teacher',
-            assignedSections: newUser.sections,
-            assignedSubjects: newUser.subjects,
-            semester: newUser.semester
-        };
+    // Validate required fields
+    if (!newUser.username || !newUser.password || !newUser.sections.length || 
+        !newUser.subjects.length || !newUser.semesters.length) {
+        setError('Please fill in all required fields');
+        setLoading(false);
+        return;
+    }
 
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('/api/admin/addUsers', {
-                method: 'POST',
-                body: JSON.stringify(userData),
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            const json = await response.json();
-            if (!response.ok) throw new Error(json.message || 'Failed to add user');
-
-            setUsers((prevUsers) => [...prevUsers, json.data]);
-            setNewUser({ username: '', password: '', role: 'teacher', sections: [], subjects: [], semester: '' });
-            setShowAddModal(false);
-        } catch (error) {
-            setError(error.message);
-        } finally {
-            setLoading(false);
-        }
+    const userData = {
+        username: newUser.username.trim(),
+        password: newUser.password,
+        role: 'teacher',
+        sections: newUser.sections.map(id => id.toString()),
+        subjects: newUser.subjects.map(id => id.toString()),
+        semesters: newUser.semesters.map(id => id.toString()),
+        advisorySection: newUser.advisorySection || null // Make it explicitly null if not selected
     };
 
- // Also update the handleEditShow function to ensure proper data formatting:
+    console.log('Sending user data:', userData); // Debug log
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/addUsers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(userData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to create teacher account');
+        }
+
+        setUsers(prevUsers => [...prevUsers, data.data]);
+        setShowAddModal(false);
+        resetForm();
+        alert('Teacher account created successfully');
+        
+    } catch (error) {
+        console.error('Error creating teacher:', error);
+        setError(error.message || 'Failed to create teacher account');
+    } finally {
+        setLoading(false);
+    }
+};
+    
+    // Add a reset form function
+    const resetForm = () => {
+        setNewUser({
+            username: '',
+            password: '',
+            role: 'teacher',
+            sections: [],
+            subjects: [],
+            semesters: [],
+            advisorySection: ''
+        });
+    };
+
     const handleEditShow = (user) => {
         setEditUser({
             id: user._id,
-            sections: user.sections?.map(section => section._id).filter(Boolean) || [], // Ensure valid IDs only
+            sections: user.sections?.map(section => section._id).filter(Boolean) || [],
             subjects: user.subjects?.map(subject => subject._id).filter(Boolean) || [],
-            semester: user.semester?._id || ''
+            semesters: user.semesters?.map(semester => semester._id).filter(Boolean) || [] // Changed
         });
         setEditModalShow(true);
     };
-
+    
     const handleEditClose = () => {
         setEditModalShow(false);
         setEditUser({
             id: '',
             sections: [],
             subjects: [],
-            semester: ''
+            semesters: [] // Changed
         });
     };
 
@@ -239,8 +275,46 @@ const AdminCreateTeacherAccount = () => {
         if (direction === 'next' && currentPage < totalPages) setCurrentPage(currentPage + 1);
     };
 
+// Add null checks when accessing arrays
+useEffect(() => {
+    const filterSubjects = async () => {
+        // Check if both arrays exist and have length
+        if (newUser?.sections?.length > 0 && newUser?.semesters?.length > 0) {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/admin/subjects/filter', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        sections: newUser.sections,
+                        semesters: newUser.semesters
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch filtered subjects');
+                }
+
+                const filteredSubjects = await response.json();
+                setAvailableSubjects(filteredSubjects || []); // Ensure it's always an array
+            } catch (error) {
+                console.error('Error filtering subjects:', error);
+                setAvailableSubjects([]);
+            }
+        } else {
+            setAvailableSubjects([]);
+        }
+    };
+
+    filterSubjects();
+}, [newUser?.sections, newUser?.semesters]); // Add optional chaining here too
+
     return (
         <>
+        <Header/>
             <AdminSidebar />
             <div className='d-flex'>
                 <main className="main-content flex-grow-1">
@@ -271,46 +345,32 @@ const AdminCreateTeacherAccount = () => {
 
                                 {/* Teachers Table */}
                                 <Table responsive hover className="table-striped table-bordered text-center">
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Sections</th>
-                                            <th>Subjects</th>
-                                            <th>Actions</th>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Sections</th>
+                                        <th>Advisory Section</th>
+                                        <th>Subjects</th>
+                                        <th>Semesters</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                {filteredUsers?.map((user) => (
+                                    <tr key={user._id}>
+                                        <td>{user.username}</td>
+                                        <td>{user.sections?.map(section => section?.name).join(', ') || 'No Sections'}</td>
+                                        <td>{user.advisorySection?.name || 'None'}</td>
+                                        <td>{user.subjects?.map(subject => subject?.name).join(', ') || 'No Subjects'}</td>
+                                        <td>{user.semesters?.map(semester => semester?.name).join(', ') || 'No Semesters'}</td>
+                                            <td>
+                                            <Button variant="primary" onClick={() => handleEditShow(user)}>Edit</Button>
+                                            <Button variant="danger" onClick={() => handleShow(user._id)}>Delete</Button>
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredUsers.length > 0 ? (
-                                            filteredUsers.map((user) => (
-                                                <tr key={user._id}>
-                                                    <td>{user.username}</td>
-                                                    <td>{user.sections?.map(section => section.name).join(', ') || 'No Sections'}</td>
-                                                    <td>{user.subjects?.map(subject => subject.name).join(', ') || 'No Subjects'}</td>
-                                                    <td>
-                                                        <div className="button-group">
-                                                            <Button
-                                                                className="btn btn-primary custom-btn"
-                                                                onClick={() => handleEditShow(user)}
-                                                            >
-                                                                Edit
-                                                            </Button>
-                                                            <Button
-                                                                className="btn btn-danger custom-btn"
-                                                                onClick={() => handleShow(user._id)}
-                                                            >
-                                                                Delete
-                                                            </Button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan="4">No users found</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </Table>
+                                    ))}
+                                </tbody>
+                            </Table>
 
                                 {/* Pagination controls */}
                                 <div className="d-flex justify-content-between mt-3">
@@ -335,80 +395,140 @@ const AdminCreateTeacherAccount = () => {
 
                                 {/* Add Teacher Modal */}
                                 <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
-                                    <Modal.Header closeButton>
-                                        <Modal.Title>Add New Teacher</Modal.Title>
-                                    </Modal.Header>
-                                    <Modal.Body>
-                                        <Form onSubmit={handleAddUser}>
-                                            <Form.Group className="mb-3">
-                                                <Form.Label>Username</Form.Label>
-                                                <Form.Control
-                                                    type="text"
-                                                    value={newUser.username}
-                                                    onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                                                    required
-                                                />
-                                            </Form.Group>
-                                            <Form.Group className="mb-3">
-                                                <Form.Label>Password</Form.Label>
-                                                <Form.Control
-                                                    type="password"
-                                                    value={newUser.password}
-                                                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                                                    required
-                                                />
-                                            </Form.Group>
-                                            <Form.Group className="mb-3">
-                                                <Form.Label>Sections</Form.Label>
-                                                <Form.Select
-                                                    multiple
-                                                    value={newUser.sections}
-                                                    onChange={(e) => setNewUser({...newUser, sections: Array.from(e.target.selectedOptions, option => option.value)})}
-                                                    required
-                                                >
-                                                    {sections.map((section) => (
-                                                        <option key={section._id} value={section._id}>
-                                                            {section.name}
-                                                        </option>
-                                                    ))}
-                                                </Form.Select>
-                                            </Form.Group>
-                                            <Form.Group className="mb-3">
-                                                <Form.Label>Subjects</Form.Label>
-                                                <Form.Select
-                                                    multiple
-                                                    value={newUser.subjects}
-                                                    onChange={(e) => setNewUser({...newUser, subjects: Array.from(e.target.selectedOptions, option => option.value)})}
-                                                    required
-                                                >
-                                                    {subjects.map((subject) => (
-                                                        <option key={subject._id} value={subject._id}>
-                                                            {subject.name}
-                                                        </option>
-                                                    ))}
-                                                </Form.Select>
-                                            </Form.Group>
-                                            <Form.Group className="mb-3">
-                                                <Form.Label>Semester</Form.Label>
-                                                <Form.Select
-                                                    value={newUser.semester}
-                                                    onChange={(e) => setNewUser({...newUser, semester: e.target.value})}
-                                                    required
-                                                >
-                                                    <option value="">Select Semester</option>
-                                                    {semesters.map((semester) => (
-                                                        <option key={semester._id} value={semester._id}>
-                                                            {semester.name}
-                                                        </option>
-                                                    ))}
-                                                </Form.Select>
-                                            </Form.Group>
-                                            <Button variant="primary" type="submit">
-                                                Add Teacher
-                                            </Button>
-                                        </Form>
-                                    </Modal.Body>
-                                </Modal>
+    <Modal.Header closeButton>
+        <Modal.Title>Add New Teacher</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+        {error && <Alert variant="danger">{error}</Alert>}
+        <Form onSubmit={handleAddUser}>
+            <Form.Group className="mb-3">
+                <Form.Label>Username*</Form.Label>
+                <Form.Control
+                    type="text"
+                    value={newUser.username}
+                    onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                    required
+                    isInvalid={!newUser.username}
+                />
+                <Form.Control.Feedback type="invalid">
+                    Username is required
+                </Form.Control.Feedback>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Password*</Form.Label>
+                <Form.Control
+                    type="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                    required
+                    isInvalid={!newUser.password}
+                />
+                <Form.Control.Feedback type="invalid">
+                    Password is required
+                </Form.Control.Feedback>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Role*</Form.Label>
+                   <Form.Select
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                    required
+                >
+                    <option value="teacher">Teacher</option>
+                </Form.Select>
+            </Form.Group>
+
+<Form.Group className="mb-3">
+    <Form.Label>Advisory Section</Form.Label>
+    <Form.Select
+        value={newUser.advisorySection || ''}
+        onChange={(e) => setNewUser({...newUser, advisorySection: e.target.value})}
+    >
+        <option value="">Select Advisory Section (Optional)</option>
+        {Array.isArray(advisorySections) && advisorySections.map((section) => (
+            <option 
+                key={section._id} 
+                value={section._id}
+            >
+                {section.name}
+            </option>
+        ))}
+    </Form.Select>
+</Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Sections*</Form.Label>
+                <Form.Select
+                    multiple
+                    value={newUser.sections}
+                    onChange={(e) => setNewUser({...newUser, sections: Array.from(e.target.selectedOptions, option => option.value)})}
+                    required
+                    isInvalid={!newUser.sections.length}
+                >
+                    {sections.map((section) => (
+                        <option key={section._id} value={section._id}>
+                            {section.name}
+                        </option>
+                    ))}
+                </Form.Select>
+                <Form.Control.Feedback type="invalid">
+                    Please select at least one section
+                </Form.Control.Feedback>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Semesters*</Form.Label>
+                <Form.Select
+                    multiple
+                    value={newUser.semesters}
+                    onChange={(e) => setNewUser({...newUser, semesters: Array.from(e.target.selectedOptions, option => option.value)})}
+                    required
+                    isInvalid={!newUser.semesters.length}
+                >
+                    {semesters.map((semester) => (
+                        <option key={semester._id} value={semester._id}>
+                            {semester.name}
+                        </option>
+                    ))}
+                </Form.Select>
+                <Form.Control.Feedback type="invalid">
+                    Please select at least one semester
+                </Form.Control.Feedback>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Subjects*</Form.Label>
+                <Form.Select
+                    multiple
+                    value={newUser.subjects}
+                    onChange={(e) => setNewUser({...newUser, subjects: Array.from(e.target.selectedOptions, option => option.value)})}
+                    required
+                    isInvalid={!newUser.subjects.length}
+                    disabled={!newUser.sections.length || !newUser.semesters.length}
+                >
+                    {availableSubjects.map((subject) => (
+                        <option key={subject._id} value={subject._id}>
+                            {subject.name}
+                        </option>
+                    ))}
+                </Form.Select>
+                <Form.Control.Feedback type="invalid">
+                    Please select at least one subject
+                </Form.Control.Feedback>
+            </Form.Group>
+
+            <Button 
+                variant="primary" 
+                type="submit"
+                disabled={loading}
+            >
+                {loading ? 'Adding...' : 'Add Teacher'}
+            </Button>
+        </Form>
+    </Modal.Body>
+</Modal>
 
                                 {/* Edit Teacher Modal */}
                                 <Modal show={editModalShow} onHide={handleEditClose}>

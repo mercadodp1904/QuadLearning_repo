@@ -5,25 +5,33 @@ import { useNavigate } from 'react-router-dom';
 import './AdminCreateStrand.css';
 import { FaSearch } from 'react-icons/fa';
 import Modal from 'react-bootstrap/Modal';
-
+import Header from '../components/Header';
 const ManageSubjects = () => {
     const navigate = useNavigate();
     const [show, setShow] = useState(false);
     const [studSubjects, setStudSubjects] = useState([]);
     const [semesters, setSemesters] = useState([]);
-    const [sections, setSections] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [name, setName] = useState('');
     const [code, setCode] = useState('');
+    const [strands, setStrands] = useState([]);
+    const [selectedStrand, setSelectedStrand] = useState('');
+    const [selectedSemester, setSelectedSemester] = useState('');
+    const [selectedYearLevel, setSelectedYearLevel] = useState('');
     const [semester, setSemester] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
-    const [selectedSections, setSelectedSections] = useState([]);
     const [selectedSubjectId, setSelectedSubjectId] = useState(null);
     const [editModalShow, setEditModalShow] = useState(false);
-    const [sectionsData, setSectionsData] = useState([]);
+    const [yearLevels, setYearLevels] = useState([]);
+
+// Update your filteredSemesters logic
+const filteredSemesters = semesters.filter(semester => 
+    semester.strand._id === selectedStrand && 
+    semester.yearLevel._id === selectedYearLevel
+);
 
 
     const handleClose = () => {
@@ -37,7 +45,6 @@ const ManageSubjects = () => {
     };
 
     
-    
     const handleEditShow = (subjectId) => {
         const subject = studSubjects.find((subj) => subj._id === subjectId);
         if (subject) {
@@ -45,8 +52,8 @@ const ManageSubjects = () => {
             setName(subject.name);
             setCode(subject.code);
             setSemester(subject.semester);
-            setSections(subject.sections);
-            setSelectedSections(subject.sections); // Set selected sections when the modal opens
+            setSelectedStrand(subject.strand._id);
+            setSelectedYearLevel(subject.yearLevel._id);
             setEditModalShow(true);
         } else {
             console.error('Subject not found');
@@ -62,7 +69,9 @@ const ManageSubjects = () => {
         setName('');  // Clear name
         setCode('');  // Clear code
         setSemester('');  // Clear semester
-        // Do not reset selectedSections, as you want to keep it after the modal closes.
+        setSelectedStrand('');
+        setSelectedYearLevel('');
+        setSelectedSemester('');
     };
     
 
@@ -73,7 +82,8 @@ const ManageSubjects = () => {
             name,
             code,
             semester,
-            sections: selectedSections, // Ensure selectedSections is passed here
+            yearLevel: selectedYearLevel,
+            strand: selectedStrand
         };
     
         const token = localStorage.getItem('token');
@@ -105,11 +115,7 @@ const ManageSubjects = () => {
             console.error('Failed to update subject:', error);
         }
         fetchAllData();
-    };
-    
-    
-    
-    
+    }; 
 
     const deleteHandler = async (subjectId) => {
         const token = localStorage.getItem('token'); // Retrieve the token from localStorage
@@ -133,51 +139,46 @@ const ManageSubjects = () => {
                 setError(json.message);
             }
         } catch (error) {
-            console.error('Error deleting user:', error);
-            setError('Failed to delete user');
+            console.error('Error deleting subject:', error);
+            setError('Failed to delete subject');
         }
     };
 
-    // Fetch subjects, semesters, and sections
     const fetchAllData = async () => {
-        const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-
+        const token = localStorage.getItem('token');
+        const headers = {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        };
+    
         try {
-            const [subjectsResponse, semestersResponse, sectionsResponse] = await Promise.all([
-                fetch('/api/admin/getSubjects', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                }),
-                fetch('/api/admin/getSemesters', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                }),
-                fetch('/api/admin/getSections', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                })
+            const [subjectsResponse, semestersResponse, strandsResponse, yearLevelsResponse] = await Promise.all([
+                fetch('/api/admin/getSubjects', { headers }),
+                fetch('/api/admin/getSemesters', { headers }),
+                fetch('/api/admin/getStrands', { headers }),
+                fetch('/api/admin/yearLevels', { headers }) // Add this line
             ]);
-
-            const [subjectsData, semestersData, sectionsData] = await Promise.all([
+    
+            const [subjectsData, semestersData, strandsData, yearLevelsData] = await Promise.all([
                 subjectsResponse.json(),
                 semestersResponse.json(),
-                sectionsResponse.json()
+                strandsResponse.json(),
+                yearLevelsResponse.json() // Add this line
             ]);
 
+            console.log('Subjects from server:', subjectsData);
+
+            console.log('Fetched data:', {
+                subjects: subjectsData,
+                semesters: semestersData,
+                strands: strandsData,
+                yearLevels: yearLevelsData
+            });
+    
             setStudSubjects(subjectsData);
             setSemesters(semestersData);
-            setSections(sectionsData)
-            setSectionsData(sectionsData);
-
+            setStrands(strandsData);
+            setYearLevels(yearLevelsData); // Add this line
         } catch (error) {
             console.error('Error fetching data:', error.message);
             setError('An error occurred while fetching data');
@@ -189,7 +190,6 @@ const ManageSubjects = () => {
         fetchAllData();
     }, []);
 
-    // Handle form submission to create a new subject
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -197,16 +197,18 @@ const ManageSubjects = () => {
     
         const token = localStorage.getItem('token');
     
-        // Create subject data with only selected 
+        // Create subject data
         const subjectData = {
+            strand: selectedStrand,
+            yearLevel: selectedYearLevel,
+            semester: selectedSemester,
             name,
-            code,
-            semester,
-            sections: selectedSections,
+            code
         };
     
         try {
-            const response = await fetch('/api/admin/addSubjects', {
+            // Make sure this endpoint matches your backend route
+            const response = await fetch('/api/admin/addSubjects', { 
                 method: 'POST',
                 body: JSON.stringify(subjectData),
                 headers: {
@@ -220,13 +222,14 @@ const ManageSubjects = () => {
             if (!response.ok) {
                 setError(json.message || 'Failed to create subject');
             } else {
+                // Clear form
                 setName('');
                 setCode('');
-                setSemester('');
-                setSelectedSections([]);
+                setSelectedStrand('');
+                setSelectedYearLevel('');
+                setSelectedSemester('');
+                
                 console.log('Subject created successfully');
-                // Re-fetch subjects to update the table
-                fetchAllData();
             }
         } catch (error) {
             setError('An error occurred while creating the subject');
@@ -234,6 +237,7 @@ const ManageSubjects = () => {
         } finally {
             setLoading(false);
         }
+        fetchAllData();
     };
     
 
@@ -254,6 +258,7 @@ const ManageSubjects = () => {
 
     return (
         <>
+        <Header/>
             <AdminSidebar />
             <div className='d-flex'>
                 <main className="main-content flex-grow-1">
@@ -269,18 +274,68 @@ const ManageSubjects = () => {
                                     </div>
                                 )}
 
-                                <Form onSubmit={handleSubmit}>
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Subject Name</Form.Label>
-                                        <Form.Control
-                                            type="text"
-                                            placeholder="Enter subject name"
-                                            value={name}
-                                            onChange={(e) => setName(e.target.value)}
-                                            required
-                                        />
-                                    </Form.Group>
+                                        <Form onSubmit={handleSubmit}>
+                                            <Form.Group className="mb-3">
+                                                <Form.Label>Strand</Form.Label>
+                                                <Form.Select
+                                                    value={selectedStrand}
+                                                    onChange={(e) => setSelectedStrand(e.target.value)}
+                                                    required
+                                                >
+                                                    <option value="">Select Strand</option>
+                                                    {strands.map(strand => (
+                                                        <option key={strand._id} value={strand._id}>
+                                                            {strand.name}
+                                                        </option>
+                                                    ))}
+                                                </Form.Select>
+                                            </Form.Group>
 
+                                            <Form.Group className="mb-3">
+                                            <Form.Label>Year Level</Form.Label>
+                                            <Form.Control
+                                                as="select"
+                                                value={selectedYearLevel}
+                                                onChange={(e) => setSelectedYearLevel(e.target.value)}
+                                                required
+                                            >
+                                                <option value="">Select Year Level</option>
+                                                {yearLevels.map(yearLevel => (
+                                                    <option key={yearLevel._id} value={yearLevel._id}>
+                                                        {yearLevel.name}
+                                                    </option>
+                                                ))}
+                                            </Form.Control>
+                                        </Form.Group>
+
+                                
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Term</Form.Label>
+                                    <Form.Select
+                                        value={selectedSemester}
+                                        onChange={(e) => setSelectedSemester(e.target.value)}
+                                        required
+                                        disabled={!selectedStrand || !selectedYearLevel}
+                                    >
+                                        <option value="">Select Term</option>
+                                        {filteredSemesters.map(semester => (
+                                            <option key={semester._id} value={semester._id}>
+                                                {`${semester.name} - ${semester.strand.name}`}
+                                            </option>
+                                        ))}
+                                    </Form.Select>
+                                </Form.Group>
+
+                <Form.Group className="mb-3">
+                    <Form.Label>Subject Name</Form.Label>
+                    <Form.Control
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                    />
+                </Form.Group>
+                
                                     <Form.Group className="mb-3">
                                         <Form.Label>Subject Code</Form.Label>
                                         <Form.Control
@@ -290,41 +345,6 @@ const ManageSubjects = () => {
                                             onChange={(e) => setCode(e.target.value)}
                                             required
                                         />
-                                    </Form.Group>
-
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Semester</Form.Label>
-                                        <Form.Control
-                                            as="select"
-                                            value={semester}
-                                            onChange={(e) => setSemester(e.target.value)}
-                                            required
-                                        >
-                                            <option value="">Select Semester</option>
-                                            {semesters.map((sem) => (
-                                                <option key={sem._id} value={sem._id}>
-                                                    {sem.name}
-                                                </option>
-                                            ))}
-                                        </Form.Control>
-                                    </Form.Group>
-
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Sections</Form.Label>
-                                        <Form.Control
-                                            as="select"
-                                            multiple
-                                            value={selectedSections} // Bind to selectedSections state
-                                            onChange={(e) => setSelectedSections([...e.target.selectedOptions].map(option => option.value))}
-                                            required
-                                        >
-                                            {sectionsData.map((section) => (
-                                                <option key={section._id} value={section._id}>
-                                                    {section.name}
-                                                </option>
-                                            ))}
-                                        </Form.Control>
-
                                     </Form.Group>
 
                                     <div className="d-flex gap-2">
@@ -382,58 +402,42 @@ const ManageSubjects = () => {
                                 </div>
 
                                <Table striped bordered hover>
-                                <thead className='text-center'>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Code</th>
-                                        <th>Semester</th>
-                                        <th>Sections</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className='text-center'>
-    {currentEntries.length > 0 ? (
-        currentEntries.map((subject) => (
-            <tr key={subject._id}>
-                <td>{subject.name}</td>
-                <td>{subject.code}</td>
-                <td>
-                    {subject.semester ? subject.semester.name : 'No Semester'}
-                </td>
-                    <td>
-                        {subject.sections && subject.sections.length > 0 ? (
-                            subject.sections
-                                .map((section) => section.name) 
-                                .sort() 
-                                .map((section, index) => (
-                                    <div key={index}>{section}</div>
-                                ))
-                        ) : (
-                            <span>No section assigned</span>
-                        )}
-                    </td>
-                <td>
-                                    <button
-                        className="btn btn-primary custom-btn"
-                        onClick={() => handleEditShow(subject._id)}
-                    >
-                        Edit
-                    </button>
-
-                    <button
-                              className="btn btn-danger custom-btn"
-                                onClick={() => handleShow(subject._id)}
-                            >
-                              Delete
-                            </button>
-                </td>
-            </tr>
-        ))
-    ) : (
-        <tr>
-            <td colSpan="6" className="text-center">No results found</td>
+                               <thead>
+                    <tr>
+                        <th>Subject Name</th>
+                        <th>Subject Code</th>
+                        <th>Strand</th>
+                        <th>Year Level</th>
+                        <th>Semester</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+    {currentEntries.map((subject) => (
+        <tr key={subject._id}>
+            <td>{subject.name}</td>
+            <td>{subject.code}</td>
+            <td>{subject.strand?.name}</td>
+            <td>{subject.yearLevel?.name}</td>
+            <td>
+                {`${subject.semester?.name} - ${subject.semester?.strand?.name || ''}`}
+            </td>
+            <td>
+                <button
+                    className="btn btn-primary custom-btn"
+                    onClick={() => handleEditShow(subject._id)}
+                >
+                    Edit
+                </button>
+                <button
+                    className="btn btn-danger custom-btn"
+                    onClick={() => handleShow(subject._id)}
+                >
+                    Delete
+                </button>
+            </td>
         </tr>
-    )}
+    ))}
 </tbody>
 
 
@@ -484,59 +488,77 @@ const ManageSubjects = () => {
     </Modal.Header>
     <Modal.Body>
         <Form>
-            <Form.Group className="mb-3">
-                <Form.Label>Subject Name</Form.Label>
-                <Form.Control
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                />
-            </Form.Group>
+        <Form.Group className="mb-3">
+                                                <Form.Label>Strand</Form.Label>
+                                                <Form.Select
+                                                    value={selectedStrand}
+                                                    onChange={(e) => setSelectedStrand(e.target.value)}
+                                                    required
+                                                >
+                                                    <option value="">Select Strand</option>
+                                                    {strands.map(strand => (
+                                                        <option key={strand._id} value={strand._id}>
+                                                            {strand.name}
+                                                        </option>
+                                                    ))}
+                                                </Form.Select>
+                                            </Form.Group>
 
-            <Form.Group className="mb-3">
-                <Form.Label>Subject Code</Form.Label>
-                <Form.Control
-                    type="text"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    required
-                />
-            </Form.Group>
+                                            <Form.Group className="mb-3">
+                                            <Form.Label>Year Level</Form.Label>
+                                            <Form.Control
+                                                as="select"
+                                                value={selectedYearLevel}
+                                                onChange={(e) => setSelectedYearLevel(e.target.value)}
+                                                required
+                                            >
+                                                <option value="">Select Year Level</option>
+                                                {yearLevels.map(yearLevel => (
+                                                    <option key={yearLevel._id} value={yearLevel._id}>
+                                                        {yearLevel.name}
+                                                    </option>
+                                                ))}
+                                            </Form.Control>
+                                        </Form.Group>
 
-            <Form.Group className="mb-3">
-                <Form.Label>Semester</Form.Label>
-                <Form.Control
-                    as="select"
-                    value={semester}
-                    onChange={(e) => setSemester(e.target.value)}
-                    required
-                >
-                    <option value="">Select Semester</option>
-                    {semesters.map((sem) => (
-                        <option key={sem._id} value={sem._id}>
-                            {sem.name}
-                        </option>
-                    ))}
-                </Form.Control>
-            </Form.Group>
+                                
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Term</Form.Label>
+                                    <Form.Select
+                                        value={selectedSemester}
+                                        onChange={(e) => setSelectedSemester(e.target.value)}
+                                        required
+                                        disabled={!selectedStrand || !selectedYearLevel}
+                                    >
+                                        <option value="">Select Term</option>
+                                        {filteredSemesters.map(semester => (
+                                            <option key={semester._id} value={semester._id}>
+                                                {`${semester.name} - ${semester.strand.name}`}
+                                            </option>
+                                        ))}
+                                    </Form.Select>
+                                </Form.Group>
 
-            <Form.Group className="mb-3">
-                <Form.Label>Sections</Form.Label>
-                <Form.Control
-                    as="select"
-                    multiple
-                    value={sections}
-                     onChange={(e) => setSelectedSections([...e.target.selectedOptions].map(option => option.value))}
-                    required
-                >
-                    {sectionsData.map((section) => (
-                        <option key={section._id} value={section._id}>
-                            {section.name}
-                        </option>
-                    ))}
-                </Form.Control>
-            </Form.Group>
+                <Form.Group className="mb-3">
+                    <Form.Label>Subject Name</Form.Label>
+                    <Form.Control
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                    />
+                </Form.Group>
+                
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Subject Code</Form.Label>
+                                        <Form.Control
+                                            type="text"
+                                            placeholder="Enter subject code"
+                                            value={code}
+                                            onChange={(e) => setCode(e.target.value)}
+                                            required
+                                        />
+                                    </Form.Group>
         </Form>
     </Modal.Body>
     <Modal.Footer>

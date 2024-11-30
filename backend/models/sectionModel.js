@@ -7,23 +7,30 @@ const sectionSchema = new mongoose.Schema({
     }, // Name of the section (e.g., Grade 11 STEM A)
     students: [{ 
         type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User' 
+        ref: 'User', 
+        required: false 
     }], // Students in this section
     teacher: [{ 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User',
         required: false 
     }], // Assigned teacher
-    subjects: [{ 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Subject',
-        required: false // Optional, in case subjects aren't assigned initially
-    }], // Assigned subjects
     strand: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Strand',
         required: true 
     }, // Reference to the strand
+    yearLevel: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'YearLevel',
+        required: true 
+    }, // Reference to the year level
+    advisoryClass: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User', // Link to a teacher who is assigned as the advisor
+        required: false, // Advisory class is optional, can be updated later
+        default: null, // Default is null
+      },
 }, { 
     timestamps: true 
 });

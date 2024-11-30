@@ -8,18 +8,20 @@ import AdminSidebar from "../AdminComponents/AdminSidebar";
 import '../AdminComponents/AdminTableList.css';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
-
+import Header from '../components/Header';
+import axios from 'axios';
 const AdminViewAllUsersScreen = () => {
     const [show, setShow] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
     const [loading, setLoading] = useState(false);
-    const [showAddModal, setShowAddModal] = useState(false);
     const [error, setError] = useState('');
     const [users, setUsers] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+
     const [newUser, setNewUser] = useState({
         username: '',
         password: '',
@@ -53,7 +55,47 @@ const AdminViewAllUsersScreen = () => {
         fetchUsers();
     }, []);
     
-
+    const handleResetPassword = async (newPassword) => {
+        const token = localStorage.getItem('token');
+        
+        try {
+            setLoading(true);
+            const response = await fetch(`/api/admin/resetPassword/${selectedUserId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ newPassword })
+            });
+    
+            if (response.ok) {
+                alert('Password reset successful');
+                setNewPassword('');
+                setConfirmPassword('');
+                handleClose();
+            } else {
+                const data = await response.json();
+                setError(data.message || 'Failed to reset password');
+                alert('Failed to reset password');
+            }
+        } catch (error) {
+            setError('An error occurred while resetting the password');
+            alert('An error occurred while resetting the password');
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    // Update the handleSubmit function to use handleResetPassword
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (newPassword === confirmPassword) {
+            handleResetPassword(newPassword);
+        } else {
+            alert("Passwords do not match!");
+        }
+    };
 
     const handleClose = () => {
         setShow(false);
@@ -63,33 +105,6 @@ const AdminViewAllUsersScreen = () => {
     const handleShow = (userId) => {
         setSelectedUserId(userId);  // Set the userId when showing modal
         setShow(true);
-    };
-
-    const deleteHandler = async (userId) => {
-        const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-        console.log("Deleting user with ID:", userId);
-        try {
-            const response = await fetch(`/api/admin/users/${userId}`, { // Corrected endpoint
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`, // Ensure token is included
-                }
-            });
-    
-            console.log("Response status:", response.status);
-            if (response.ok) {
-                setUsers(prevUsers => prevUsers.filter(user => user._id !== userId));
-                handleClose(); // Close the modal after deletion
-            } else {
-                const json = await response.json();
-                console.error('Error response:', json);
-                setError(json.message);
-            }
-        } catch (error) {
-            console.error('Error deleting user:', error);
-            setError('Failed to delete user');
-        }
     };
 
 
@@ -108,6 +123,7 @@ const AdminViewAllUsersScreen = () => {
     
     return ( 
         <>
+        <Header/>
         <AdminSidebar/>
         <div className='d-flex'>
         <main className="main-content flex-grow-1">
@@ -154,6 +170,7 @@ const AdminViewAllUsersScreen = () => {
             <th>Name</th>
             <th>Date Created</th>
             <th>Role</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -164,6 +181,9 @@ const AdminViewAllUsersScreen = () => {
                     <td>{user.username || user.name}</td>
                     <td>{user.createdAt}</td>
                     <td>{user.role}</td>
+                    <td>
+                    <button onClick={() => handleShow(user._id)} className='btn btn-primary custom-btn'>Edit</button>
+                    </td>
                 </tr>
             ))}
     </tbody>
@@ -189,24 +209,40 @@ const AdminViewAllUsersScreen = () => {
                                         Next
                                     </Button>
                                 </div> 
-      <Modal show={show} onHide={handleClose} className='text-center'>
-        <Modal.Header closeButton className='text-center'>
-          <Modal.Title className='text-center w-100'>CONFIRMATION MESSAGE</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>The data will be erased and cannot be retrieved. Are you sure you want to continue?</Modal.Body>
-        <Modal.Footer className='justify-content-center'>
-        <Button variant="primary" className="px-4" onClick={() => setShow(false)}>
-            Cancel
-          </Button>
-      <Button 
-            variant="danger" 
-            className="px-4" 
-            onClick={() => selectedUserId && deleteHandler(selectedUserId)}
-        >
-            Confirm
-        </Button>
-        </Modal.Footer>
-      </Modal>
+                                <Modal show={show} onHide={handleClose}>
+            <Modal.Header closeButton>
+                <Modal.Title>Reset Password</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                <Form onSubmit={handleSubmit}>
+                    <Form.Group controlId="formNewPassword">
+                        <Form.Label className='mb-2'>New Password</Form.Label>
+                        <Form.Control
+                            className='mb-2'
+                            type="password"
+                            placeholder="Enter new password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            required
+                        />
+                    </Form.Group>
+                    <Form.Group controlId="formConfirmPassword">
+                        <Form.Label className='mb-2'>Confirm Password</Form.Label>
+                        <Form.Control
+                            className='mb-2'
+                            type="password"
+                            placeholder="Confirm new password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                        />
+                    </Form.Group>
+                    <Button variant="primary" type="submit"> 
+                        Reset Password
+                    </Button>
+                </Form>
+            </Modal.Body>
+        </Modal>
       
         </Card.Body>
         </Card>

@@ -1,31 +1,40 @@
 import mongoose from 'mongoose';
 
-// Define the semester schema
-const semesterSchema = new mongoose.Schema(
-  {
+const semesterSchema = new mongoose.Schema({
     name: { 
         type: String, 
         required: true, 
-        enum: ['1st Semester', '2nd Semester', 'Summer Term'], // Assuming two semesters per year, modify if necessary
+        enum: ['1st Semester', '2nd Semester', 'Summer Term']
+    },
+    strand: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Strand',
+        required: true
+    },
+    yearLevel: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'YearLevel',
+        required: true
     },
     startDate: {
-        type: Date, // Track when the semester starts
-        required: true,
+        type: Date,
+        required: true
     },
     endDate: {
-        type: Date, // Track when the semester ends
-        required: true,
+        type: Date,
+        required: true
     },
-    // You can link this schema to other models like grades or subjects
-    // For example, you can have a reference to the grades in the semester
-    // grades: [{
-    //     type: mongoose.Schema.Types.ObjectId,
-    //     ref: 'Grade',
-    // }],
-  },
-  { timestamps: true } // Adds createdAt and updatedAt timestamps
-);
+    subjects: [{ 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Subject',
+        required: false 
+    }]
+}, { 
+    timestamps: true 
+});
+
+// Add compound index to ensure unique combination of name, strand, and yearLevel
+semesterSchema.index({ name: 1, strand: 1, yearLevel: 1 }, { unique: true });
 
 const Semester = mongoose.model('Semester', semesterSchema);
-
 export default Semester;

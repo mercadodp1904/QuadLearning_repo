@@ -6,6 +6,7 @@ import './AdminCreateStrand.css';
 import { FaSearch } from 'react-icons/fa';
 import Modal from 'react-bootstrap/Modal';
 import { set } from 'mongoose';
+import Header from '../components/Header';
 const ManageSections = () => {
     const navigate = useNavigate();
     const [studSections, setStudSections] = useState([]);
@@ -20,7 +21,8 @@ const ManageSections = () => {
     const [show, setShow] = useState(false);
     const [editModalShow, setEditModalShow] = useState(false);
     const [selectedSectionId, setSelectedSectionId] = useState(null);
-    
+    const [linkedYearLevel, setLinkedYearLevel] = useState('');
+    const [yearLevels, setYearLevels] = useState([]);
     const handleClose = () => {
         setShow(false);
         setSelectedSectionId(null);  // Reset selectedUserId when modal closes
@@ -38,6 +40,7 @@ const ManageSections = () => {
             setSelectedSectionId(sectionId);
             setName(section.name);
             setLinkedStrand(section.strand);
+            setLinkedYearLevel(section.yearLevel); // Add this line
             setEditModalShow(true);
         } else {
             console.error('Section not found');
@@ -48,19 +51,16 @@ const ManageSections = () => {
         setEditModalShow(false);
         setSelectedSectionId(null);
         setName('');
-        setStudStrands('');
-        // Don't reset studSections unless necessary.
+        setLinkedStrand('');
+        setLinkedYearLevel(''); // Add this line
     };
     
     
-
-    
-    
     const handleSaveChanges = async () => {
-        
         const updatedSection = {
             name,
-            strand: linkedStrand, // This could be the value selected from the dropdown
+            strand: linkedStrand,
+            yearLevel: linkedYearLevel // Add this field
         };
     
         const token = localStorage.getItem('token');
@@ -78,27 +78,22 @@ const ManageSections = () => {
             const result = await response.json();
     
             if (response.ok) {
-                // Successfully updated the strand
                 setStudSections((prevSections) =>
                     prevSections.map((section) =>
                         section._id === selectedSectionId ? result : section
                     )
                 );
-                handleCloseModal(); // Close modal after saving
+                handleCloseModal();
             } else {
-                console.error('Error updating strand:', result.message);
+                console.error('Error updating section:', result.message);
             }
         } catch (error) {
-            console.error('Failed to update strand:', error);
+            console.error('Failed to update section:', error);
         }
-        fetchData(); // Refresh the data
+        fetchData();
     };
     
     
-    
-    
-    
-
     const deleteHandler = async (sectionId) => {
         const token = localStorage.getItem('token'); // Retrieve the token from localStorage
         console.log("Deleting section with ID:", sectionId);
@@ -130,26 +125,29 @@ const ManageSections = () => {
         const token = localStorage.getItem('token');
         
         try {
-            const [sectionsResponse, strandsResponse] = await Promise.all([
+            const [sectionsResponse, strandsResponse, yearLevelsResponse] = await Promise.all([
                 fetch('/api/admin/getSections', { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }),
                 fetch('/api/admin/getStrands', { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }),
+                fetch('/api/admin/yearLevels', { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }),
             ]);
         
-            if (!sectionsResponse.ok || !strandsResponse.ok) {
+            if (!sectionsResponse.ok || !strandsResponse.ok || !yearLevelsResponse.ok) {
                 throw new Error('Failed to fetch one or more resources');
             }
         
-            const [sectionsData, strandsData] = await Promise.all([
+            const [sectionsData, strandsData, yearLevelsData] = await Promise.all([
                 sectionsResponse.json(),
                 strandsResponse.json(),
+                yearLevelsResponse.json(),
             ]);
         
             console.log('Fetched Sections:', sectionsData);
             console.log('Fetched Strands:', strandsData);
-        
+            console.log('Fetched Year Levels:', yearLevelsData);
+
             setStudSections(sectionsData || []);  // Set empty array if data is missing
             setStudStrands(strandsData || []);  // Set empty array if data is missing
-        
+            setYearLevels(yearLevelsData || []);  // Set empty array if data is missing
         } catch (error) {
             setError('An error occurred while fetching data');
             console.error('Error fetching data:', error.message);
@@ -167,17 +165,23 @@ const ManageSections = () => {
     
     
     const handleSubmit = async (e) => {
-        const token = localStorage.getItem('token'); // Retrieve the token from localStorage
         e.preventDefault();
         setLoading(true);
         setError('');
-
+    
+        // Clean the yearLevel ID by removing any trailing characters
+        const cleanYearLevelId = linkedYearLevel.replace(/[^0-9a-fA-F]/g, '');
+    
         const sectionData = {
             name,
             strand: linkedStrand,
+            yearLevel: cleanYearLevelId
         };
-
+    
+        console.log('Submitting Section Data:', sectionData);
+    
         try {
+            const token = localStorage.getItem('token');
             const response = await fetch('/api/admin/addSections', {
                 method: 'POST',
                 body: JSON.stringify(sectionData),
@@ -186,16 +190,18 @@ const ManageSections = () => {
                     Authorization: `Bearer ${token}`,
                 },
             });
-
+    
             const json = await response.json();
-
+            console.log('Server Response:', json);
+    
             if (!response.ok) {
                 setError(json.message || 'Failed to create section');
             } else {
                 setName('');
                 setLinkedStrand('');
+                setLinkedYearLevel('');
                 console.log('Section created successfully');
-                fetchData();  // Re-fetch Sections to update the table
+                fetchData();
             }
         } catch (error) {
             setError('An error occurred while creating the section');
@@ -223,6 +229,7 @@ const ManageSections = () => {
 
     return (
         <>
+        <Header/>
             <AdminSidebar />
             <div className='d-flex'>
                 <main className="main-content flex-grow-1">
@@ -254,7 +261,10 @@ const ManageSections = () => {
                                     <Form.Label>Strands:</Form.Label>
                                     <Form.Select
                                         value={linkedStrand}
-                                        onChange={(e) => setLinkedStrand(e.target.value)}
+                                        onChange={(e) => {
+                                            console.log('Selected Strand ID:', e.target.value); // Log the selected value
+                                            setLinkedStrand(e.target.value);
+                                        }}
                                         required
                                     >
                                         <option value="">Select Strand</option>
@@ -267,6 +277,29 @@ const ManageSections = () => {
                                         ) : (
                                             <option disabled>No strands available</option>  
                                         )}
+                                    </Form.Select>
+                                </Form.Group>
+
+                                <Form.Group className="mb-3">
+    <Form.Label>Year Level:</Form.Label>
+    <Form.Select
+        value={linkedYearLevel}
+        onChange={(e) => {
+            const selectedId = e.target.value;
+            console.log('Selected Year Level ID:', selectedId);
+            setLinkedYearLevel(selectedId);
+        }}
+        required
+    >
+        <option value="">Select Year Level</option>
+        {yearLevels.map(yearLevel => {
+            console.log('Year Level Option:', yearLevel); // Debug log
+            return (
+                <option key={yearLevel._id} value={yearLevel._id}>
+                    {yearLevel.name}
+                </option>
+            );
+        })}
                                     </Form.Select>
                                 </Form.Group>
 
@@ -315,39 +348,40 @@ const ManageSections = () => {
                                 </div>
 
                                 <Table striped bordered hover responsive>
-                                    <thead>
-                                        <tr className='text-center'>
-                                            <th>Section Name</th>
-                                            <th>Strand</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className='text-center'>
-                                {currentEntries.map((section) => (
-                                    <tr key={section._id}>
-                                        <td>{section.name}</td>
-                                        <td>{section.strand ? section.strand.name : 'N/A'}</td>
-                                        <td>
-                                        <div className="button-group">
-                                        <button
-                                             className="btn btn-primary custom-btn"
-                                                onClick={() => handleEditShow(section._id)}
-                                             >
-                                                  Edit
-                                        </button>
-                                             <button
-                                            className="btn btn-danger custom-btn"
-                                            onClick={() => handleShow(section._id)}
-                                        >
-                                             Delete
-                                         </button>
-                                         </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-
-                                </Table>
+    <thead>
+        <tr className='text-center'>
+            <th>Section Name</th>
+            <th>Strand</th>
+            <th>Year Level</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody className='text-center'>
+        {currentEntries.map((section) => (
+            <tr key={section._id}>
+                <td>{`${section.name ? section.name : 'N/A'} - ${section.yearLevel ? section.yearLevel.name : 'N/A'}`}</td>
+                <td>{section.strand ? section.strand.name : 'N/A'}</td>
+                <td>{section.yearLevel ? section.yearLevel.name : 'N/A'}</td> {/* Update this line */}
+                <td>
+                    <div className="button-group">
+                        <button
+                            className="btn btn-primary custom-btn"
+                            onClick={() => handleEditShow(section._id)}
+                        >
+                            Edit
+                        </button>
+                        <button
+                            className="btn btn-danger custom-btn"
+                            onClick={() => handleShow(section._id)}
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        ))}
+    </tbody>
+</Table>
 
                                 <div className="d-flex justify-content-between">
                                     <Button
@@ -409,36 +443,53 @@ const ManageSections = () => {
 
                                         {/* Strand Description */}
                                         <Form.Group className="mb-3">
-    <Form.Label>Strand</Form.Label>
-    <Form.Control
-        as="select"
-        value={linkedStrand || ""} // Default to an empty string
-        onChange={(e) => setLinkedStrand(e.target.value)}
+                                    <Form.Label>Strand</Form.Label>
+                                    <Form.Control
+                                        as="select"
+                                        value={linkedStrand || ""} // Default to an empty string
+                                        onChange={(e) => setLinkedStrand(e.target.value)}
+                                        required
+                                    >
+                                        <option value="">Select Strand</option>
+                                        {Array.isArray(studStrands) &&
+                                            studStrands.map((strand) => (
+                                                <option key={strand._id} value={strand._id}>
+                                                    {strand.name}
+                                                </option>
+                                            ))}
+                                    </Form.Control>
+                                </Form.Group>
+
+                                <Form.Group className="mb-3">
+    <Form.Label>Year Level:</Form.Label>
+    <Form.Select
+        value={linkedYearLevel}
+        onChange={(e) => setLinkedYearLevel(e.target.value)}
         required
     >
-        <option value="">Select Strand</option>
-        {Array.isArray(studStrands) &&
-            studStrands.map((strand) => (
-                <option key={strand._id} value={strand._id}>
-                    {strand.name}
-                </option>
-            ))}
-    </Form.Control>
+        <option value="">Select Year Level</option>
+        {yearLevels.map(yearLevel => (
+            <option key={yearLevel._id} value={yearLevel._id}>
+                {yearLevel.name}
+            </option>
+        ))}
+    </Form.Select>
 </Form.Group>
-        </Form>
-    </Modal.Body>
-    <Modal.Footer>
-        <Button variant="secondary" onClick={handleCloseModal}>
-            Cancel
-        </Button>
-        <Button variant="primary" onClick={handleSaveChanges}>
-            Save Changes
-        </Button>
-    </Modal.Footer>
-</Modal>
-                </main>
-            </div>
-        </>
+                                
+                                        </Form>
+                                </Modal.Body>
+                                <Modal.Footer>
+                                    <Button variant="secondary" onClick={handleCloseModal}>
+                                        Cancel
+                                    </Button>
+                                    <Button variant="primary" onClick={handleSaveChanges}>
+                                        Save Changes
+                                    </Button>
+                                </Modal.Footer>
+                            </Modal>
+                                            </main>
+                                        </div>
+                                    </>
     );
 };
 

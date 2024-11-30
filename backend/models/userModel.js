@@ -19,31 +19,45 @@ const userSchema = mongoose.Schema({
     sections: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Section',
-      /*   required: function() {
-            return this.role === 'student' || this.role === 'teacher';
-        } */
     }],
     strand: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Strand',
-    /*     required: function() {
-            return this.role === 'student';
-        } */
     },
     subjects: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Subject',
-   /*      required: function() {
-            return this.role === 'student';
-        } */
     }],
+    yearLevel: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'YearLevel',
+        required: function() { return this.role === 'student'; }
+    },
+    semester: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Semester',
+        required: function() { return this.role === 'student'; }
+    },
+       // For teachers: multiple semesters
+       semesters: {
+        type: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Semester'
+        }],
+        select: function() {
+            return this.role === 'teacher';
+        }
+    },
+       // For teachers only - their advisory section
+       advisorySection: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Section',
+        // This will only be populated for teachers
+    },
+
+
 }, { timestamps: true });
 
-
-// Password matching method
-userSchema.methods.matchPassword = async function (enteredPassword) {
-    return await bcrypt.compare(enteredPassword, this.password);
-};
 
 const User = mongoose.model('User', userSchema);
 

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import './AdminCreateStrand.css';
 import { FaSearch } from 'react-icons/fa';
 import Modal from 'react-bootstrap/Modal';
-
+import Header from '../components/Header';
 const ManageSemesters = () => {
     const navigate = useNavigate();
     const [semesters, setSemesters] = useState([]);
@@ -13,6 +13,8 @@ const ManageSemesters = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [name, setName] = useState('');
+    const [strands, setStrands] = useState([]);
+    const [selectedStrand, setSelectedStrand] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
@@ -21,33 +23,43 @@ const ManageSemesters = () => {
     const [show, setShow] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editModalShow, setEditModalShow] = useState(false);
-    // Reusable fetchSemesters function
-    const fetchSemesters = async () => {
-        const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+    const [selectedYearLevel, setSelectedYearLevel] = useState('');
+    const [yearLevels, setYearLevels] = useState([]);
 
+    const fetchData = async () => {
+        const token = localStorage.getItem('token');
+        const headers = {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        };
+    
         try {
-            const response = await fetch('/api/admin/getSemesters', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`, // Add the Bearer token here
-                },
-            });
-
-            if (response.ok) {
-                const json = await response.json();
-                setSemesters(json); // Set the data if the response is successful
-            } else {
-                console.error('Failed to fetch semesters:', response.status);
+            const [semestersRes, strandsRes, yearLevelsRes] = await Promise.all([
+                fetch('/api/admin/getSemesters', { headers }),
+                fetch('/api/admin/getStrands', { headers }),
+                fetch('/api/admin/yearLevels', { headers }) // You'll need to create this endpoint
+            ]);
+    
+            if (!semestersRes.ok || !strandsRes.ok || !yearLevelsRes.ok) {
+                throw new Error('One or more requests failed');
             }
+    
+            const [semestersData, strandsData, yearLevelsData] = await Promise.all([
+                semestersRes.json(),
+                strandsRes.json(),
+                yearLevelsRes.json()
+            ]);
+    
+            setSemesters(semestersData);
+            setStrands(strandsData);
+            setYearLevels(yearLevelsData);
         } catch (error) {
-            console.error('Error fetching semesters:', error.message);
+            console.error('Error fetching data:', error);
         }
     };
-
-    // Fetch semesters when the component mounts
+    
     useEffect(() => {
-        fetchSemesters();
+        fetchData();
     }, []);
 
     const handleSubmit = async (e) => {
@@ -56,39 +68,28 @@ const ManageSemesters = () => {
         setLoading(true);
         setError('');
     
-        // Check if both startDate and endDate are not empty
-        if (!startDate || !endDate) {
-            setError('Both start date and end date are required.');
+        if (!name || !selectedStrand || !selectedYearLevel || !startDate || !endDate) {
+            setError('All fields are required');
             setLoading(false);
             return;
         }
     
-        // Convert the string dates into Date objects
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-    
-        // Check if the Date objects are valid
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-            setError('Invalid date format');
-            setLoading(false);
-            return;
-        }
-    
-        // Create the semester data with ISO format for date
         const semesterData = {
             name,
-            startDate: start.toISOString(),
-            endDate: end.toISOString(),
+            strand: selectedStrand,
+            yearLevel: selectedYearLevel,
+            startDate: new Date(startDate).toISOString(),
+            endDate: new Date(endDate).toISOString(),
         };
     
         try {
             const response = await fetch('/api/admin/addSemesters', {
                 method: 'POST',
-                body: JSON.stringify(semesterData),
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
                 },
+                body: JSON.stringify(semesterData),
             });
     
             const json = await response.json();
@@ -97,19 +98,18 @@ const ManageSemesters = () => {
                 setError(json.message || 'Failed to create semester');
             } else {
                 setName('');
+                setSelectedStrand('');
+                setSelectedYearLevel('');
                 setStartDate('');
                 setEndDate('');
-                fetchSemesters();
-                console.log('Semester created successfully');
-                // Optionally, fetch updated semesters or redirect
+                fetchData();
             }
         } catch (error) {
             setError('An error occurred while creating the semester');
-            console.error('Error:', error);
         } finally {
             setLoading(false);
         }
-        fetchSemesters();
+       fetchData();
     };
 
     
@@ -124,19 +124,14 @@ const ManageSemesters = () => {
         setShow(true);
     };
 
-    const handleEditShow = (semesterId) => {
-        const semester = semesters.find((semester) => semester._id === semesterId);
-        if (semester) {
-            setselectedSemesterId(semesterId);
-            setName(semester.name);
-            setStartDate(semester.startDate);
-            setEndDate(semester.endDate);
-    
-            setEditModalShow(true);
-        } else {
-            console.error('Section not found');
-        }
-    };
+const handleEdit = (semester) => {
+    setselectedSemesterId(semester._id);
+    setName(semester.name);
+    setSelectedStrand(semester.strand?._id || '');
+    setStartDate(semester.startDate?.split('T')[0] || '');
+    setEndDate(semester.endDate?.split('T')[0] || '');
+    setEditModalShow(true);
+};
     
     const handleCloseModal = () => {
         setEditModalShow(false);
@@ -198,6 +193,7 @@ const ManageSemesters = () => {
             name,
             startDate: startDate, // This could be the value selected from the dropdown
             endDate: endDate, // Pass the selected subjects 
+            yearLevel: selectedYearLevel,
         };
     
         const token = localStorage.getItem('token');
@@ -228,12 +224,13 @@ const ManageSemesters = () => {
         } catch (error) {
             console.error('Failed to update strand:', error);
         }
-        fetchSemesters(); // Refresh the data
+        fetchData(); // Refresh the data
     };
     
 
     return (
         <>
+        <Header/>
             <AdminSidebar />
             <div className="d-flex">
                 <main className="main-content flex-grow-1">
@@ -250,20 +247,54 @@ const ManageSemesters = () => {
                                 )}
 
                                 <Form onSubmit={handleSubmit}>
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Semester Term</Form.Label>
-                                        <Form.Control
-                                            as="select"
-                                            value={name}
-                                            onChange={(e) => setName(e.target.value)}
-                                            required
-                                        >
-                                            <option value="">Select Semester</option>
-                                            <option value="1st Semester">1st Semester</option>
-                                            <option value="2nd Semester">2nd Semester</option>
-                                            <option value="Summer Term">Summer Term</option>
-                                        </Form.Control>
-                                    </Form.Group>
+                                <Form.Group className="mb-3">
+                                <Form.Label>Strand</Form.Label>
+        <Form.Control
+            as="select"
+            value={selectedStrand}
+            onChange={(e) => setSelectedStrand(e.target.value)}
+            required
+        >
+            <option value="">Select Strand</option>
+            {strands.map(strand => (
+                <option key={strand._id} value={strand._id}>
+                    {strand.name}
+                </option>
+            ))}
+        </Form.Control>
+    </Form.Group>
+
+    <Form.Group className="mb-3">
+        <Form.Label>Year Level</Form.Label>
+        <Form.Control
+            as="select"
+            value={selectedYearLevel}
+            onChange={(e) => setSelectedYearLevel(e.target.value)}
+            required
+        >
+            <option value="">Select Year Level</option>
+            {yearLevels.map(yearLevel => (
+                <option key={yearLevel._id} value={yearLevel._id}>
+                    {yearLevel.name}
+                </option>
+            ))}
+        </Form.Control>
+    </Form.Group>
+
+    <Form.Group className="mb-3">
+        <Form.Label>Semester Name</Form.Label>
+        <Form.Control
+            as="select"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+        >
+            <option value="">Select Semester</option>
+            <option value="1st Semester">1st Semester</option>
+            <option value="2nd Semester">2nd Semester</option>
+            <option value="Summer Term">Summer Term</option>
+        </Form.Control>
+    </Form.Group>
 
                                     <Form.Group className="mb-3">
                                         <Form.Label>Start Date</Form.Label>
@@ -336,48 +367,47 @@ const ManageSemesters = () => {
                                     </InputGroup>
                                 </div>
 
-                                <Table striped bordered hover>
-                                    <thead className='text-center'>
-                                        <tr>
-                                            <th>Term</th>
-                                            <th>Start Date</th>
-                                            <th>End Date</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className='text-center'> 
-                                        {currentEntries.length > 0 ? (
-                                            currentEntries.map((semester) => (
+                                {/* Update the table to show strand information */}
+                                    <Table striped bordered hover>
+                                        <thead className='text-center'>
+                                            <tr>
+                                                <th>Strand</th>
+                                                <th>Term</th>
+                                                <th>Year Level</th>
+                                                <th>Start Date</th>
+                                                <th>End Date</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className='text-center'>
+                                            {currentEntries.map((semester) => (
                                                 <tr key={semester._id}>
-                                                    <td>{semester.name}</td>
+                                                    <td>{semester.strand ? semester.strand.name : 'N/A'}</td>
+                                                    <td>{`${semester.name} - ${semester.strand.name}`}</td>
+                                                    <td>{semester.yearLevel ? semester.yearLevel.name : 'N/A'}</td>
                                                     <td>{new Date(semester.startDate).toLocaleDateString()}</td>
                                                     <td>{new Date(semester.endDate).toLocaleDateString()}</td>
                                                     <td>
-                                                    <div className="button-group">
-                                                    <button
-                                             className="btn btn-primary custom-btn"
-                                                onClick={() => handleEditShow(semester._id)}
-                                             >
-                                                  Edit
-                                        </button>
-                                             <button
-                                            className="btn btn-danger custom-btn"
-                                            onClick={() => handleShow(semester._id)}
-                                        >
-                                             Delete
-                                         </button>
-                                         </div>
+                                                        <Button
+                                                            variant="primary"
+                                                            size="sm"
+                                                            className="me-2"
+                                                            onClick={() => handleEdit(semester)}
+                                                        >
+                                                            Edit
+                                                        </Button>
+                                                        <Button
+                                                            variant="danger"
+                                                            size="sm"
+                                                            onClick={() => handleShow(semester._id)}
+                                                        >
+                                                            Delete
+                                                        </Button>
                                                     </td>
-                                                    
                                                 </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan="4" className="text-center">No results found</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </Table>
+                                            ))}
+                                        </tbody>
+                                    </Table>
 
                                 <div className="d-flex justify-content-between mt-3">
                                     <Button 
@@ -423,56 +453,92 @@ const ManageSemesters = () => {
       </Modal>
        {/* Edit Modal */}
        <Modal show={editModalShow} onHide={handleCloseModal}>
-                            <Modal.Header closeButton>
-                                <Modal.Title>Edit Semester</Modal.Title>
-                            </Modal.Header>
-                            <Modal.Body>
-                                {error && <div className="alert alert-danger">{error}</div>}
-                                <Form>
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Semester Name</Form.Label>
-                                        <Form.Control
-                                            as="select"
-                                            value={name}
-                                            onChange={(e) => setName(e.target.value)}
-                                        >
-                                            <option value="">Select Semester</option>
-                                            <option value="1st Semester">1st Semester</option>
-                                            <option value="2nd Semester">2nd Semester</option>
-                                            <option value="Summer Term">Summer Term</option>
-                                        </Form.Control>
-                                    </Form.Group>
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Start Date</Form.Label>
-                                        <Form.Control
-                                            type="date"
-                                            value={startDate}
-                                            onChange={(e) => setStartDate(e.target.value)}
-                                        />
-                                    </Form.Group>
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>End Date</Form.Label>
-                                        <Form.Control
-                                            type="date"
-                                            value={endDate}
-                                            onChange={(e) => setEndDate(e.target.value)}
-                                        />
-                                    </Form.Group>
-                                </Form>
-                            </Modal.Body>
-                            <Modal.Footer>
-                                <Button variant="secondary" onClick={handleCloseModal}>
-                                    Cancel
-                                </Button>
-                                <Button
-                                    variant="primary"
-                                    onClick={handleSaveChanges}
-                                    disabled={loading}
-                                >
-                                    {loading ? 'Updating...' : 'Update Semester'}
-                                </Button>
-                            </Modal.Footer>
-                        </Modal>
+    <Modal.Header closeButton>
+        <Modal.Title>Edit Semester</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+        {error && <div className="alert alert-danger">{error}</div>}
+        <Form>
+            <Form.Group className="mb-3">
+                <Form.Label>Strand</Form.Label>
+                <Form.Control
+                    as="select"
+                    value={selectedStrand}
+                    onChange={(e) => setSelectedStrand(e.target.value)}
+                    required
+                >
+                    <option value="">Select Strand</option>
+                    {strands.map(strand => (
+                        <option key={strand._id} value={strand._id}>
+                            {strand.name}
+                        </option>
+                    ))}
+                </Form.Control>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Semester Name</Form.Label>
+                <Form.Control
+                    as="select"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                >
+                    <option value="">Select Semester</option>
+                    <option value="1st Semester">1st Semester</option>
+                    <option value="2nd Semester">2nd Semester</option>
+                    <option value="Summer Term">Summer Term</option>
+                </Form.Control>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Year Level</Form.Label>
+                <Form.Control
+                    as="select"
+                    value={selectedYearLevel}
+                    onChange={(e) => setSelectedYearLevel(e.target.value)}
+                    required
+                >
+                    <option value="">Select Year Level</option>
+                    {yearLevels.map(yearLevel => (
+                        <option key={yearLevel._id} value={yearLevel._id}>
+                            {yearLevel.name}
+                        </option>
+                    ))}
+                </Form.Control>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>Start Date</Form.Label>
+                <Form.Control
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+                <Form.Label>End Date</Form.Label>
+                <Form.Control
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                />
+            </Form.Group>
+        </Form>
+    </Modal.Body>
+    <Modal.Footer>
+        <Button variant="secondary" onClick={handleCloseModal}>
+            Cancel
+        </Button>
+        <Button
+            variant="primary"
+            onClick={handleSaveChanges}
+            disabled={loading}
+        >
+            {loading ? 'Updating...' : 'Update Semester'}
+        </Button>
+    </Modal.Footer>
+</Modal>
         </>
     );
 };

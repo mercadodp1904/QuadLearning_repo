@@ -6,24 +6,32 @@ const subjectSchema = new mongoose.Schema({
         required: true,
         unique: true 
     },
-    code: {  
+    code: {
         type: String,
         required: true,
         unique: true,
+    },
+    strand: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Strand',
+        required: true
     },
     semester: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Semester',
         required: true
     },
-    teachers: [{  
+    yearLevel: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'YearLevel',
+        required: true
+    },
+    teachers: [{
         type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User' 
-    }],
-    sections: [{ 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Section' 
-    }],
+        ref: 'User', 
+        required: false
+    }]
+    
 });
 
 const Subject = mongoose.model('Subject', subjectSchema);

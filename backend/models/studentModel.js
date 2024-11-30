@@ -7,23 +7,19 @@ const studentSchema = mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
             required: true,
+            unique: true // Ensure one-to-one relationship
         },
-
-        // Track if the student has completed their profile
-        profileCompleted: {
-            type: Boolean,
-            default: false,
-        },
-
-        // Student personal information
-        lrn: {
-            type: String,
-            unique: true, // Ensure unique LRN for each student
-            required: true,
-        },
-        name: {
+        firstName: {
             type: String,
             required: true,
+        },
+        lastName: {
+            type: String,
+            required: true,
+        },
+        middleInitial: {
+            type: String, // Middle initial is optional
+            maxlength: 1,
         },
         gender: {
             type: String,
@@ -87,16 +83,12 @@ const studentSchema = mongoose.Schema(
             },
         },
 
-        // Grades structure with embedded subjects
+        // Grades structure with linked Semester
         grades: [
             {
                 semester: {
-                    type: String,
-                    enum: ['1st', '2nd'],
-                    required: true,
-                },
-                year: {
-                    type: String,
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'Semester',
                     required: true,
                 },
                 subjects: [
@@ -106,7 +98,6 @@ const studentSchema = mongoose.Schema(
                             ref: 'Subject',
                             required: true,
                         },
-
                         midterm: {
                             type: Number, // Midterm grade
                         },

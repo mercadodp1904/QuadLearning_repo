@@ -1,11 +1,52 @@
-import { useState } from 'react';
 import { Nav } from 'react-bootstrap';
 import { LinkContainer } from 'react-router-bootstrap';
 import { Link } from 'react-router-dom';
 import './AdminSidebar.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+
 const AdminSidebar = () => {
+    const [loading, setLoading] = useState(false); // Define loading state
+    const [error, setError] = useState('');
+    const navigate = useNavigate(); // Define navigate
+
+  
+    const handleLogOut = async (e) => {
+        e.preventDefault(); // Prevent the default behavior of the event
+        setLoading(true);   // Set loading state to true
+        setError('');       // Clear any previous errors
+    
+        try {
+            const response = await fetch('/api/users/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include', // Include cookies in the request if they're used for authentication
+            });
+    
+            if (!response.ok) {
+                throw new Error('Logout failed');
+            }
+    
+            // Clear token and user info from local storage
+            localStorage.removeItem('token'); // Clear token if stored locally
+            localStorage.removeItem('userInfo'); // Remove additional user data if stored
+    
+            // Redirect to the login page
+            navigate('/login');
+            console.log('Logout successful');
+        } catch (err) {
+            setError(err.message); // Display error message in the UI
+            console.error('Error during logout:', err.message); // Log the error for debugging
+        } finally {
+            setLoading(false); // Reset the loading state
+        }
+    };
+
     const [dropdowns, setDropdowns] = useState({
         users: false,
         academic: false,
@@ -86,43 +127,14 @@ const AdminSidebar = () => {
                     </div>
                 </div>
 
-                {/* Settings Dropdown */}
-                <div className="sidebar-dropdown">
-                    <div className="sidebar-link" onClick={() => toggleDropdown('settings')}>
-                    <i className="bi bi-person-plus"></i>
-                        <span>Assign Users</span>
-                        <i className={`bi bi-chevron-${dropdowns.settings ? 'up' : 'down'} ms-auto`}></i>
+                     {/* Logout Link */}
+                     <div className="sidebar-footer">
+                    <div className="logout-link">
+                        <Nav.Link onClick={handleLogOut} className="sidebar-link">
+                            <i className="bi bi-box-arrow-right"></i>
+                            <span>Logout</span>
+                        </Nav.Link>
                     </div>
-                    <div className={`sidebar-dropdown-content ${dropdowns.settings ? 'show' : ''}`}>
-                        <LinkContainer to="/admin/assign-students">
-                            <Nav.Link>Assign Students</Nav.Link>
-                        </LinkContainer>
-                        <LinkContainer to="/admin/assign-teachers">
-                            <Nav.Link>Assign Teachers</Nav.Link>
-                        </LinkContainer>
-                        
-                    </div>
-                </div>
-                    {/* Added Sidebar Footer */}
-            <div className="sidebar-footer">
-            <div className="logout-link">
-                <div 
-                    
-                    onClick={() => {
-                        // Add your logout logic here
-                        console.log('Logging out...');
-                    }}
-                >
-                    <LinkContainer to="/admin/dashboard">
-                    <Nav.Link className="sidebar-link">
-                        
-                    <i className="bi bi-box-arrow-right"></i>
-                    <span>Logout</span>
-                    
-                    </Nav.Link>
-                    </LinkContainer>
-                </div>
-                </div>
                 </div>
             </Nav>
         </div>

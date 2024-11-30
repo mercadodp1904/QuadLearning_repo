@@ -4,48 +4,196 @@ import Section from '../models/sectionModel.js';
 import Strand from '../models/strandModel.js';
 import Subject from '../models/subjectModel.js';
 import Semester from '../models/semesterModel.js';
+import YearLevel from '../models/yearLevelModel.js';
 import bcrypt from 'bcryptjs';
 
-
+import mongoose from 'mongoose';
+const { ObjectId } = mongoose.Types;
 // @desc    Create user accounts for teacher or student
 // @route   POST /api/admin/users
 // @access  Private (admin role)
 const createUserAccount = asyncHandler(async (req, res) => {
-    const { username, password, role, assignedSections, assignedSubjects, strand } = req.body;
+    console.log('Received request body:', req.body);
 
-    if (!['teacher', 'student'].includes(role)) {
+    const { 
+        username, 
+        password, 
+        role, 
+        sections,
+        subjects,
+        strand,
+        yearLevel,
+        semester,     // for students
+        semesters,    // for teachers
+        advisorySection 
+    } = req.body;
+
+    // Basic validation for all users
+    if (!username || !password || !role) {
         res.status(400);
-        throw new Error('Role must be either teacher or student');
+        throw new Error('Please provide username, password, and role');
     }
 
-    const existingUser = await User.findOne({ username });
-    if (existingUser) {
+    try {
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // Create base user object
+        let userData = {
+            username: username.trim(),
+            password: hashedPassword,
+            role: role
+        };
+
+        // Add role-specific fields
+        if (role === 'teacher') {
+            // Validate teacher-specific required fields
+            if (!Array.isArray(sections) || sections.length === 0) {
+                throw new Error('Sections are required for teachers');
+            }
+            if (!Array.isArray(subjects) || subjects.length === 0) {
+                throw new Error('Subjects are required for teachers');
+            }
+            if (!Array.isArray(semesters) || semesters.length === 0) {
+                throw new Error('Semesters are required for teachers');
+            }
+
+                // First create the teacher user
+                const user = await User.create({
+                    ...userData,
+                    sections,
+                    subjects,
+                    semesters,
+                    ...(advisorySection && { advisorySection })
+                });
+
+                  // Update sections with teacher assignment
+            console.log('Updating sections with teacher:', sections); // Debug log
+            for (const sectionId of sections) {
+                const updatedSection = await Section.findByIdAndUpdate(
+                    sectionId,
+                    { $addToSet: { teacher: user._id } }, // Make sure this matches your model
+                    { new: true }
+                );
+                console.log('Updated section:', updatedSection); // Debug log
+            }
+
+            // Update all assigned subjects to include this teacher
+            await Subject.updateMany(
+                { _id: { $in: subjects } },
+                { $addToSet: { teachers: user._id } }
+            );
+
+                // Update advisory section
+            if (advisorySection) {
+                await Section.findByIdAndUpdate(
+                    advisorySection,
+                    { advisoryClass: user._id }, // Matches the model field name 'advisoryClass'
+                    { new: true }
+                );
+                console.log('Updated advisory section:', advisorySection);
+            }
+
+            // Fetch the fully populated user data
+            const populatedUser = await User.findById(user._id)
+                .select('-password')
+                .populate('sections')
+                .populate('subjects')
+                .populate('semesters')
+                .populate('advisorySection');
+
+            res.status(201).json({
+                success: true,
+                data: populatedUser
+            });
+
+        } else if (role === 'student') {
+            // Validate student-specific required fields
+            if (!strand || !yearLevel || !semester) {
+                throw new Error('Strand, year level, and semester are required for students');
+            }
+
+            // Add student fields
+            Object.assign(userData, {
+                strand,
+                yearLevel,
+                semester,
+                sections: sections ? [sections[0]] : [], // Students only get one section
+                subjects: subjects || [] // Add subjects for students
+            });
+            
+        }
+
+       
+
+        console.log('Creating user with data:', userData);
+
+        // Create the user
+        const user = await User.create(userData);
+        
+        await Section.updateMany(
+            { _id: { $in: sections } },
+            { $addToSet: { students: user._id } }
+        );
+        // Populate fields based on role
+        const populateFields = ['strand', 'sections'];
+        if (role === 'teacher') {
+            populateFields.push('subjects', 'semesters', 'advisorySection');
+        } else if (role === 'student') {
+            populateFields.push('yearLevel', 'semester');
+        }
+
+        // Fetch the created user with populated fields
+        const populatedUser = await User.findById(user._id)
+            .select('-password')
+            .populate(populateFields);
+
+        res.status(201).json({
+            success: true,
+            data: populatedUser
+        });
+
+    } catch (error) {
+        console.error('Error in createUserAccount:', error);
         res.status(400);
-        throw new Error('Username already exists');
+        if (error.code === 11000) {
+            throw new Error('Username already exists');
+        }
+        throw new Error(error.message || 'Failed to create user');
+    }
+});
+// @desc    Reset user password
+// @route   PUT /api/admin/resetPassword/:id
+// @access  Private (admin role)
+const resetUserPassword = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    // Check if user making request is admin
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+        res.status(403);
+        throw new Error('Not authorized to reset passwords');
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, password: hashedPassword, role });
-
-    if (role === 'teacher' && assignedSections && assignedSubjects) {
-        newUser.sections = assignedSections;
-        newUser.subjects = assignedSubjects;
-    } else if (role === 'student' && strand && assignedSections) {
-        newUser.strand = strand;
-        newUser.sections = [assignedSections];
+    // Find the user whose password needs to be reset
+    const user = await User.findById(id);
+    if (!user) {
+        res.status(404);
+        throw new Error('User not found');
     }
 
-    await newUser.save();
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    res.status(201).json({
+    // Update the user's password
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({
         success: true,
-        data: {
-            _id: newUser._id,
-            username: newUser.username,
-            role: newUser.role,
-            createdAt: newUser.createdAt
-        },
-        message: 'User account created successfully',
+        message: 'Password reset successful'
     });
 });
 
@@ -53,113 +201,133 @@ const createUserAccount = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/users/list
 // @access  Private (admin role)
 const getUserListByRole = asyncHandler(async (req, res) => {
-    const { role, limit = 40 } = req.query; // role from dropdown, limit top 40
-
-    // Validate role
-    if (!['teacher', 'student'].includes(role)) {
-        res.status(400);
-        throw new Error('Invalid role specified');
+    const { role } = req.query;
+    
+    const query = role ? { role } : {};
+    
+    try {
+        const users = await User.find(query)
+            .populate('strand', 'name')
+            .populate('sections', 'name')
+            .populate('subjects', 'name')
+            .populate('yearLevel', 'name')
+            .populate('semester', 'name')
+            .populate('semesters', 'name')  // Add this for teachers
+            .populate('advisorySection', 'name')  // Add this for teachers
+            .select('-password');
+        
+        console.log('Fetched Users:', users); // Debug log
+        
+        res.json(users);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500);
+        throw new Error('Error fetching users');
     }
-
-    // Fetch users and populate related fields
-    const users = await User.find({ role })
-        .sort({ createdAt: 1, username: 1 }) // Sort by timestamp and then alphabetically by username
-        .limit(Number(limit))
-        .select('username password role createdAt') // Select necessary fields only
-        .populate('sections', 'name') // Populate section's name
-        .populate('subjects', 'name') // Populate subject's name
-        .populate('strand', 'name'); // Populate strand's name
-
-    // Send the populated users as the response
-    res.json(users);
 });
 
 // @desc    Update user account
 // @route   PUT /api/admin/users/:id
 // @access  Private (admin role)
+// Update the updateUserAccount controller as well
 const updateUserAccount = asyncHandler(async (req, res) => {
-    const { strand, assignedSections, assignedSubjects, semester } = req.body;
     const { id } = req.params;
-
-    console.log('Update request received:', {
-        userId: id,
-        strand,
-        assignedSections,
-        assignedSubjects,
-        semester
-    });
-
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-        res.status(403);
-        throw new Error('Not authorized to update user accounts');
-    }
+    const { section: newSection, ...updateData } = req.body;
 
     const user = await User.findById(id);
     if (!user) {
-        console.log('User not found with ID:', id);
         res.status(404);
         throw new Error('User not found');
     }
 
-    try {
-        // Update strand if provided (for students)
-        if (strand) {
-            user.strand = strand;
+    // If section is being changed and user is a student
+    if (newSection && user.role === 'student' && newSection !== user.section) {
+        // Remove student from old section
+        if (user.section) {
+            await Section.findByIdAndUpdate(
+                user.section,
+                { $pull: { students: user._id } }
+            );
         }
-
-        // Update sections if provided (handle as array for teachers)
-        if (assignedSections) {
-            // For teachers, keep as array; for students, wrap in array
-            user.sections = user.role === 'teacher' ? assignedSections : [assignedSections];
-        }
-
-        // Update subjects if provided
-        if (assignedSubjects) {
-            user.subjects = assignedSubjects;
-        }
-
-        // Update semester if provided
-        if (semester) {
-            user.semester = semester;
-        }
-
-        const updatedUser = await user.save();
-        console.log('User updated successfully:', updatedUser);
-
-        const populatedUser = await User.findById(updatedUser._id)
-            .populate('strand', 'name')
-            .populate('sections', 'name')
-            .populate('subjects', 'name');
-
-        res.json(populatedUser);
-    } catch (error) {
-        console.error('Error updating user:', error);
-        res.status(400);
-        throw new Error(`Failed to update user: ${error.message}`);
+        
+        // Add student to new section
+        await Section.findByIdAndUpdate(
+            newSection,
+            { $push: { students: user._id } }
+        );
     }
+
+    const updatedUser = await User.findByIdAndUpdate(
+        id,
+        { ...updateData, section: newSection },
+        { new: true }
+    ).populate('strand section subjects yearLevel semester');
+
+    res.json(updatedUser);
 });
 
 // @desc    Delete user account
 // @route   DELETE /api/admin/users/:id
 // @access  Private (admin role)
+// Also update the deleteUserAccount controller to remove the student from the section
 const deleteUserAccount = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-        res.status(403);
-        throw new Error('Not authorized to delete user accounts');
-    }
+    try {
+        // First find the user to get their sections
+        const user = await User.findById(id);
+        
+        if (!user) {
+            res.status(404);
+            throw new Error('User not found');
+        }
 
-    const user = await User.findById(id);
-    if (!user) {
-        res.status(404);
-        throw new Error('User not found');
-    }
+        // If user is a student and has sections, remove them from all sections
+        if (user.role === 'student' && user.sections && user.sections.length > 0) {
+            console.log('Removing student from sections:', user.sections);
+            
+            // Remove student from each section they're in
+            await Promise.all(user.sections.map(async (sectionId) => {
+                await Section.findByIdAndUpdate(
+                    sectionId,
+                    { $pull: { students: user._id } },
+                    { new: true }
+                );
+            }));
+        } else if(user.role === 'teacher') {
+            // Remove teacher from all assigned sections
+            await Section.updateMany(
+                { teacher: user._id },
+                { $pull: { teacher: user._id } }
+            );
 
-    await User.findByIdAndDelete(id);
-    res.json({ message: 'User account deleted successfully' });
+            // Remove teacher from all subjects
+            await Subject.updateMany(
+                { teachers: user._id },
+                { $pull: { teachers: user._id } }
+            );
+
+            // Clear advisory section assignment
+            await Section.updateMany(
+                { advisorySection: user._id },
+                { $unset: { advisorySection: "" } }
+            );
+        }
+
+        // Then delete the user
+        await User.findByIdAndDelete(id);
+        
+        res.json({ 
+            message: 'User account and related data deleted successfully',
+            deletedUserId: id 
+        });
+
+    } catch (error) {
+        console.error('Delete error:', error);
+        res.status(500);
+        throw new Error(`Failed to delete user: ${error.message}`);
+    }
 });
-
 // @desc    Get all user accounts
 // @route   GET /api/admin/users
 // @access  Private (admin role)
@@ -177,31 +345,36 @@ const getAllUsers = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/strands
 // @access  Private (admin role)
 const getAllStrands = asyncHandler(async (req, res) => {
-    const strands = await Strand.find({})
-        .populate('subjects', 'name')
-        .populate('sections', 'name');
-    res.status(200).json(strands);
+    const strands = await Strand.find();
+    res.json(strands);
 });
 
 // @desc    Get all sections
 // @route   GET /api/admin/sections
 // @access  Private (admin role)
 const getAllSections = asyncHandler(async (req, res) => {
-    const sections = await Section.find().populate('strand').populate('teacher').populate('subjects'); // Populate strand info
+    const sections = await Section.find()
+        .populate('strand', 'name') // Populate strand name
+        .populate('yearLevel', 'name') // Add this line to populate year level name
+        .populate('advisoryClass', 'username'); // If you need advisor info
     res.json(sections);
 });
-
-
 
 // @desc    Get all subjects
 // @route   GET /api/admin/subjects
 // @access  Private (admin role)
 const getAllSubjects = asyncHandler(async (req, res) => {
     const subjects = await Subject.find()
-        .populate('semester', 'name')
-        .populate('sections', 'name')
-        .populate('teachers', 'username'); // Ensure this is properly populated
-
+        .populate({
+            path: 'semester',
+            populate: {
+                path: 'strand',
+                select: 'name'
+            }
+        })
+        .populate('strand', 'name')
+        .populate('yearLevel', 'name')
+        .populate('teachers', 'username');
     res.json(subjects);
 });
 
@@ -212,14 +385,15 @@ const getAllSubjects = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/strands
 // @access  Private (admin role)
 const createStrand = asyncHandler(async (req, res) => {
+
     const { name, description } = req.body;
 
-    // Check if the strand already exists
     const strandExists = await Strand.findOne({ name });
     if (strandExists) {
         res.status(400);
         throw new Error('Strand already exists');
     }
+
 
     // Create a new strand with only name and description
     const newStrand = await Strand.create({
@@ -234,10 +408,8 @@ const createStrand = asyncHandler(async (req, res) => {
 
     // Respond with the newly created strand
     res.status(201).json(newStrand);
+
 });
-
-
-
 
 // @desc    Update a strand
 // @route   PUT /api/admin/strands/:id
@@ -279,48 +451,84 @@ const deleteStrand = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/sections
 // @access  Private (admin role)
 const createSection = asyncHandler(async (req, res) => {
-    const { name, strand, teacher, subjects } = req.body;
+    const { name, strand, yearLevel } = req.body;
+    
+    console.log('Received yearLevel:', yearLevel);
 
-    // Validate the strand
-    const strandRecord = await Strand.findById(strand);
-    if (!strandRecord) {
-        return res.status(404).json({ message: 'Strand not found' }); // Ensure valid JSON is sent
+    // Validate ObjectId format
+    if (!ObjectId.isValid(yearLevel)) {
+        res.status(400);
+        throw new Error(`Invalid yearLevel ID format: ${yearLevel}`);
     }
 
+    // Try to find the year level
+    const yearLevelRecord = await YearLevel.findById(yearLevel);
+    console.log('Found yearLevel:', yearLevelRecord);
 
-    // Create new section
-    const newSection = new Section({
-        name,
-        strand,
-    });
+    if (!yearLevelRecord) {
+        res.status(404);
+        throw new Error(`Year level not found with ID: ${yearLevel}`);
+    }
 
-    await newSection.save();
+    const strandRecord = await Strand.findById(strand);
+    if (!strandRecord) {
+        res.status(404);
+        throw new Error('Strand not found');
+    }
 
-    // Update strand with new section
-    strandRecord.sections.push(newSection._id);
-    await strandRecord.save();
+    try {
+        // Create new section
+        const newSection = await Section.create({
+            name,
+            strand: strandRecord._id,
+            yearLevel: yearLevelRecord._id
+        });
 
-    // Send a successful response with JSON data
-    res.status(201).json(newSection);
+        // Populate the section before sending response
+        const populatedSection = await Section.findById(newSection._id)
+            .populate('strand', 'name')
+            .populate('yearLevel', 'name');
+
+        res.status(201).json(populatedSection);
+
+    } catch (error) {
+        console.error('Error creating section:', error);
+        res.status(400);
+        throw new Error(`Failed to create section: ${error.message}`);
+    }
 });
-
 
 // @desc    Update a section
 // @route   PUT /api/admin/sections/:id
 // @access  Private (admin role)
 const updateSection = asyncHandler(async (req, res) => {
-    const { name, strand } = req.body;
+    const { name, strand, yearLevel } = req.body;
     const { id } = req.params;
 
+    // Find existing section
     const section = await Section.findById(id);
     if (!section) {
         res.status(404);
         throw new Error('Section not found');
     }
 
-    section.name = name;
-    section.strand = strand;
-    const updatedSection = await section.save();
+    // Find year level record
+    const yearLevelRecord = await YearLevel.findOne({ name: yearLevel });
+    if (!yearLevelRecord) {
+        res.status(404);
+        throw new Error('Year level not found');
+    }
+
+    // Update section
+    const updatedSection = await Section.findByIdAndUpdate(
+        id,
+        {
+            name: name || section.name,
+            strand: strand || section.strand,
+            yearLevel: yearLevelRecord._id // Use the year level record's ID
+        },
+        { new: true }
+    ).populate('strand').populate('yearLevel');
 
     res.json(updatedSection);
 });
@@ -345,46 +553,102 @@ const deleteSection = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/subjects
 // @access  Private (admin role)
 const createSubject = asyncHandler(async (req, res) => {
-    const { name, code, semester, sections } = req.body;
+    const { name, code, strand, semester, yearLevel } = req.body;
 
-    // Check if the subject already exists by its code
-    const subjectExists = await Subject.findOne({ code });
-    if (subjectExists) {
+    // Validate required fields
+    if (!name || !code || !strand || !semester || !yearLevel) {
         res.status(400);
-        throw new Error('Subject already exists');
+        throw new Error('Please provide all required fields');
     }
 
-    // Validate semester
-    if (!semester) {
-        res.status(400);
-        throw new Error('Semester is required');
+    // Find the semester and strand documents
+    const semesterDoc = await Semester.findById(semester).populate('strand');
+    const strandDoc = await Strand.findById(strand);
+
+    if (!semesterDoc || !strandDoc) {
+        res.status(404);
+        throw new Error('Semester or Strand not found');
     }
 
-    // Validate that the semester exists in the database
-    const semesterExists = await Semester.findById(semester);
-    if (!semesterExists) {
+    try {
+        // Create subject
+        const subject = await Subject.create({
+            name,
+            code,
+            strand,
+            semester,
+            yearLevel,
+            displayName: `${name} - ${semesterDoc.strand.name}`
+        });
+
+        // Update semester with new subject
+        await Semester.findByIdAndUpdate(
+            semester,
+            { $push: { subjects: subject._id } }
+        );
+        // Populate the references for response
+        const populatedSubject = await Subject.findById(subject._id)
+            .populate('strand', 'name')
+            .populate({
+                path: 'semester',
+                populate: {
+                    path: 'strand',
+                    select: 'name'
+                }
+            })
+            .populate('yearLevel', 'name');
+
+        res.status(201).json({
+            success: true,
+            data: populatedSubject,
+            message: 'Subject created and associated successfully'
+        });
+
+    } catch (error) {
+        // If something goes wrong, we should clean up any partial creation
+        if (subject) {
+            await Subject.findByIdAndDelete(subject._id);
+        }
         res.status(400);
-        throw new Error('Invalid semester');
-    }   
-
-    // Create the new subject with teachers
-    const newSubject = await Subject.create({
-        name,
-        code,
-        semester,
-        sections,
-    });
-
-    res.status(201).json(newSubject); // Respond with the newly created subject
+        throw new Error(`Failed to create subject: ${error.message}`);
+    }
 });
 
+const filterSubjects = asyncHandler(async (req, res) => {
+    const { sections, semesters } = req.body; // Changed from semester to semesters
+
+    if (!sections.length || !semesters.length) {
+        return res.status(400).json({ message: 'Sections and semesters are required' });
+    }
+
+    try {
+        // Get all sections data to access their strand and year level
+        const sectionsData = await Section.find({ _id: { $in: sections } });
+        
+        // Extract unique strands and year levels from sections
+        const strands = [...new Set(sectionsData.map(section => section.strand))];
+        const yearLevels = [...new Set(sectionsData.map(section => section.yearLevel))];
+
+        // Find subjects that match the criteria
+        const filteredSubjects = await Subject.find({
+            strand: { $in: strands },
+            yearLevel: { $in: yearLevels },
+            semester: { $in: semesters } // Changed to use $in operator for multiple semesters
+        }).populate('strand yearLevel semester');
+
+        res.json(filteredSubjects);
+    } catch (error) {
+        res.status(500);
+        throw new Error(`Error filtering subjects: ${error.message}`);
+    }
+});
 
 
 // @desc    Update a subject
 // @route   PUT /api/admin/subjects/:id
 // @access  Private (admin role)
 const updateSubject = asyncHandler(async (req, res) => {
-    const { name, code, semester, sections } = req.body;
+    const { name, code, semester, yearLevel, strand, } = req.body;
     const { id } = req.params;
 
     const subject = await Subject.findById(id);
@@ -394,9 +658,10 @@ const updateSubject = asyncHandler(async (req, res) => {
     }
 
     subject.name = name;
+    subject.strand = strand;
+    subject.yearLevel = yearLevel;
     subject.code = code;
     subject.semester = semester;
-    subject.sections = sections;
     const updatedSubject = await subject.save();
 
     res.json(updatedSubject);
@@ -414,46 +679,72 @@ const deleteSubject = asyncHandler(async (req, res) => {
         throw new Error('Subject not found');
     }
 
+    // Remove the subject reference from the semester's subjects array
+    await Semester.findByIdAndUpdate(
+        subject.semester,
+        { 
+            $pull: { subjects: subject._id }  // Remove the subject ID from the subjects array
+        }
+    );
+
+    // Delete the subject
     await Subject.findByIdAndDelete(id);
-    res.json({ message: 'User account deleted successfully' });
+
+    res.json({ 
+        success: true,
+        message: 'Subject deleted successfully' 
+    });
 });
 
 // @desc    Create a new semester
 // @route   POST /api/admin/semesters
 // @access  Private (admin role)
 const createSemester = asyncHandler(async (req, res) => {
-    const { name, startDate, endDate } = req.body;
+    const { name, strand, startDate, endDate, yearLevel } = req.body;
 
-    // Validate that the startDate and endDate are provided
-    if (!startDate || !endDate) {
+    // Validate required fields
+    if (!name || !strand || !startDate || !endDate || !yearLevel) {
         res.status(400);
-        throw new Error('Start date and End date are required');
+        throw new Error('Please provide all required fields');
     }
 
-    // Check if a semester with the same name already exists
-    const existingSemester = await Semester.findOne({ name });
-    if (existingSemester) {
-        res.status(400);
-        throw new Error('Semester already exists');
-    }
-
-    // Create a new semester with the startDate and endDate
     const newSemester = await Semester.create({
         name,
-        startDate: new Date(startDate),  // Ensure startDate is a Date object
-        endDate: new Date(endDate),      // Ensure endDate is a Date object
+        strand,
+        startDate,
+        endDate,
+        yearLevel
     });
 
-    // Respond with the newly created semester
-    res.status(201).json(newSemester);
+    // Populate the strand before sending response
+    const populatedSemester = await Semester.findById(newSemester._id)
+        .populate('strand', 'name');
+
+    res.status(201).json(populatedSemester);
 });
 
+// @desc    Get all strands
+// @route   GET /api/admin/strands
+// @access  Private (admin role)
+const getAllSemesters = asyncHandler(async (req, res) => {
+    const semesters = await Semester.find()
+        .populate('strand', 'name') // Populate the strand field
+        .populate('yearLevel', 'name') // Populate the year level field
+        .sort({ createdAt: -1 });
+
+          // Transform the data to include the combined name
+    const formattedSemesters = semesters.map(semester => ({
+        ...semester._doc,
+        displayName: `${semester.name} - ${semester.strand.name}`
+    }));
+    res.json(formattedSemesters);
+});
 
 // @desc    Update a semester
 // @route   PUT /api/admin/semesters/:id
 // @access  Private (admin role)
 const updateSemester = asyncHandler(async (req, res) => {
-    const { name, startDate, endDate } = req.body;
+    const { name, startDate, endDate, yearLevel } = req.body;
     const { id } = req.params;
 
     const semester = await Semester.findById(id);
@@ -462,12 +753,35 @@ const updateSemester = asyncHandler(async (req, res) => {
         throw new Error('Semester not found');
     }
 
-    // Update the semester's name
-    semester.name = name || semester.name;
-    semester.startDate = startDate || semester.startDate;
-    semester.endDate = endDate || semester.endDate;
+    // Validate dates if they're being updated
+    if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        if (end <= start) {
+            res.status(400);
+            throw new Error('End date must be after start date');
+        }
+    }
 
-    const updatedSemester = await semester.save();
+    // Update the semester
+    const updatedSemester = await Semester.findByIdAndUpdate(
+        id,
+        { 
+            name: name || semester.name,
+            startDate: startDate || semester.startDate,
+            endDate: endDate || semester.endDate,
+            yearLevel: yearLevel || semester.yearLevel
+        },
+        { 
+            new: true,
+            runValidators: true
+        }
+    ).populate('strand', 'name');
+
+    if (!updatedSemester) {
+        res.status(404);
+        throw new Error('Semester not found');
+    }
 
     res.json(updatedSemester);
 });
@@ -478,32 +792,87 @@ const updateSemester = asyncHandler(async (req, res) => {
 const deleteSemester = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    // Find the semester by ID
     const semester = await Semester.findById(id);
     if (!semester) {
         res.status(404);
         throw new Error('Semester not found');
     }
 
-    // Use deleteOne instead of remove
-    await Semester.deleteOne({ _id: id });
-
+    await Semester.findByIdAndDelete(id);
     res.json({ message: 'Semester deleted successfully' });
 });
 
-// @desc    Get all strands
-// @route   GET /api/admin/strands
+// @desc    Initialize year levels
+// @route   POST /api/admin/yearLevels/init
 // @access  Private (admin role)
-const getAllSemesters = asyncHandler(async (req, res) => {
-    const semester = await Semester.find();
-    res.json(semester);
+const initializeYearLevels = asyncHandler(async (req, res) => {
+    // Check if year levels already exist
+    const existingYearLevels = await YearLevel.find();
+    if (existingYearLevels.length > 0) {
+        return res.status(200).json({ message: 'Year levels already initialized' });
+    }
+
+    // Create both year levels
+    const yearLevels = await YearLevel.create([
+        { name: 'Grade 11', description: 'First year senior high' },
+        { name: 'Grade 12', description: 'Second year senior high' }
+    ]);
+
+    res.status(201).json({
+        success: true,
+        data: yearLevels,
+        message: 'Year levels initialized successfully'
+    });
 });
+
+// @desc    Get all year levels
+// @route   GET /api/admin/yearLevels
+// @access  Private (admin role)
+const getAllYearLevels = asyncHandler(async (req, res) => {
+    const yearLevels = await YearLevel.find();
+    res.json(yearLevels);
+});
+
+const getAvailableAdvisorySections = asyncHandler(async (req, res) => {
+    try {
+        // Get all sections
+        const allSections = await Section.find();
+        
+        // Get sections that are already assigned as advisory sections
+        const assignedSections = await User.find(
+            { role: 'teacher', advisorySection: { $ne: null } },
+            'advisorySection'
+        );
+        
+        // Create a Set of assigned section IDs for quick lookup
+        const assignedSectionIds = new Set(
+            assignedSections.map(user => user.advisorySection.toString())
+        );
+        
+        // Filter out sections that are already assigned
+        const availableSections = allSections.map(section => ({
+            _id: section._id,
+            name: section.name,
+            hasAdviser: assignedSectionIds.has(section._id.toString())
+        }));
+
+        res.json(availableSections);
+    } catch (error) {
+        res.status(500);
+        throw new Error('Error fetching available advisory sections');
+    }
+});
+
 
 // Exporting functions
 export { 
     createUserAccount,
     updateUserAccount,
     deleteUserAccount,
+    resetUserPassword,
+    createSemester,
+    updateSemester,
+    deleteSemester,
     createStrand,
     updateStrand,
     deleteStrand,
@@ -517,9 +886,10 @@ export {
     getAllStrands,
     getAllSections,
     getAllSubjects,
+    getAllSemesters,
     getUserListByRole,
-    createSemester,
-    updateSemester,
-    deleteSemester,
-    getAllSemesters
+    initializeYearLevels,
+    getAllYearLevels,
+    filterSubjects,
+    getAvailableAdvisorySections
 };
