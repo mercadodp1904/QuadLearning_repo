@@ -13,15 +13,10 @@ const ManageSections = () => {
     const [error, setError] = useState('');
     const [name, setName] = useState('');
     const [linkedStrand, setLinkedStrand] = useState('');
-    const [teacher, setTeacher] = useState('');  // Store selected teacher ID
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
     const [studStrands, setStudStrands] = useState([]);
-    const [users, setUsers] = useState([]);
-    const [studSubjects, setStudSubjects] = useState([]);  // List of all subjects
-    const [selectedSubjects, setSelectedSubjects] = useState([]);  // List of selected subject IDs
-    const [selectedTeachers, setSelectedTeachers] = useState([]);  // List of selected subject IDs
     const [show, setShow] = useState(false);
     const [editModalShow, setEditModalShow] = useState(false);
     const [selectedSectionId, setSelectedSectionId] = useState(null);
@@ -43,9 +38,6 @@ const ManageSections = () => {
             setSelectedSectionId(sectionId);
             setName(section.name);
             setLinkedStrand(section.strand);
-            setSelectedTeachers(section.teacher || []);
-            setSelectedSubjects(section.subject || []);  // Ensure it's an array
-    
             setEditModalShow(true);
         } else {
             console.error('Section not found');
@@ -57,8 +49,6 @@ const ManageSections = () => {
         setSelectedSectionId(null);
         setName('');
         setStudStrands('');
-        setSelectedTeachers([]);
-        setSelectedSubjects([]);
         // Don't reset studSections unless necessary.
     };
     
@@ -71,8 +61,6 @@ const ManageSections = () => {
         const updatedSection = {
             name,
             strand: linkedStrand, // This could be the value selected from the dropdown
-            teacher: selectedTeachers, // Pass the selected subjects
-            subjects: selectedSubjects, // Pass the selected sections
         };
     
         const token = localStorage.getItem('token');
@@ -113,7 +101,7 @@ const ManageSections = () => {
 
     const deleteHandler = async (sectionId) => {
         const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-        console.log("Deleting subject with ID:", sectionId);
+        console.log("Deleting section with ID:", sectionId);
         try {
             const response = await fetch(`/api/admin/sections/${sectionId}`, { // Corrected endpoint
                 method: 'DELETE',
@@ -142,33 +130,25 @@ const ManageSections = () => {
         const token = localStorage.getItem('token');
         
         try {
-            const [sectionsResponse, strandsResponse, usersResponse, subjectsResponse] = await Promise.all([
+            const [sectionsResponse, strandsResponse] = await Promise.all([
                 fetch('/api/admin/getSections', { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }),
                 fetch('/api/admin/getStrands', { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }),
-                fetch('/api/admin/users?role=teacher', { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }),
-                fetch('/api/admin/getSubjects', { method: 'GET', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }),
             ]);
         
-            if (!sectionsResponse.ok || !strandsResponse.ok || !usersResponse.ok || !subjectsResponse.ok) {
+            if (!sectionsResponse.ok || !strandsResponse.ok) {
                 throw new Error('Failed to fetch one or more resources');
             }
         
-            const [sectionsData, strandsData, usersData, subjectsData] = await Promise.all([
+            const [sectionsData, strandsData] = await Promise.all([
                 sectionsResponse.json(),
                 strandsResponse.json(),
-                usersResponse.json(),
-                subjectsResponse.json(),
             ]);
         
             console.log('Fetched Sections:', sectionsData);
             console.log('Fetched Strands:', strandsData);
-            console.log('Fetched Users:', usersData);
-            console.log('Fetched Subjects:', subjectsData);
         
             setStudSections(sectionsData || []);  // Set empty array if data is missing
             setStudStrands(strandsData || []);  // Set empty array if data is missing
-            setUsers(usersData || []);
-            setStudSubjects(subjectsData || []);
         
         } catch (error) {
             setError('An error occurred while fetching data');
@@ -195,8 +175,6 @@ const ManageSections = () => {
         const sectionData = {
             name,
             strand: linkedStrand,
-            teacher: selectedTeachers, // Use the selected teacher ID
-            subjects: selectedSubjects,  // Use selectedSubjects here
         };
 
         try {
@@ -216,8 +194,6 @@ const ManageSections = () => {
             } else {
                 setName('');
                 setLinkedStrand('');
-                setSelectedTeachers([]); // Reset teacher after successful creation
-                setSelectedSubjects([]); // Reset selected subjects after successful section creation
                 console.log('Section created successfully');
                 fetchData();  // Re-fetch Sections to update the table
             }
@@ -294,49 +270,6 @@ const ManageSections = () => {
                                     </Form.Select>
                                 </Form.Group>
 
-
-
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Teachers:</Form.Label>
-                                        <Form.Select
-                                        multiple
-                                            value={selectedTeachers}
-                                            onChange={(e) => {
-                                                const selected = Array.from(e.target.selectedOptions, option => option.value);
-                                                setSelectedTeachers(selected); // Update selected subjects
-                                            }}
-                                            required
-                                        >
-                                            {users.map((teacher) => (
-                                                <option key={teacher._id} value={teacher._id}>
-                                                    {teacher.username}
-                                                </option>
-                                            ))}
-                                        </Form.Select>
-                                    </Form.Group>
-
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Select Subjects:</Form.Label>
-                                        <Form.Select
-                                        multiple
-                                        value={selectedSubjects}
-                                        onChange={(e) => {
-                                            const selected = Array.from(e.target.selectedOptions, option => option.value);
-                                            setSelectedSubjects(selected); // Update selected subjects
-                                        }}
-                                        required
-                                    >
-                                        {studSubjects.map((subject) => (
-                                            <option key={subject._id} value={subject._id}>
-                                                {subject.name}
-                                            </option>
-                                        ))}
-                                    </Form.Select>
-
-                                    </Form.Group>
-
-
-
                                     <div className="d-flex gap-2">
                                         <Button
                                             variant="secondary"
@@ -386,8 +319,6 @@ const ManageSections = () => {
                                         <tr>
                                             <th>Section Name</th>
                                             <th>Strand</th>
-                                            <th>Teacher</th>
-                                            <th>Subjects</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
@@ -396,17 +327,6 @@ const ManageSections = () => {
                                     <tr key={section._id}>
                                         <td>{section.name}</td>
                                         <td>{section.strand ? section.strand.name : 'N/A'}</td>
-                                        <td>
-                                        {Array.isArray(section.teacher) && section.teacher.length > 0
-                                            ? section.teacher.map((teacher) => teacher.username).join(', ')
-                                            : 'N/A'}
-                                    </td>
-
-                                        <td>
-                                            {Array.isArray(section.subjects) && section.subjects.length > 0
-                                                ? section.subjects.map((subject) => subject.name).join(', ')
-                                                : 'N/A'}
-                                        </td>
                                         <td>
                                         <button
                                              className="btn btn-primary custom-btn"
@@ -503,46 +423,6 @@ const ManageSections = () => {
             ))}
     </Form.Control>
 </Form.Group>
-
-<Form.Group className="mb-3">
-    <Form.Label>Teachers</Form.Label>
-    <Form.Control
-        as="select"
-        multiple
-        value={selectedTeachers || []} // Default to an empty array
-        onChange={(e) =>
-            setSelectedTeachers([...e.target.selectedOptions].map((option) => option.value))
-        }
-        required
-    >
-        {users.map((teacher) => (
-            <option key={teacher._id} value={teacher._id}>
-                {teacher.username}
-            </option>
-        ))}
-    </Form.Control>
-</Form.Group>
-
-<Form.Group className="mb-3">
-    <Form.Label>Subjects</Form.Label>
-    <Form.Control
-        as="select"
-        multiple
-        value={selectedSubjects || []} // Default to an empty array
-        onChange={(e) =>
-            setSelectedSubjects([...e.target.selectedOptions].map((option) => option.value))
-        }
-        required
-    >
-        {studSubjects.map((subject) => (
-            <option key={subject._id} value={subject._id}>
-                {subject.name}
-            </option>
-        ))}
-    </Form.Control>
-</Form.Group>
-
-
         </Form>
     </Modal.Body>
     <Modal.Footer>
