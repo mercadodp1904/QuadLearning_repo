@@ -9,10 +9,82 @@ import blobStream from 'blob-stream';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import ExcelJS from 'exceljs';
 
 // Derive __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename)
+
+
+// @desc    Fill out or update a student form
+// @route   PUT /api/teachers/student/:studentId/form
+// @access  Private (teacher role)
+const fillOutStudentForm = asyncHandler(async (req, res) => {
+    const { studentId } = req.params;
+    const teacherId = req.user._id; // Authenticated teacher's ID
+
+    // Fetch teacher's assigned sections
+    const teacherSections = await Section.find({ teacher: teacherId }).select('_id');
+
+    // Fetch student
+    const student = await Student.findById(studentId).populate('section');
+    if (!student) {
+        res.status(404);
+        throw new Error('Student not found');
+    }
+
+    // Verify teacher's access
+    const isAuthorized = teacherSections.some(section =>
+        section._id.equals(student.section?._id)
+    );
+    if (!isAuthorized) {
+        res.status(403);
+        throw new Error('Not authorized to update this student');
+    }
+
+    // Update fields based on the student model
+    const {
+        firstName,
+        lastName,
+        middleInitial,
+        gender,
+        birthdate,
+        birthplace,
+        address,
+        guardian,
+        yearLevel,
+        section,
+        strand,
+        school,
+        attendance,
+        grades,
+        contactNumber,
+    } = req.body;
+
+    if (firstName) student.firstName = firstName;
+    if (lastName) student.lastName = lastName;
+    if (middleInitial) student.middleInitial = middleInitial;
+    if (gender) student.gender = gender;
+    if (birthdate) student.birthdate = birthdate;
+    if (birthplace) student.birthplace = birthplace;
+    if (address) student.address = address;
+    if (guardian) student.guardian = { ...student.guardian, ...guardian };
+    if (yearLevel) student.yearLevel = yearLevel;
+    if (section) student.section = section;
+    if (strand) student.strand = strand;
+    if (school) student.school = { ...student.school, ...school };
+    if (attendance) student.attendance = { ...student.attendance, ...attendance };
+    if (grades) student.grades = grades;
+    if (contactNumber) student.contactNumber = contactNumber;
+
+    const updatedStudent = await student.save();
+
+    res.status(200).json({
+        message: 'Student profile updated successfully',
+        student: updatedStudent,
+    });
+});
+
 
 // @desc    Get grades for a specific student
 // @route   GET /api/grades/student/:studentId
@@ -54,17 +126,96 @@ const getGradesByStudent = asyncHandler(async (req, res) => {
     res.json(grades);
 });
 
+// @desc    Import students from Excel file
+// @route   POST /api/teachers/student/import
+// @access  Private (teacher role)
+const importStudents = asyncHandler(async (req, res) => {
+    // Check if the file is uploaded
+    if (!req.file) {
+        res.status(400);
+        throw new Error('No file uploaded');
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer); // Load the Excel file from the buffer
+
+    // Access the first sheet in the Excel workbook
+    const worksheet = workbook.worksheets[0];
+
+    const students = [];
+
+    // Iterate over each row in the worksheet
+    worksheet.eachRow((row, rowIndex) => {
+        // Skip the first row if it's the header row
+        if (rowIndex === 1) return;
+
+        // Get the data from each row
+        const [
+            firstName,
+            lastName,
+            middleInitial,
+            gender,
+            birthdate,
+            province,
+            municipality,
+            barrio,
+            address,
+            guardianName,
+            guardianOccupation,
+            yearLevel,
+            sectionId,
+            strandId,
+            schoolName,
+            schoolYear,
+            totalYears,
+            contactNumber,
+        ] = row.values; // Use row.values to get the values from the current row
+
+        // Validate required fields (simplified example)
+        if (!firstName || !lastName || !gender || !birthdate || !yearLevel) {
+            return; // Skip invalid rows
+        }
+
+        // Push the student data into the students array
+        students.push({
+            firstName,
+            lastName,
+            middleInitial,
+            gender,
+            birthdate: new Date(birthdate),
+            birthplace: { province, municipality, barrio },
+            address,
+            guardian: { name: guardianName, occupation: guardianOccupation },
+            yearLevel,
+            section: sectionId,
+            strand: strandId,
+            school: { name: schoolName, year: schoolYear },
+            attendance: { totalYears },
+            contactNumber,
+        });
+    });
+
+    // Insert the students into the database
+    await Student.insertMany(students);
+
+    res.status(201).json({ message: 'Students imported successfully' });
+});
+
+
 // @desc    Add grade for a student
 // @route   POST /api/grades
 // @access  Private (teacher role)
 const addGrade = asyncHandler(async (req, res) => {
-    const { studentId, subject, grade, year } = req.body;
+    if (!req.user) {
+        return res.status(401).json({ message: 'Not authorized, user not found' });
+    }
 
-    // Check if the user making the request is a teacher
     if (req.user.role !== 'teacher') {
         res.status(403);
         throw new Error('Not authorized to add grades');
     }
+
+    const { studentId, subject, grade, year } = req.body;
 
     // Validate grade value (assumed to be 0-100)
     if (grade < 0 || grade > 100) {
@@ -74,7 +225,7 @@ const addGrade = asyncHandler(async (req, res) => {
 
     const newGrade = await Grade.create({
         studentId,
-        teacherId: req.user._id, // Get teacher's ID from the request
+        teacherId: req.user._id,
         subject,
         grade,
         year,
@@ -82,7 +233,6 @@ const addGrade = asyncHandler(async (req, res) => {
 
     res.status(201).json(newGrade);
 });
-
 // @desc    Update grade for a student
 // @route   PUT /api/grades/:id
 // @access  Private (teacher role)
@@ -146,34 +296,6 @@ const deleteGrade = asyncHandler(async (req, res) => {
     res.json({ message: 'Grade removed' });
 });
 
-// @desc    Update teacher profile
-// @route   PUT /api/teachers/profile
-// @access  Private (teacher role)
-const updateProfile = asyncHandler(async (req, res) => {
-    const { name, email, subject } = req.body; // Capture the details to update
-
-    // Find the teacher by ID
-    const teacher = await User.findById(req.user._id);
-
-    if (!teacher) {
-        res.status(404);
-        throw new Error('Teacher not found');
-    }
-
-    // Update the teacher's profile details
-    teacher.name = name || teacher.name; // Keep existing value if not provided
-    teacher.email = email || teacher.email;
-    teacher.subject = subject || teacher.subject; // Assuming you have a subject field
-
-    const updatedTeacher = await teacher.save();
-
-    res.json({
-        _id: updatedTeacher._id,
-        name: updatedTeacher.name,
-        email: updatedTeacher.email,
-        subject: updatedTeacher.subject,
-    });
-});
 
 // @desc    Generate Form 137 for a student
 // @route   GET /api/grades/form137/:studentId
@@ -332,7 +454,8 @@ export {
     addGrade, 
     updateGrade, 
     deleteGrade, 
-    updateProfile, 
     generateForm137, 
-    getAdviserStudents 
+    getAdviserStudents,
+    fillOutStudentForm,
+    importStudents 
 };

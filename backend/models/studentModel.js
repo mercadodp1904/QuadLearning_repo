@@ -15,15 +15,17 @@ const studentSchema = mongoose.Schema(
             default: false,
         },
 
-        // Student personal information
-        lrn: {
+        firstName: {
             type: String,
-            unique: true, // Ensure unique LRN for each student
             required: true,
         },
-        name: {
+        lastName: {
             type: String,
             required: true,
+        },
+        middleInitial: {
+            type: String, // Middle initial is optional
+            maxlength: 1,
         },
         gender: {
             type: String,
@@ -102,7 +104,6 @@ const studentSchema = mongoose.Schema(
                             ref: 'Subject',
                             required: true,
                         },
-
                         midterm: {
                             type: Number, // Midterm grade
                         },

@@ -369,6 +369,7 @@ const createSubject = asyncHandler(async (req, res) => {
         sections,
     });
 
+
     res.status(201).json(newSubject); // Respond with the newly created subject
 });
 
