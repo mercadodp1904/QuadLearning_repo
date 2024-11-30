@@ -61,9 +61,6 @@ const AdminSidebar = () => {
                         <i className={`bi bi-chevron-${dropdowns.academic ? 'up' : 'down'} ms-auto`}></i>
                     </div>
                     <div className={`sidebar-dropdown-content ${dropdowns.academic ? 'show' : ''}`}>
-                        <LinkContainer to="/admin/ManageSubjects">
-                            <Nav.Link>Manage Subjects</Nav.Link>
-                        </LinkContainer>
                         <LinkContainer to="/admin/strands">
                         <Nav.Link as={Link} to="/admin/strands">
                             Manage Strands
@@ -71,6 +68,9 @@ const AdminSidebar = () => {
                         </LinkContainer>
                         <LinkContainer to="/admin/ManageSections">
                             <Nav.Link>Manage Sections</Nav.Link>
+                        </LinkContainer>
+                        <LinkContainer to="/admin/ManageSubjects">
+                            <Nav.Link>Manage Subjects</Nav.Link>
                         </LinkContainer>
                         <LinkContainer to="/admin/ManageSemesters">
                             <Nav.Link>Manage Semesters</Nav.Link>

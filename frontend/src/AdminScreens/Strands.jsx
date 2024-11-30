@@ -9,7 +9,6 @@ import Modal from 'react-bootstrap/Modal';
 const AdminCreateStrand = () => {
     const navigate = useNavigate();
     const [studStrands, setStudStrands] = useState([]);
-    const [studSubjects, setStudSubjects] = useState([]);  // List of all subjects
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [name, setName] = useState('');
@@ -17,13 +16,9 @@ const AdminCreateStrand = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
-    const [selectedSubjects, setSelectedSubjects] = useState([]);  // List of selected subject IDs
-    const [selectedSections, setSelectedSections] = useState([]);  // List of selected section IDs
-    const [studSections, setStudSections] = useState([]);  // List of all sections
     const [selectedStrandId, setSelectedStrandId] = useState(null);
     const [show, setShow] = useState(false);
     const [editModalShow, setEditModalShow] = useState(false);
-    const [sectionsData, setSectionsData] = useState([]);
 
     const handleClose = () => {
         setShow(false);
@@ -42,39 +37,23 @@ const AdminCreateStrand = () => {
             setSelectedStrandId(strandId);
             setName(strand.name);
             setDescription(strand.description);
-    
-            // Make sure selectedSections is properly set when editing
-            setSelectedSections(strand.sections || []);  // Fallback to empty array if no sections
-            setStudSections(studSections);  // Ensure you have the full list of sections
-    
             setEditModalShow(true);
         } else {
             console.error('Strand not found');
         }
     };
     
-    
-   
-
     const handleCloseModal = () => {
     setEditModalShow(false);
     setSelectedStrandId(null);
     setName('');
     setDescription('');
-    setSelectedSections([]);
-    // Don't reset studSections unless necessary.
 };
 
-    
-
-    
-    
     const handleSaveChanges = async () => {
         const updatedStrand = {
             name,
             description,
-            subjects: selectedSubjects, // Pass the selected subjects
-            sections: selectedSections, // Pass the selected sections
         };
     
         const token = localStorage.getItem('token');
@@ -108,14 +87,9 @@ const AdminCreateStrand = () => {
         fetchData(); // Refresh the data
     };
     
-    
-    
-    
-    
-
     const deleteHandler = async (strandId) => {
         const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-        console.log("Deleting subject with ID:", strandId);
+        console.log("Deleting strand with ID:", strandId);
         try {
             const response = await fetch(`/api/admin/strands/${strandId}`, { // Corrected endpoint
                 method: 'DELETE',
@@ -144,22 +118,8 @@ const AdminCreateStrand = () => {
         const token = localStorage.getItem('token');
     
         try {
-            const [strandsResponse, subjectsResponse, sectionResponse] = await Promise.all([
+            const [strandsResponse] = await Promise.all([
                 fetch('/api/admin/getStrands', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                }),
-                fetch('/api/admin/getSubjects', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                }),
-                fetch('/api/admin/getSections', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -168,17 +128,11 @@ const AdminCreateStrand = () => {
                 }),
             ]);
     
-            if (strandsResponse.ok && subjectsResponse.ok && sectionResponse.ok) {
-                const [strandsJson, subjectsJson, sectionsJson] = await Promise.all([
+            if (strandsResponse.ok) {
+                const [strandsJson] = await Promise.all([
                     strandsResponse.json(),
-                    subjectsResponse.json(),
-                    sectionResponse.json(),
                 ]);
-    
-                // Set the sections to the entire list
-                setStudSections(sectionsJson);
                 setStudStrands(strandsJson);
-                setStudSubjects(subjectsJson);
             } else {
                 console.error('Failed to fetch data');
             }
@@ -187,10 +141,6 @@ const AdminCreateStrand = () => {
         }
     };
     
-    
-    
-
-    // Fetch strands and subjects when the component mounts
     useEffect(() => {
         fetchData();
     }, []);
@@ -204,8 +154,6 @@ const AdminCreateStrand = () => {
         const strandData = {
             name,
             description,
-            subjects: selectedSubjects, // Use selected subjects
-            sections: selectedSections // Use selected sections
         };
 
         try {
@@ -225,8 +173,6 @@ const AdminCreateStrand = () => {
             } else {
                 setName('');
                 setDescription('');
-                setSelectedSubjects([]);  // Reset selected subjects
-                setSelectedSections([]);  // Reset selected sections
                 console.log('Strand created successfully');
                 // Re-fetch strands to update the table
                 fetchData();
@@ -296,46 +242,6 @@ const AdminCreateStrand = () => {
                                         />
                                     </Form.Group>
 
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Section(s):</Form.Label>
-                                        <Form.Select
-                                            multiple
-                                            value={selectedSections}  // Use selected section ids
-                                            onChange={(e) => {
-                                                const selected = Array.from(e.target.selectedOptions, (option) => option.value);
-                                                setSelectedSections(selected);
-                                            }}
-                                            required
-                                        >
-                                            {studSections?.map((section) => (
-                                                <option key={section._id} value={section._id}>
-                                                    {section.name}
-                                                </option>
-                                            ))}
-
-                                        
-                                        </Form.Select>
-                                    </Form.Group>
-
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Select Subjects:</Form.Label>
-                                        <Form.Select
-                                            multiple
-                                            value={selectedSubjects}
-                                            onChange={(e) => {
-                                                const selected = Array.from(e.target.selectedOptions, option => option.value);
-                                                setSelectedSubjects(selected);
-                                            }}
-                                            required
-                                        >
-                                            {studSubjects.map((subject) => (
-                                                <option key={subject._id} value={subject._id}>
-                                                    {subject.name}
-                                                </option>
-                                            ))}
-                                        </Form.Select>
-                                    </Form.Group>
-
                                     <div className="d-flex gap-2">
                                         <Button 
                                             variant="secondary" 
@@ -390,8 +296,6 @@ const AdminCreateStrand = () => {
                                     <tr>
                                         <th>Name</th>
                                         <th>Description</th>
-                                        <th>Sections</th>
-                                        <th>Subjects</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -401,16 +305,6 @@ const AdminCreateStrand = () => {
                                                     <tr key={strand._id}>
                                                         <td>{strand.name}</td>
                                                         <td>{strand.description}</td>
-                                                        <td>
-                                                            {strand.sections && strand.sections.length > 0 ? (
-                                                                strand.sections.map((section) => (
-                                                                    <span key={section._id}>{section.name} </span>
-                                                                ))
-                                                            ) : (
-                                                                <span>No sections available</span>
-                                                            )}
-                                                        </td>
-                                                        <td>{strand.subjects.map((subject) => subject.name).join(', ')}</td>
                                                         <td>
                                                         <button
                                                                 className="btn btn-primary custom-btn"
@@ -502,46 +396,6 @@ const AdminCreateStrand = () => {
                     onChange={(e) => setDescription(e.target.value)}
                     required
                 />
-            </Form.Group>
-
-            {/* Sections */}
-            <Form.Group className="mb-3">
-                <Form.Label>Sections</Form.Label>
-                <Form.Control
-                        as="select"
-                        multiple
-                        value={sectionsData}  // This should reflect selected sections, not all sections
-                        onChange={(e) => setSelectedSections([...e.target.selectedOptions].map(option => option.value))}
-                        required
-                    >
-                        {studSections.map((section) => ( // Use studSections here for the list of available sections
-                            <option key={section._id} value={section._id}>
-                                {section.name}
-                            </option>
-                        ))}
-                    </Form.Control>
-
-
-            </Form.Group>
-
-            {/* Subjects */}
-            <Form.Group className="mb-3">
-                <Form.Label>Subjects</Form.Label>
-                <Form.Control
-                    as="select"
-                    multiple
-                    value={selectedSubjects} // Use selectedSubjects state
-                    onChange={(e) =>
-                        setSelectedSubjects([...e.target.selectedOptions].map(option => option.value))
-                    }
-                    required
-                >
-                    {studSubjects.map((subject) => (
-                        <option key={subject._id} value={subject._id}>
-                            {subject.name}
-                        </option>
-                    ))}
-                </Form.Control>
             </Form.Group>
         </Form>
     </Modal.Body>
