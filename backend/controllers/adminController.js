@@ -311,14 +311,6 @@ const createSubject = asyncHandler(async (req, res) => {
         }
     }
 
-    // Create the new subject with teachers
-    const newSubject = await Subject.create({
-        name,
-        code,
-        semester,
-        teachers,  // This should now be an array of teacher IDs
-        sections,
-    });
 
     res.status(201).json(newSubject); // Respond with the newly created subject
 });
