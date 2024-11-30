@@ -344,16 +344,6 @@ const createSubject = asyncHandler(async (req, res) => {
         throw new Error('Subject already exists');
     }
 
-
-    const newSubject = await Subject.create({ name, code });
-    res.status(201).json(newSubject);
-
-    // Validate semester
-    if (!semester) {
-        res.status(400);
-        throw new Error('Semester is required');
-    }
-
     // Validate that the semester exists in the database
     const semesterExists = await Semester.findById(semester);
     if (!semesterExists) {

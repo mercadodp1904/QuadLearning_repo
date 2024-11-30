@@ -20,11 +20,7 @@ const subjectSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User', 
         required: false
-    }],
-    sections: [{ 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Section' 
-    }],
+    }]
 });
 
 const Subject = mongoose.model('Subject', subjectSchema);

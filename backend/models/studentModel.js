@@ -8,13 +8,6 @@ const studentSchema = mongoose.Schema(
             ref: 'User',
             required: true,
         },
-
-        // Track if the student has completed their profile
-        profileCompleted: {
-            type: Boolean,
-            default: false,
-        },
-
         firstName: {
             type: String,
             required: true,

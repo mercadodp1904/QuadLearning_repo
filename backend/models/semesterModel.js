@@ -13,6 +13,11 @@ const semesterSchema = new mongoose.Schema(
         type: Date, // Track when the semester starts
         required: true,
     },
+    subjects: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'Subject',
+      required: false 
+    }], 
     endDate: {
         type: Date, // Track when the semester ends
         required: true,
