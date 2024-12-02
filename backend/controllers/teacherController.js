@@ -254,6 +254,7 @@ const importStudents = asyncHandler(async (req, res) => {
 // @access  Private (teacher role)
 const addGrade = asyncHandler(async (req, res) => {
 
+
     const { studentId, subjectId, gradeType, gradeValue, semesterId } = req.body;
 
     // Validate input
@@ -313,10 +314,11 @@ const addGrade = asyncHandler(async (req, res) => {
         } else if (gradeType === 'finals') {
             subjectGrade.finals = gradeValue;
         }
+
     const newGrade = await Grade.create({
         studentId,
         teacherId: req.user._id,
-        subject,
+        subjectId,
         grade,
         year,
     });
@@ -419,32 +421,40 @@ const deleteGrade = asyncHandler(async (req, res) => {
 const generateForm137 = asyncHandler(async (req, res, next) => {
     try {
         const { studentId } = req.params;
+
+        // Fetch the student data with necessary relationships populated
         const student = await Student.findById(studentId)
-            .populate('section strand grades.subjects.subject grades.semester')
+            .populate('section strand grades.subjects.subject grades.semester user')
             .lean();
 
-        console.log(student.grades); // Check if grades.semester is populated
         if (!student) {
             res.status(404);
             throw new Error('Student not found');
         }
 
+        // Compute full name dynamically
+        const fullName = `${student.firstName} ${student.middleInitial ? student.middleInitial + '.' : ''} ${student.lastName}`.trim();
+        const sanitizedStudentName = fullName.replace(/[\/\\?%*:|"<>]/g, '_');
+
+        // Set up PDF document
         const doc = new PDFDocument({ size: 'A4', margin: 30 });
         const pdfDirectory = path.join(__dirname, '../../pdfs');
+
         if (!fs.existsSync(pdfDirectory)) {
             fs.mkdirSync(pdfDirectory, { recursive: true });
         }
 
-        const sanitizedStudentName = student.name.replace(/[\/\\?%*:|"<>]/g, '_');
         const filePath = path.join(pdfDirectory, `form137-${sanitizedStudentName}.pdf`);
         const writeStream = fs.createWriteStream(filePath);
 
+        // Configure PDF response headers
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=form137-${sanitizedStudentName}.pdf`);
 
         doc.pipe(res);
         doc.pipe(writeStream);
 
+        // Start PDF content
         doc.font('Helvetica');
 
         // Header Section
@@ -465,6 +475,7 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 
         doc.fontSize(15).text('Learner Information', 225, 100, { underline: true });
         doc.moveDown();
+
         const drawField = (label, value, x, y, width = 100) => {
             doc.fontSize(9).text(label, x, y, { width });
             doc.rect(x + width - 45, y - 2, 210, 12).stroke();
@@ -473,8 +484,9 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 
         let startY = doc.y;
 
-        drawField('LRN', student.lrn || 'N/A', 30, startY);
-        drawField('Name', student.name || 'N/A', 30, startY + 20);
+        // Replace LRN with user.username
+        drawField('LRN', student.user.username || 'N/A', 30, startY);
+        drawField('Name', fullName || 'N/A', 30, startY + 20);
         drawField('Strand', student.strand?.name || 'N/A', 30, startY + 40);
         drawField('Year Level', student.yearLevel || 'N/A', 30, startY + 60);
         drawField('Section', student.section?.name || 'N/A', 30, startY + 80);
@@ -484,25 +496,25 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 
         const drawSemesterTable = (semesterTitle, semesterGrades) => {
             doc.moveDown();
-            
+
             // Center the semester title
             const titleWidth = doc.widthOfString(semesterTitle);
             const xPosition = 225;
             doc.fontSize(10).text(semesterTitle, xPosition, doc.y, { underline: true });
-            
+
             const tableTop = doc.y + 10;
             const tableWidth = 400;
             const columnWidth = tableWidth / 4;
-        
+
             // Draw table headers with centered alignment
             doc.fontSize(9)
                 .text('Subject', 30, tableTop, { width: columnWidth, align: 'center' })
                 .text('Midterm', 30 + 2 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
                 .text('Finals', 30 + 3 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
                 .text('Final Rating', 30 + 4 * columnWidth, tableTop, { width: columnWidth, align: 'center' });
-        
+
             let currentY = tableTop + 20;
-        
+
             if (!semesterGrades || semesterGrades.length === 0) {
                 doc.fontSize(10).text('No grades available.', { align: 'center' });
             } else {
