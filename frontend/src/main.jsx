@@ -13,7 +13,7 @@ import HomeScreen from './screens/HomeScreen';
 import LoginScreen from './screens/LoginScreen';
 import AdminHomeScreen from './AdminScreens/AdminHomeScreen';
 import AdminViewAllUsersScreen from './AdminScreens/AdminViewAllUsersScreen';
-import Strands from './AdminScreens/strands';
+import Strands from './AdminScreens/Strands';
 import StudentHomeScreen from './StudentScreens/StudentHomeScreen';
 import TeacherHomeScreen from './TeacherScreens/TeacherHomeScreen';
 import AdminCreateStudentAccount from './AdminScreens/AdminCreateStudentAccount';
@@ -21,6 +21,8 @@ import AdminCreateTeacherAccount from './AdminScreens/AdminCreateTeacherAccount'
 import ManageSubjects from './AdminScreens/ManageSubjects';
 import ManageSemesters from './AdminScreens/ManageSemesters';
 import ManageSections from './AdminScreens/ManageSections';
+import TeacherViewStudents from './TeacherScreens/TeacherViewStudents';
+import TeacherEncodeGrade from './TeacherScreens/TeacherEncodeGrade';
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path='/' element={<App />}>
@@ -37,6 +39,8 @@ const router = createBrowserRouter(
       <Route path='/admin/ManageSubjects' element={<ManageSubjects />}/>
       <Route path='/admin/ManageSemesters' element={<ManageSemesters />}/>
       <Route path='/admin/ManageSections' element={<ManageSections />}/>
+      <Route path='/login/TeacherScreens/TeacherViewStudents' element={<TeacherViewStudents />}/>
+      <Route path='/login/TeacherScreens/TeacherEncodeGrade' element={<TeacherEncodeGrade />}/>
     </Route>
   )
 );

@@ -1,40 +1,94 @@
 import { Container, Row, Col, Card, Table, Form, InputGroup } from 'react-bootstrap';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { FaUsers, FaGraduationCap, FaBook, FaSearch, FaUserClock} from 'react-icons/fa';
+import { FaUsers, FaGraduationCap, FaBook, FaSearch, FaUserClock, FaClipboardList} from 'react-icons/fa';
 import './AdminSidebar.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import AdminSidebar from './AdminSidebar';
-import { useState } from 'react';
-const AdminCardsCharts = () => {
-    const chartData = [
-        { month: 'Jan', Students: 1, Teachers: 1 },
-        { month: 'Feb', Students: 1, Teachers: 2 },
-        { month: 'Mar', Students: 5, Teachers: 2 },
-        { month: 'Apr', Students: 15, Teachers: 10 }
-    ];
+import { useState, useEffect } from 'react';
 
-    const [accountsData, setAccountsData] = useState([
-        { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Student', status: 'Active' },
-        { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'Admin', status: 'Active' },
-        { id: 3, name: 'Bob Johnson', email: 'bob@example.com', role: 'Student', status: 'Inactive' },
-        { id: 4, name: 'Alice Brown', email: 'alice@example.com', role: 'Teacher', status: 'Active' },
-    ]);
-    
+const AdminCardsCharts = () => {
+    const [dashboardData, setDashboardData] = useState({
+        totalUsers: 0,
+        totalStudents: 0,
+        totalTeachers: 0,
+        totalSections: 0
+    });
+
+    const [strandStats, setStrandStats] = useState([]);
+    const [sectionDistribution, setSectionDistribution] = useState([]);
+    const [users, setUsers] = useState([]);
     const [entriesPerPage, setEntriesPerPage] = useState(10);
     const [searchTerm, setSearchTerm] = useState('');
-    
-    const accountId = accountsData.map(account => account.id);
-    const filteredAccounts = accountsData.filter(account => 
-        account.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        account.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        account.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        account.status.toLowerCase().includes(searchTerm.toLowerCase())
+
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            const token = localStorage.getItem('token');
+            try {
+                const [usersRes, strandsRes, sectionsRes] = await Promise.all([
+                    fetch('/api/admin/getUsers', {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }),
+                    fetch('/api/admin/getStrands', {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }),
+                    fetch('/api/admin/getSections', {
+                        headers: { Authorization: `Bearer ${token}` }
+                    })
+                ]);
+
+                const [users, strands, sections] = await Promise.all([
+                    usersRes.json(),
+                    strandsRes.json(),
+                    sectionsRes.json()
+                ]);
+
+                // Calculate dashboard stats
+                const students = users.filter(user => user.role === 'student');
+                const teachers = users.filter(user => user.role === 'teacher');
+
+                setDashboardData({
+                    totalUsers: users.length,
+                    totalStudents: students.length,
+                    totalTeachers: teachers.length,
+                    totalSections: sections.length
+                });
+
+                 // Calculate students per strand
+                 const strandDistribution = strands.map(strand => ({
+                    name: strand.name,
+                    Students: students.filter(student => 
+                        student.strand && student.strand._id === strand._id
+                    ).length
+                }));
+
+                setStrandStats(strandDistribution);
+
+                
+                // Calculate sections per strand
+             const sectionsPerStrand = strands.map(strand => ({
+                name: strand.name,
+                Sections: sections.filter(section => section.strand && section.strand._id === strand._id).length
+            }));
+
+            setSectionDistribution(sectionsPerStrand); // Update the state with sections per strand
+
+                setUsers(users);
+
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
+
+    // Filter users for the table
+    const filteredUsers = users.filter(user =>
+        user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    const numberofUsers = accountsData.length;
-    const numberOfStudents = accountsData.filter(account => account.role === 'Student').length;
-    const numberOfTeachers = accountsData.filter(account => account.role === 'Teacher').length;
-    const numberOfActiveUsers = accountsData.filter(account => account.status === 'Active').length;
+
     
     return ( 
         <>
@@ -50,7 +104,7 @@ const AdminCardsCharts = () => {
                     <FaUsers className="text-primary me-3" size={24} />
                     <div>
                         <Card.Subtitle className="text-muted">Total Users</Card.Subtitle>
-                        <Card.Title as="h3">{numberofUsers}</Card.Title>
+                        <Card.Title as="h3">{dashboardData.totalUsers}</Card.Title>
                     </div>
                 </Card.Body>
             </Card>
@@ -61,7 +115,7 @@ const AdminCardsCharts = () => {
                     <FaGraduationCap className="text-success me-3" size={24} />
                     <div>
                         <Card.Subtitle className="text-muted">Students</Card.Subtitle>
-                        <Card.Title as="h3">{numberOfStudents}</Card.Title>
+                        <Card.Title as="h3">{dashboardData.totalStudents}</Card.Title>
                     </div>
                 </Card.Body>
             </Card>
@@ -72,7 +126,7 @@ const AdminCardsCharts = () => {
                     <FaBook className="text-warning me-3" size={24} />
                     <div>
                         <Card.Subtitle className="text-muted">Teachers</Card.Subtitle>
-                        <Card.Title as="h3">{numberOfTeachers}</Card.Title>
+                        <Card.Title as="h3">{dashboardData.totalTeachers}</Card.Title>
                     </div>
                 </Card.Body>
             </Card>
@@ -80,10 +134,10 @@ const AdminCardsCharts = () => {
         <Col sm={6} lg={3}>
             <Card className="stat-card total-users h-100">
                 <Card.Body className="d-flex align-items-center">
-                    <FaUserClock className="text-danger me-3" size={24} />
+                <FaClipboardList className="text-info me-3" size={24} /> 
                     <div>
-                        <Card.Subtitle className="text-muted">Active Users</Card.Subtitle>
-                        <Card.Title as="h3">{numberOfActiveUsers}</Card.Title>
+                        <Card.Subtitle className="text-muted">Total Sections</Card.Subtitle>
+                        <Card.Title as="h3">{dashboardData.totalSections}</Card.Title>
                     </div>
                 </Card.Body>
             </Card>
@@ -95,32 +149,33 @@ const AdminCardsCharts = () => {
         <Col lg={6}>
             <Card>
                 <Card.Body>
-                    <Card.Title>Number of Students</Card.Title>
+                    <Card.Title>Students per Strand</Card.Title>
                     <ResponsiveContainer width="100%" height={280}>
-                        <LineChart data={chartData}>
+                        <BarChart data={strandStats}>  {/* Changed from LineChart to BarChart */}
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="month" />
+                            <XAxis dataKey="name" />  {/* Changed to use strand name */}
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Line type="monotone" dataKey="Students" stroke="#8884d8" />
-                        </LineChart>
+                            <Bar dataKey="Students" fill="#8884d8" />  {/* Changed from Line to Bar */}
+                        </BarChart>
                     </ResponsiveContainer>
                 </Card.Body>
             </Card>
         </Col>
+
         <Col lg={6}>
             <Card>
                 <Card.Body>
-                    <Card.Title>Number of Teachers</Card.Title>
+                    <Card.Title>Sections per Strand</Card.Title>
                     <ResponsiveContainer width="100%" height={280}>
-                        <BarChart data={chartData}>
+                    <BarChart data={sectionDistribution}>
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="month" />
+                            <XAxis dataKey="name" />
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Bar dataKey="Teachers" fill="#82ca9d" />
+                            <Bar dataKey="Sections" fill="#82ca9d" />
                         </BarChart>
                     </ResponsiveContainer>
                 </Card.Body>
@@ -168,28 +223,27 @@ const AdminCardsCharts = () => {
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Email</th>
+                        <th>Date Created</th>
                         <th>Role</th>
-                        <th>Status</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {filteredAccounts
-                        .slice(0, entriesPerPage)
-                        .map(account => (
-                            <tr key={account.id}>
-                                <td>{account.name}</td>
-                                <td>{account.email}</td>
-                                <td>{account.role}</td>
-                                <td>{account.status}</td>
-                            </tr>
-                        ))}
-                </tbody>
+             {/* Update the table data */}
+             <tbody>
+                {filteredUsers
+                    .slice(0, entriesPerPage)
+                    .map(user => (
+                        <tr key={user._id}>
+                            <td>{user.username}</td>
+                            <td>{user.createdAt}</td>
+                            <td>{user.role}</td>
+                        </tr>
+                    ))}
+            </tbody>
             </Table>
         
             {/* Showing entries info */}
             <div className="text-muted">
-                Showing {Math.min(entriesPerPage, filteredAccounts.length)} of {filteredAccounts.length} entries
+                Showing {Math.min(entriesPerPage, filteredUsers.length)} of {filteredUsers.length} entries
             </div>
         </Card.Body>
         </Card>

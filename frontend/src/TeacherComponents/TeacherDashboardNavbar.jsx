@@ -1,9 +1,11 @@
-import { Navbar, Nav, Container } from 'react-bootstrap';
-import { LinkContainer } from 'react-router-bootstrap';
-import { FaSignInAlt, FaSignOutAlt } from 'react-icons/fa';
+import { Navbar, Nav, Button, Container, Modal } from 'react-bootstrap';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import React, { useState, useEffect } from 'react';
+import { Table, Form } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-const Header = () => {
+function TeacherDashboardNavbar() {
+
+
   const [loading, setLoading] = useState(false); // Define loading state
   const [error, setError] = useState('');
   const [userName, setUserName] = useState(''); // State for username
@@ -53,49 +55,29 @@ const Header = () => {
     }
 };
 
-
-
-
   return (
-    <header>
-      <Navbar bg='success' variant='dark' expand='lg' collapseOnSelect>
+    <>
+      <Navbar expand="lg" className="bg-body-tertiary">
         <Container>
-          <LinkContainer to='/'>
-            <Navbar.Brand>
-              <img
-                alt=""
-                src="../img/TVNHS.png"
-                width="30"
-                height="30"
-                className="d-inline-block align-top"
-              />{' '}
-              TVNHS
-            </Navbar.Brand>
-          </LinkContainer>
-          <Navbar.Toggle aria-controls='basic-navbar-nav' />
-          <Navbar.Collapse id='basic-navbar-nav'>
-            <Nav className='ms-auto'>
-              {userName ? ( // Conditional rendering based on userName
-                <Nav.Link disabled style={{ color: 'white' }}> {/* Change 'white' to your desired color */}
-                  Welcome back, {userName}
-                </Nav.Link>
-              ) : (
-                <LinkContainer to='/login'>
-                  <Nav.Link>
-                    <FaSignInAlt /> Sign In
-                  </Nav.Link>
-                </LinkContainer>
-              )}
-              <button onClick={handleLogOut} disabled={loading} className='btn btn-success'>
+          <Navbar.Brand href="#home" className="me-4">TVNHS</Navbar.Brand>
+          <Navbar.Toggle aria-controls="basic-navbar-nav" />
+          <Navbar.Collapse id="basic-navbar-nav">
+            <Nav className="mx-auto">
+              <Nav.Link className="mx-3" href="#home">Home</Nav.Link>
+              <Nav.Link className="mx-3" href="/login/TeacherScreens/TeacherViewStudents">View Students</Nav.Link>
+              <Nav.Link className="mx-3" href="/login/TeacherScreens/TeacherEncodeGrade">Encode Grades</Nav.Link>
+              <Nav.Link className="mx-3" href="#link">Generate Form</Nav.Link>
+            </Nav>
+            <Nav>
+              <Nav.Link onClick={handleLogOut} disabled={loading} className='btn btn-success'>
                 {loading ? 'Logging out...' : 'Log Out'}
-              </button>
-              {error && <div className="alert alert-danger">{error}</div>}
+              </Nav.Link>
             </Nav>
           </Navbar.Collapse>
         </Container>
       </Navbar>
-    </header>
+          </>
   );
-};
+}
 
-export default Header;
+export default TeacherDashboardNavbar;

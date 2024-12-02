@@ -20,6 +20,13 @@ const sectionSchema = new mongoose.Schema({
         ref: 'Strand',
         required: true 
     }, // Reference to the strand
+
+    yearLevel: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'YearLevel',
+        required: true 
+    }, // Reference to the year level
+
     advisoryClass: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User', // Link to a teacher who is assigned as the advisor

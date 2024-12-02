@@ -36,4 +36,13 @@ const authorizeRoles = (...roles) => (req, res, next) => {
     }
 };
 
-export { protect, authorizeRoles }
+const teacher = asyncHandler(async (req, res, next) => {
+    if (req.user && req.user.role === 'teacher') {
+        next();
+    } else {
+        res.status(403);
+        throw new Error('Not authorized as teacher');
+    }
+});
+
+export { protect, authorizeRoles, teacher }

@@ -28,16 +28,49 @@ const userSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Subject',
     }],
-    semester: [{ 
-        type: mongoose.Schema.Types.ObjectId, 
+
+    yearLevel: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'YearLevel',
+        required: function() { return this.role === 'student'; }
+    },
+    semester: {
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'Semester',
-        required: function() {
+        required: function() { return this.role === 'student'; }
+    },
+       // For teachers: multiple semesters
+       semesters: {
+        type: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Semester'
+        }],
+        select: function() {
             return this.role === 'teacher';
         }
-    }],
+    },
+       // For teachers only - their advisory section
+       advisorySection: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Section',
+        // This will only be populated for teachers
+    },
+
 
 
 }, { timestamps: true });
+
+// Add this virtual field to link with Student model
+userSchema.virtual('studentInfo', {
+    ref: 'Student',
+    localField: '_id',
+    foreignField: 'user',
+    justOne: true
+});
+
+// Enable virtuals in JSON
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
 
 
 const User = mongoose.model('User', userSchema);

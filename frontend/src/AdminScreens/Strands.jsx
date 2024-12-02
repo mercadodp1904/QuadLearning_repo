@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import './AdminCreateStrand.css';
 import { FaSearch } from 'react-icons/fa';
 import Modal from 'react-bootstrap/Modal';
-
+import Header from '../components/Header';
 const AdminCreateStrand = () => {
     const navigate = useNavigate();
     const [studStrands, setStudStrands] = useState([]);
@@ -203,6 +203,7 @@ const AdminCreateStrand = () => {
 
     return (
         <>
+        <Header/>
             <AdminSidebar />
             <div className='d-flex'>
                 <main className="main-content flex-grow-1">
@@ -292,20 +293,21 @@ const AdminCreateStrand = () => {
                                 </div>
 
                                 <Table striped bordered hover>
-                                <thead>
+                                <thead className='text-center'>
                                     <tr>
                                         <th>Name</th>
                                         <th>Description</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody className='text-center'>
                                             {currentEntries.length > 0 ? (
                                                 currentEntries.map((strand) => (
                                                     <tr key={strand._id}>
                                                         <td>{strand.name}</td>
                                                         <td>{strand.description}</td>
                                                         <td>
+                                                        <div className="button-group">
                                                         <button
                                                                 className="btn btn-primary custom-btn"
                                                                 onClick={() => handleEditShow(strand._id)}
@@ -318,6 +320,7 @@ const AdminCreateStrand = () => {
                                                             >
                                                             Delete
                                                             </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))

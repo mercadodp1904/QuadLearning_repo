@@ -8,18 +8,20 @@ import AdminSidebar from "../AdminComponents/AdminSidebar";
 import '../AdminComponents/AdminTableList.css';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
-
+import Header from '../components/Header';
+import axios from 'axios';
 const AdminViewAllUsersScreen = () => {
     const [show, setShow] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
     const [loading, setLoading] = useState(false);
-    const [showAddModal, setShowAddModal] = useState(false);
     const [error, setError] = useState('');
     const [users, setUsers] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+
     const [newUser, setNewUser] = useState({
         username: '',
         password: '',
@@ -53,7 +55,47 @@ const AdminViewAllUsersScreen = () => {
         fetchUsers();
     }, []);
     
-
+    const handleResetPassword = async (newPassword) => {
+        const token = localStorage.getItem('token');
+        
+        try {
+            setLoading(true);
+            const response = await fetch(`/api/admin/resetPassword/${selectedUserId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ newPassword })
+            });
+    
+            if (response.ok) {
+                alert('Password reset successful');
+                setNewPassword('');
+                setConfirmPassword('');
+                handleClose();
+            } else {
+                const data = await response.json();
+                setError(data.message || 'Failed to reset password');
+                alert('Failed to reset password');
+            }
+        } catch (error) {
+            setError('An error occurred while resetting the password');
+            alert('An error occurred while resetting the password');
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    // Update the handleSubmit function to use handleResetPassword
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (newPassword === confirmPassword) {
+            handleResetPassword(newPassword);
+        } else {
+            alert("Passwords do not match!");
+        }
+    };
 
     const handleClose = () => {
         setShow(false);
@@ -65,69 +107,6 @@ const AdminViewAllUsersScreen = () => {
         setShow(true);
     };
 
-    const deleteHandler = async (userId) => {
-        const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-        console.log("Deleting user with ID:", userId);
-        try {
-            const response = await fetch(`/api/admin/users/${userId}`, { // Corrected endpoint
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`, // Ensure token is included
-                }
-            });
-    
-            console.log("Response status:", response.status);
-            if (response.ok) {
-                setUsers(prevUsers => prevUsers.filter(user => user._id !== userId));
-                handleClose(); // Close the modal after deletion
-            } else {
-                const json = await response.json();
-                console.error('Error response:', json);
-                setError(json.message);
-            }
-        } catch (error) {
-            console.error('Error deleting user:', error);
-            setError('Failed to delete user');
-        }
-    };
-
-    const handleAddUser = async (e) => {
-        const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        
-        const userData = {
-            username: newUser.username,
-            password: newUser.password,
-            role: newUser.role
-        }
-
-        const response = await fetch('/api/admin/addUsers', {
-            method: 'POST',
-            body: JSON.stringify(userData),
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`, // Add the Bearer token here
-            }
-        });
-        const json = await response.json();
-
-         // Directly update the users state with the new user data
-         setUsers(prevUsers => [...prevUsers, json.data]); // Use json.data to get the new user object
-
-        if(!response.ok){ 
-            setError(json.message);
-        }
-
-        if(response.ok){
-            setNewUser({ username: '', password: '', role: ''});
-            setLoading(false);
-            setShowAddModal(false);
-            console.log('User added successfully');
-        }
-    };
 
     const filteredAccounts = users?.filter(user => 
         user?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -141,9 +120,10 @@ const AdminViewAllUsersScreen = () => {
         if (direction === 'prev' && currentPage > 1) setCurrentPage(currentPage - 1);
         if (direction === 'next' && currentPage < totalPages) setCurrentPage(currentPage + 1);
     };
-
+    
     return ( 
         <>
+        <Header/>
         <AdminSidebar/>
         <div className='d-flex'>
         <main className="main-content flex-grow-1">
@@ -170,15 +150,6 @@ const AdminViewAllUsersScreen = () => {
                         <option value={100}>100</option>
                     </Form.Select>
                     <span>entries</span>
-                </div>
-
-                <div>
-                <button 
-            className='btn btn-primary mx-5 px-3 custom-width-btn'
-                    onClick={() => setShowAddModal(true)}
-                >
-                    Add Users
-                </button>
                 </div>
 
                 <InputGroup style={{ width: '200px' }}>
@@ -211,13 +182,7 @@ const AdminViewAllUsersScreen = () => {
                     <td>{user.createdAt}</td>
                     <td>{user.role}</td>
                     <td>
-                        <button className='btn btn-primary custom-btn'>Edit</button>
-                        <button 
-                            className='btn btn-danger custom-btn' 
-                            onClick={() => handleShow(user._id)}
-                        >
-                            Delete
-                        </button>
+                    <button onClick={() => handleShow(user._id)} className='btn btn-primary custom-btn'>Edit</button>
                     </td>
                 </tr>
             ))}
@@ -244,75 +209,40 @@ const AdminViewAllUsersScreen = () => {
                                         Next
                                     </Button>
                                 </div> 
-            <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
-    <Modal.Header closeButton>
-        <Modal.Title>Add New User</Modal.Title>
-    </Modal.Header>
-    <Modal.Body>
-        <Form onSubmit={handleAddUser}>
-            <Form.Group className="mb-3">
-                <Form.Label>Username</Form.Label>
-                <Form.Control
-                    type="text"
-                    value={newUser.username}
-                    onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                    required
-                />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-                <Form.Label>Password</Form.Label>
-                <Form.Control
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                    required
-                />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-                <Form.Label>Role</Form.Label>
-                <Form.Select
-                    value={newUser.role}
-                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                    required
-                >
-                    <option value="">Select Role</option>
-                    <option value="student">Student</option>
-                    <option value="teacher">Teacher</option>
-                </Form.Select>
-            </Form.Group>
-
-            <div className="text-center mt-3">
-                <Button variant="secondary" onClick={() => setShowAddModal(false)} className="me-2">
-                    Cancel
-                </Button>
-                <Button variant="primary" type="submit">
-                    Add User
-                </Button>
-            </div>
-        </Form>
-    </Modal.Body>
-</Modal>
-
-      <Modal show={show} onHide={handleClose} className='text-center'>
-        <Modal.Header closeButton className='text-center'>
-          <Modal.Title className='text-center w-100'>CONFIRMATION MESSAGE</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>The data will be erased and cannot be retrieved. Are you sure you want to continue?</Modal.Body>
-        <Modal.Footer className='justify-content-center'>
-        <Button variant="primary" className="px-4" onClick={() => setShow(false)}>
-            Cancel
-          </Button>
-      <Button 
-            variant="danger" 
-            className="px-4" 
-            onClick={() => selectedUserId && deleteHandler(selectedUserId)}
-        >
-            Confirm
-        </Button>
-        </Modal.Footer>
-      </Modal>
+                                <Modal show={show} onHide={handleClose}>
+            <Modal.Header closeButton>
+                <Modal.Title>Reset Password</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                <Form onSubmit={handleSubmit}>
+                    <Form.Group controlId="formNewPassword">
+                        <Form.Label className='mb-2'>New Password</Form.Label>
+                        <Form.Control
+                            className='mb-2'
+                            type="password"
+                            placeholder="Enter new password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            required
+                        />
+                    </Form.Group>
+                    <Form.Group controlId="formConfirmPassword">
+                        <Form.Label className='mb-2'>Confirm Password</Form.Label>
+                        <Form.Control
+                            className='mb-2'
+                            type="password"
+                            placeholder="Confirm new password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                        />
+                    </Form.Group>
+                    <Button variant="primary" type="submit"> 
+                        Reset Password
+                    </Button>
+                </Form>
+            </Modal.Body>
+        </Modal>
       
         </Card.Body>
         </Card>

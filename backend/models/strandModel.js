@@ -8,7 +8,9 @@ const strandSchema = new mongoose.Schema({
     },
     description: { 
         type: String 
-    }
+
+    },
+
 });
 
 const Strand = mongoose.model('Strand', strandSchema);
