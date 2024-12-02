@@ -3,6 +3,7 @@ import User from '../models/userModel.js';
 import Section from '../models/sectionModel.js';
 import Strand from '../models/strandModel.js';
 import Subject from '../models/subjectModel.js';
+import Student from '../models/studentModel.js';
 import Semester from '../models/semesterModel.js';
 import YearLevel from '../models/yearLevelModel.js';
 import bcrypt from 'bcryptjs';
@@ -28,6 +29,8 @@ const createUserAccount = asyncHandler(async (req, res) => {
         advisorySection 
     } = req.body;
 
+    
+
     // Basic validation for all users
     if (!username || !password || !role) {
         res.status(400);
@@ -35,6 +38,19 @@ const createUserAccount = asyncHandler(async (req, res) => {
     }
 
     try {
+
+       // Add debug logging for username check
+       console.log('Checking username:', username.trim());
+        
+       // Check if username already exists before trying to create
+       const existingUser = await User.findOne({ username: username.trim() });
+       console.log('Existing user check result:', existingUser);
+
+       if (existingUser) {
+           console.log('Username exists:', existingUser.username);
+           res.status(400);
+           throw new Error('Username already exists');
+       }
         // Hash password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -59,25 +75,28 @@ const createUserAccount = asyncHandler(async (req, res) => {
                 throw new Error('Semesters are required for teachers');
             }
 
-                // First create the teacher user
-                const user = await User.create({
-                    ...userData,
-                    sections,
-                    subjects,
-                    semesters,
-                    ...(advisorySection && { advisorySection })
-                });
+              // Create teacher user
+        const user = await User.create({
+            username: username.trim(),
+            password: hashedPassword,
+            role,
+            sections,
+            subjects,
+            semesters,
+            ...(advisorySection && { advisorySection })
+        });
 
-                  // Update sections with teacher assignment
-            console.log('Updating sections with teacher:', sections); // Debug log
-            for (const sectionId of sections) {
-                const updatedSection = await Section.findByIdAndUpdate(
-                    sectionId,
-                    { $addToSet: { teacher: user._id } }, // Make sure this matches your model
-                    { new: true }
-                );
-                console.log('Updated section:', updatedSection); // Debug log
-            }
+        console.log('Created teacher with sections:', sections);
+
+        // Update sections with teacher assignment
+        for (const sectionId of sections) {
+            const updatedSection = await Section.findByIdAndUpdate(
+                sectionId,
+                { $addToSet: { teacher: user._id } },
+                { new: true }
+            );
+            console.log('Updated section:', updatedSection); // Debug log
+        }
 
             // Update all assigned subjects to include this teacher
             await Subject.updateMany(
@@ -122,7 +141,6 @@ const createUserAccount = asyncHandler(async (req, res) => {
                 sections: sections ? [sections[0]] : [], // Students only get one section
                 subjects: subjects || [] // Add subjects for students
             });
-            
         }
 
        
@@ -132,6 +150,15 @@ const createUserAccount = asyncHandler(async (req, res) => {
         // Create the user
         const user = await User.create(userData);
         
+        const student = await Student.create({
+            user: user._id,
+        });
+
+        const populatedStudent = await Student.findById(student._id)
+    .populate('userData')    // Replaces user ID with actual user document
+    .populate('strand')      // Replaces strand ID with actual strand document
+    .populate('section')     // Replaces section ID with actual section document
+
         await Section.updateMany(
             { _id: { $in: sections } },
             { $addToSet: { students: user._id } }
@@ -151,7 +178,7 @@ const createUserAccount = asyncHandler(async (req, res) => {
 
         res.status(201).json({
             success: true,
-            data: populatedUser
+            data: {populatedUser, populatedStudent}
         });
 
     } catch (error) {
@@ -212,7 +239,17 @@ const getUserListByRole = asyncHandler(async (req, res) => {
             .populate('subjects', 'name')
             .populate('yearLevel', 'name')
             .populate('semester', 'name')
-            .populate('semesters', 'name')  // Add this for teachers
+            .populate({
+                path: 'semesters',
+                populate: [{
+                    path: 'strand',
+                    select: 'name'
+                },
+                {
+                    path: 'yearLevel',
+                    select: 'name'
+                }]
+            })
             .populate('advisorySection', 'name')  // Add this for teachers
             .select('-password');
         
@@ -232,7 +269,17 @@ const getUserListByRole = asyncHandler(async (req, res) => {
 // Update the updateUserAccount controller as well
 const updateUserAccount = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { section: newSection, ...updateData } = req.body;
+    const {
+        username,
+        role,
+        sections,
+        subjects,
+        strand,
+        yearLevel,
+        semester,     // for students
+        semesters,    // for teachers
+        advisorySection
+    } = req.body;
 
     const user = await User.findById(id);
     if (!user) {
@@ -240,30 +287,118 @@ const updateUserAccount = asyncHandler(async (req, res) => {
         throw new Error('User not found');
     }
 
-    // If section is being changed and user is a student
-    if (newSection && user.role === 'student' && newSection !== user.section) {
-        // Remove student from old section
-        if (user.section) {
-            await Section.findByIdAndUpdate(
-                user.section,
-                { $pull: { students: user._id } }
-            );
+    try {
+        let updateData = { username };
+
+        if (user.role === 'teacher') {
+            // Remove teacher from old sections
+            if (user.sections?.length > 0) {
+                await Section.updateMany(
+                    { teacher: user._id },
+                    { $pull: { teacher: user._id } }
+                );
+            }
+
+            // Add teacher to new sections
+            if (sections?.length > 0) {
+                await Section.updateMany(
+                    { _id: { $in: sections } },
+                    { $addToSet: { teacher: user._id } }
+                );
+            }
+
+            // Remove teacher from old subjects
+            if (user.subjects?.length > 0) {
+                await Subject.updateMany(
+                    { teachers: user._id },
+                    { $pull: { teachers: user._id } }
+                );
+            }
+
+            // Add teacher to new subjects
+            if (subjects?.length > 0) {
+                await Subject.updateMany(
+                    { _id: { $in: subjects } },
+                    { $addToSet: { teachers: user._id } }
+                );
+            }
+
+            // Handle advisory section update
+            if (user.advisorySection) {
+                // Remove from old advisory section
+                await Section.findByIdAndUpdate(
+                    user.advisorySection,
+                    { $unset: { advisoryClass: "" } }
+                );
+            }
+
+            // Set new advisory section if provided
+            if (advisorySection) {
+                await Section.findByIdAndUpdate(
+                    advisorySection,
+                    { advisoryClass: user._id }
+                );
+            }
+
+            updateData = {
+                ...updateData,
+                sections,
+                subjects,
+                semesters,
+                advisorySection: advisorySection || null
+            };
+
+        } else if (role === 'student') {
+            // Handle student-specific updates
+            if (sections) {
+                // Remove from old sections
+                await Section.updateMany(
+                    { students: user._id },
+                    { $pull: { students: user._id } }
+                );
+                
+                // Add to new section (students only get one section)
+                await Section.findByIdAndUpdate(
+                    sections[0],
+                    { $addToSet: { students: user._id } }
+                );
+            }
+
+            updateData = {
+                ...updateData,
+                strand,
+                yearLevel,
+                semester,
+                sections: sections ? [sections[0]] : user.sections,
+                subjects: subjects || user.subjects
+            };
         }
-        
-        // Add student to new section
-        await Section.findByIdAndUpdate(
-            newSection,
-            { $push: { students: user._id } }
-        );
+
+        // Update user with new data
+        const updatedUser = await User.findByIdAndUpdate(
+            id,
+            updateData,
+            { new: true }
+        ).populate([
+            'strand',
+            'sections',
+            'subjects',
+            'yearLevel',
+            'semester',
+            'semesters',
+            'advisorySection'
+        ]);
+
+        res.json({
+            success: true,
+            data: updatedUser
+        });
+
+    } catch (error) {
+        console.error('Update error:', error);
+        res.status(400);
+        throw new Error(`Failed to update user: ${error.message}`);
     }
-
-    const updatedUser = await User.findByIdAndUpdate(
-        id,
-        { ...updateData, section: newSection },
-        { new: true }
-    ).populate('strand section subjects yearLevel semester');
-
-    res.json(updatedUser);
 });
 
 // @desc    Delete user account

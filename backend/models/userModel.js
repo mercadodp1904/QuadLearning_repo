@@ -58,6 +58,18 @@ const userSchema = mongoose.Schema({
 
 }, { timestamps: true });
 
+// Add this virtual field to link with Student model
+userSchema.virtual('studentInfo', {
+    ref: 'Student',
+    localField: '_id',
+    foreignField: 'user',
+    justOne: true
+});
+
+// Enable virtuals in JSON
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
+
 
 const User = mongoose.model('User', userSchema);
 

@@ -2,79 +2,59 @@ import { Navbar, Nav, Button, Container, Modal } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import React, { useState, useEffect } from 'react';
 import { Table, Form } from 'react-bootstrap';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 function TeacherDashboardNavbar() {
 
-  const [students, setStudents] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    middleInitial: '',
-    gender: '',
-    birthdate: '',
-    birthplace: {
-      province: '',
-      municipality: '',
-      barrio: ''
-    },
-    address: '',
-    guardian: {
-      name: '',
-      occupation: ''
-    },
-    yearLevel: '',
-    school: {
-      name: '',
-      year: ''
-    },
-    contactNumber: ''
-  });
+
+  const [loading, setLoading] = useState(false); // Define loading state
+  const [error, setError] = useState('');
+  const [userName, setUserName] = useState(''); // State for username
+  const navigate = useNavigate(); // Define navigate
+
 
   useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  const fetchStudents = async () => {
-    try {
-      const response = await axios.get('/api/teacher/students');
-      setStudents(response.data);
-    } catch (error) {
-      console.error('Error fetching students:', error);
+    // Retrieve user info from localStorage when the component mounts
+    const userInfo = localStorage.getItem('userInfo');
+    if (userInfo) {
+      const user = JSON.parse(userInfo);
+      setUserName(user.username); // Assuming the user object has a 'username' field
     }
-  };
+  }, []); // Empty dependency array to run only once on mount
 
-  const handleEdit = (student) => {
-    setSelectedStudent(student);
-    setFormData({
-      firstName: student.firstName,
-      lastName: student.lastName,
-      middleInitial: student.middleInitial,
-      gender: student.gender,
-      birthdate: student.birthdate?.split('T')[0], // Format date for input
-      birthplace: student.birthplace,
-      address: student.address,
-      guardian: student.guardian,
-      yearLevel: student.yearLevel,
-      school: student.school,
-      contactNumber: student.contactNumber
-    });
-    setShowModal(true);
-  };
 
-  const handleUpdate = async () => {
+  const handleLogOut = async (e) => {
+    e.preventDefault(); // Prevent the default behavior of the event
+    setLoading(true);   // Set loading state to true
+    setError('');       // Clear any previous errors
+
     try {
-      await axios.put(`/api/teachers/student/${selectedStudent._id}/form`, formData);
-      setShowModal(false);
-      fetchStudents(); // Refresh the list
-    } catch (error) {
-      console.error('Error updating student:', error);
-    }
-  };
+        const response = await fetch('/api/users/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include', // Include cookies in the request if they're used for authentication
+        });
 
-  
+        if (!response.ok) {
+            throw new Error('Logout failed');
+        }
+
+        // Clear token and user info from local storage
+        localStorage.removeItem('token'); // Clear token if stored locally
+        localStorage.removeItem('userInfo'); // Remove additional user data if stored
+
+        // Redirect to the login page
+        navigate('/login');
+        console.log('Logout successful');
+    } catch (err) {
+        setError(err.message); // Display error message in the UI
+        console.error('Error during logout:', err.message); // Log the error for debugging
+    } finally {
+        setLoading(false); // Reset the loading state
+    }
+};
+
   return (
     <>
       <Navbar expand="lg" className="bg-body-tertiary">
@@ -84,180 +64,18 @@ function TeacherDashboardNavbar() {
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="mx-auto">
               <Nav.Link className="mx-3" href="#home">Home</Nav.Link>
-              <Nav.Link className="mx-3" href="#link">View Students</Nav.Link>
-              <Nav.Link className="mx-3" href="#link">Encode Grades</Nav.Link>
+              <Nav.Link className="mx-3" href="/login/TeacherScreens/TeacherViewStudents">View Students</Nav.Link>
+              <Nav.Link className="mx-3" href="/login/TeacherScreens/TeacherEncodeGrade">Encode Grades</Nav.Link>
               <Nav.Link className="mx-3" href="#link">Generate Form</Nav.Link>
             </Nav>
             <Nav>
-              <Nav.Link href="#link">Sign Out</Nav.Link>
+              <Nav.Link onClick={handleLogOut} disabled={loading} className='btn btn-success'>
+                {loading ? 'Logging out...' : 'Log Out'}
+              </Nav.Link>
             </Nav>
           </Navbar.Collapse>
         </Container>
       </Navbar>
-
-      <Container className="mt-4">
-        <Form.Group className="mb-3">
-          <Form.Control
-            type="text"
-            placeholder="Search students..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </Form.Group>
-
-        <Table striped bordered hover>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Year Level</th>
-              <th>Section</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {students
-              .filter(student => 
-                `${student.firstName} ${student.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
-              )
-              .map((student) => (
-                <tr key={student._id}>
-                  <td>{`${student.firstName} ${student.lastName}`}</td>
-                  <td>{student.yearLevel}</td>
-                  <td>{student.section?.name}</td>
-                  <td>
-                    <Button variant="primary" size="sm" onClick={() => handleEdit(student)}>
-                      Edit
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </Table>
-
-        <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-          <Modal.Header closeButton>
-            <Modal.Title>Edit Student Information</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Form>
-              <div className="row">
-                <div className="col-md-4">
-                  <Form.Group className="mb-3">
-                    <Form.Label>First Name</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                    />
-                  </Form.Group>
-                </div>
-                <div className="col-md-4">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Last Name</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                    />
-                  </Form.Group>
-                </div>
-                <div className="col-md-4">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Middle Initial</Form.Label>
-                    <Form.Control
-                      type="text"
-                      maxLength={1}
-                      value={formData.middleInitial}
-                      onChange={(e) => setFormData({...formData, middleInitial: e.target.value})}
-                    />
-                  </Form.Group>
-                </div>
-              </div>
-
-              <div className="row">
-                <div className="col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Gender</Form.Label>
-                    <Form.Select
-                      value={formData.gender}
-                      onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                    >
-                      <option value="">Select Gender</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                    </Form.Select>
-                  </Form.Group>
-                </div>
-                <div className="col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Birthdate</Form.Label>
-                    <Form.Control
-                      type="date"
-                      value={formData.birthdate}
-                      onChange={(e) => setFormData({...formData, birthdate: e.target.value})}
-                    />
-                  </Form.Group>
-                </div>
-              </div>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Address</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => setFormData({...formData, address: e.target.value})}
-                />
-              </Form.Group>
-
-              <div className="row">
-                <div className="col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Guardian Name</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={formData.guardian.name}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        guardian: {...formData.guardian, name: e.target.value}
-                      })}
-                    />
-                  </Form.Group>
-                </div>
-                <div className="col-md-6">
-                  <Form.Group className="mb-3">
-                    <Form.Label>Guardian Occupation</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={formData.guardian.occupation}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        guardian: {...formData.guardian, occupation: e.target.value}
-                      })}
-                    />
-                  </Form.Group>
-                </div>
-              </div>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Contact Number</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={formData.contactNumber}
-                  onChange={(e) => setFormData({...formData, contactNumber: e.target.value})}
-                />
-              </Form.Group>
-            </Form>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>
-              Close
-            </Button>
-            <Button variant="primary" onClick={handleUpdate}>
-              Save Changes
-            </Button>
-          </Modal.Footer>
-        </Modal>
-      </Container>
           </>
   );
 }

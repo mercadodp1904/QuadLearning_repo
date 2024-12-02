@@ -1,7 +1,7 @@
 import express from 'express';
 
-import { addGrade, updateGrade,  generateForm137 } from '../controllers/teacherController.js';
-import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
+import { addGrade, updateGrade,  generateForm137, getTeacherSections, fillOutStudentForm, getStudentData, getTeacherSubjects } from '../controllers/teacherController.js';
+import { protect, authorizeRoles, teacher } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -14,5 +14,11 @@ router.post(
     //authorizeRoles('teacher'), // Allow only teachers
     generateForm137 // Generate Form 137
 );
+router.get('/sections', protect, teacher, getTeacherSections);
+
+// Update these routes
+router.get('/student/:studentId', protect, teacher, getStudentData); // GET route for fetching student data
+router.post('/student/:studentId/form', protect, teacher, fillOutStudentForm); // PUT route for updating student data
+router.get('/subjects', protect, teacher, getTeacherSubjects); // GET route for fetching teacher subjects
 export default router;
 

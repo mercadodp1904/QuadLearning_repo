@@ -24,3 +24,36 @@
     transition: .8s;
 }
 
+
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table th {
+    background-color: #f8f9fa;
+    padding: 12px;
+    text-align: center;
+    font-weight: 600;
+    border: 1px solid #dee2e6;
+}
+
+.admin-table td {
+    padding: 12px;
+    border: 1px solid #dee2e6;
+    vertical-align: middle;
+}
+
+.admin-table .list-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.admin-table .list-item {
+    background-color: #e9ecef;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}

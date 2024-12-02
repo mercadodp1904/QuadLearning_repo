@@ -3,32 +3,33 @@ import mongoose from 'mongoose';
 const studentSchema = mongoose.Schema(
     {
         // Link to User model for authentication
-        user: {
+          // Keep only user as required
+          user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
             required: true,
-            unique: true // Ensure one-to-one relationship
+            unique: true
         },
         firstName: {
             type: String,
-            required: true,
+            // required: true removed
         },
         lastName: {
             type: String,
-            required: true,
+            // required: true removed
         },
         middleInitial: {
-            type: String, // Middle initial is optional
+            type: String,
             maxlength: 1,
         },
         gender: {
             type: String,
-            enum: ['Male', 'Female'], // Restrict to specific values
-            required: true,
+            enum: ['Male', 'Female', 'male', 'female'], // Allow both cases
+            set: value => value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() // Capitalize first letter
         },
         birthdate: {
             type: Date,
-            required: true,
+            // required: true removed
         },
         birthplace: {
             province: String,
@@ -37,24 +38,18 @@ const studentSchema = mongoose.Schema(
         },
         address: {
             type: String,
-            required: true,
+            // required: true removed
         },
-
-        // Guardian details
         guardian: {
             name: {
                 type: String,
-                required: true,
+                // required: true removed
             },
-            occupation: {
-                type: String,
-            },
+            occupation: String,
         },
-
-        // Academic information
         yearLevel: {
-            type: String,
-            required: true,
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'YearLevel'
         },
         section: {
             type: mongoose.Schema.Types.ObjectId,
@@ -67,20 +62,18 @@ const studentSchema = mongoose.Schema(
         school: {
             name: {
                 type: String,
-                required: true,
+                // required: true removed
             },
             year: {
                 type: String,
-                required: true,
-            },
+                // required: true removed
+            }
         },
-
-        // Attendance data
         attendance: {
             totalYears: {
                 type: Number,
-                required: true,
-            },
+                // required: true removed
+            }
         },
 
         // Grades structure with linked Semester
@@ -123,6 +116,18 @@ const studentSchema = mongoose.Schema(
     },
     { timestamps: true } // Add createdAt and updatedAt fields
 );
+
+// Add virtual population for user data
+studentSchema.virtual('userData', {
+    ref: 'User',
+    localField: 'user',
+    foreignField: '_id',
+    justOne: true // Since it's a one-to-one relationship
+});
+
+// Ensure virtuals are included when converting document to JSON
+studentSchema.set('toJSON', { virtuals: true });
+studentSchema.set('toObject', { virtuals: true });
 
 // Create the Student model
 const Student = mongoose.model('Student', studentSchema);

@@ -4,6 +4,7 @@ import Grade from '../models/gradeModel.js';
 import User from '../models/userModel.js';
 import Section from '../models/sectionModel.js';
 import Student from '../models/studentModel.js';
+import Subject from '../models/subjectModel.js';
 import PDFDocument from 'pdfkit';
 import blobStream from 'blob-stream';
 import fs from 'fs';
@@ -23,23 +24,42 @@ const fillOutStudentForm = asyncHandler(async (req, res) => {
     const { studentId } = req.params;
     const teacherId = req.user._id; // Authenticated teacher's ID
 
-    // Fetch teacher's assigned sections
-    const teacherSections = await Section.find({ teacher: teacherId }).select('_id');
+      // First get the user to get their section
+      const user = await User.findById(studentId)
+      .populate('sections')
+      .populate('strand')
+      .populate('yearLevel')
 
-    // Fetch student
-    const student = await Student.findById(studentId).populate('section');
-    if (!student) {
+    if (!user) {
         res.status(404);
-        throw new Error('Student not found');
+        throw new Error('User not found');
     }
 
-    // Verify teacher's access
-    const isAuthorized = teacherSections.some(section =>
-        section._id.equals(student.section?._id)
+    // Get the user's first section
+    const userSection = user.sections?.[0];
+    if (!userSection) {
+        res.status(400);
+        throw new Error('Student not assigned to any section');
+    }
+
+    // Fetch teacher's assigned sections
+    const teacherSections = await Section.find({ teacher: teacherId });
+    
+    // Check if teacher is authorized for this section
+    const isAuthorized = teacherSections.some(section => 
+        section._id.toString() === userSection._id.toString()
     );
+
     if (!isAuthorized) {
         res.status(403);
         throw new Error('Not authorized to update this student');
+    }
+
+    // Find the student record
+    const student = await Student.findOne({ user: studentId });
+    if (!student) {
+        res.status(404);
+        throw new Error('Student record not found');
     }
 
     // Update fields based on the student model
@@ -52,15 +72,12 @@ const fillOutStudentForm = asyncHandler(async (req, res) => {
         birthplace,
         address,
         guardian,
-        yearLevel,
-        section,
-        strand,
         school,
         attendance,
-        grades,
         contactNumber,
     } = req.body;
 
+    // Update basic information
     if (firstName) student.firstName = firstName;
     if (lastName) student.lastName = lastName;
     if (middleInitial) student.middleInitial = middleInitial;
@@ -69,19 +86,43 @@ const fillOutStudentForm = asyncHandler(async (req, res) => {
     if (birthplace) student.birthplace = birthplace;
     if (address) student.address = address;
     if (guardian) student.guardian = { ...student.guardian, ...guardian };
-    if (yearLevel) student.yearLevel = yearLevel;
-    if (section) student.section = section;
-    if (strand) student.strand = strand;
     if (school) student.school = { ...student.school, ...school };
     if (attendance) student.attendance = { ...student.attendance, ...attendance };
-    if (grades) student.grades = grades;
     if (contactNumber) student.contactNumber = contactNumber;
 
-    const updatedStudent = await student.save();
+    // Update academic information from the User model
+    student.yearLevel = user.yearLevel?._id;
+    student.section = user.sections?.[0]?._id;
+    student.strand = user.strand?._id;
+
+    // Save the student
+    await student.save();
+
+    // Fetch the updated student with populated fields
+    const updatedStudent = await Student.findOne({ user: studentId })
+        .populate('yearLevel')
+        .populate('section')
+        .populate('strand');
 
     res.status(200).json({
+        success: true,
         message: 'Student profile updated successfully',
-        student: updatedStudent,
+        student: {
+            firstName: updatedStudent.firstName,
+            lastName: updatedStudent.lastName,
+            middleInitial: updatedStudent.middleInitial,
+            gender: updatedStudent.gender,
+            birthdate: updatedStudent.birthdate,
+            birthplace: updatedStudent.birthplace,
+            address: updatedStudent.address,
+            guardian: updatedStudent.guardian,
+            school: updatedStudent.school,
+            attendance: updatedStudent.attendance,
+            contactNumber: updatedStudent.contactNumber,
+            yearLevel: updatedStudent.yearLevel?.name,
+            section: updatedStudent.section?.name,
+            strand: updatedStudent.strand?.name,
+        }
     });
 });
 
@@ -203,36 +244,95 @@ const importStudents = asyncHandler(async (req, res) => {
 
 
 // @desc    Add grade for a student
-// @route   POST /api/grades
+// @route   POST /api/teacher/grades
 // @access  Private (teacher role)
 const addGrade = asyncHandler(async (req, res) => {
-    if (!req.user) {
-        return res.status(401).json({ message: 'Not authorized, user not found' });
+    const { studentId, subjectId, gradeType, gradeValue, semesterId } = req.body;
+
+    // Validate input
+    if (!studentId || !subjectId || !gradeType || !semesterId) {
+        res.status(400);
+        throw new Error('All fields are required');
     }
 
-    if (req.user.role !== 'teacher') {
-        res.status(403);
-        throw new Error('Not authorized to add grades');
-    }
-
-    const { studentId, subject, grade, year } = req.body;
-
-    // Validate grade value (assumed to be 0-100)
-    if (grade < 0 || grade > 100) {
+    // Validate grade value
+    if (gradeValue < 0 || gradeValue > 100) {
         res.status(400);
         throw new Error('Grade must be between 0 and 100');
     }
 
-    const newGrade = await Grade.create({
-        studentId,
-        teacherId: req.user._id,
-        subject,
-        grade,
-        year,
-    });
+    try {
+        // Find the student
+        const student = await Student.findOne({ user: studentId });
+        if (!student) {
+            res.status(404);
+            throw new Error('Student not found');
+        }
 
-    res.status(201).json(newGrade);
+        // Find or create semester grades
+        let semesterGrades = student.grades.find(g => 
+            g.semester.toString() === semesterId
+        );
+
+        if (!semesterGrades) {
+            student.grades.push({
+                semester: semesterId,
+                subjects: []
+            });
+            semesterGrades = student.grades[student.grades.length - 1];
+        }
+
+        // Find or create subject grades
+        let subjectGrade = semesterGrades.subjects.find(s => 
+            s.subject.toString() === subjectId
+        );
+
+        if (!subjectGrade) {
+            semesterGrades.subjects.push({
+                subject: subjectId,
+                midterm: null,
+                finals: null,
+                finalRating: null,
+                action: null
+            });
+            subjectGrade = semesterGrades.subjects[semesterGrades.subjects.length - 1];
+        }
+
+        // Update the grade
+        if (gradeType === 'midterm') {
+            subjectGrade.midterm = gradeValue;
+        } else if (gradeType === 'finals') {
+            subjectGrade.finals = gradeValue;
+        }
+
+        // Calculate final rating if both grades exist
+        if (subjectGrade.midterm !== null && subjectGrade.finals !== null) {
+            subjectGrade.finalRating = (subjectGrade.midterm + subjectGrade.finals) / 2;
+            subjectGrade.action = subjectGrade.finalRating >= 75 ? 'PASSED' : 'FAILED';
+        }
+
+        // Save the updated student record
+        await student.save();
+
+        res.status(200).json({
+            success: true,
+            data: {
+                studentId,
+                subjectId,
+                gradeType,
+                gradeValue,
+                finalRating: subjectGrade.finalRating,
+                action: subjectGrade.action
+            }
+        });
+
+    } catch (error) {
+        console.error('Error saving grade:', error);
+        res.status(500);
+        throw new Error('Error saving grade: ' + error.message);
+    }
 });
+
 // @desc    Update grade for a student
 // @route   PUT /api/grades/:id
 // @access  Private (teacher role)
@@ -431,9 +531,203 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
             console.error('Error occurred during PDF generation:', error);
         }
     }
+
+});
+
+const getTeacherSections = asyncHandler(async (req, res) => {
+    try {
+        const [sections, teacherData] = await Promise.all([
+            Section.find({ teacher: req.user._id })
+                .populate({
+                    path: 'students',
+                    model: 'User',
+                    select: 'username yearLevel strand sections' // Only select fields we need
+                })
+                .populate('yearLevel')
+                .populate('strand')
+                .lean(),
+            
+            User.findById(req.user._id)
+                .populate('advisorySection')
+                .lean()
+        ]);
+
+        // Format the sections data
+        const formattedSections = sections.map(section => ({
+            ...section,
+            students: section.students.map(student => {
+                return {
+                    _id: student._id,
+                    username: student.username,
+                    // Use the student's own yearLevel, not the section's
+                    yearLevel: student.yearLevel || 'Not Set',
+                    // Use the section's strand instead of student's "Not Set" value
+                    strand: section.strand?.name || 'Not Set',
+                    sectionName: section.name,
+                    isAdvisory: teacherData.advisorySection?._id.toString() === section._id.toString()
+                };
+            })
+        }));
+
+        console.log('Formatted sections:', JSON.stringify(formattedSections, null, 2)); // Debug log
+
+        res.json(formattedSections);
+    } catch (error) {
+        console.error('Error fetching teacher sections:', error);
+        res.status(500).json({ 
+            message: 'Error fetching sections',
+            error: error.message 
+        });
+    }
+});
+
+const getStudentData = asyncHandler(async (req, res) => {
+    const { studentId } = req.params;
+    
+    try {
+        // Find student and populate the section and strand references
+        const student = await Student.findOne({ user: studentId })
+            .populate('section')
+            .populate('strand');
+
+        // Also get the user data to get yearLevel
+        const user = await User.findById(studentId)
+            .populate('yearLevel')
+            .populate('sections')
+            .populate('strand');
+
+        if (!student) {
+            return res.status(404).json({
+                success: false,
+                message: 'Student not found'
+            });
+        }
+
+        // Format the date to YYYY-MM-DD for the input field
+        const formattedBirthdate = student.birthdate ? 
+            new Date(student.birthdate).toISOString().split('T')[0] : '';
+
+            res.status(200).json({
+                success: true,
+                student: {
+                    firstName: student.firstName,
+                    lastName: student.lastName,
+                    middleInitial: student.middleInitial,
+                    gender: student.gender || '',  // Ensure gender is included
+                    birthdate: formattedBirthdate,  // Format the date
+                    birthplace: {
+                        province: student.birthplace?.province || '',
+                        municipality: student.birthplace?.municipality || '',
+                        barrio: student.birthplace?.barrio || ''
+                    },
+                    address: student.address,
+                    guardian: {
+                        name: student.guardian?.name || '',
+                        occupation: student.guardian?.occupation || ''
+                    },
+                    school: {
+                        name: student.school?.name || '',
+                        year: student.school?.year || ''
+                    },
+                    attendance: {
+                        totalYears: student.attendance?.totalYears || ''
+                    },
+                    contactNumber: student.contactNumber,
+                    // Academic info
+                    yearLevel: user?.yearLevel?.name || '',
+                    section: user?.sections?.[0]?.name || '',
+                    strand: user?.strand?.name || ''
+                }
+            });
+        } catch (error) {
+            console.error('Error fetching student data:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error fetching student data',
+                error: error.message
+            });
+        }
+    });
+
+// @desc    Get teacher's subjects
+// @route   GET /api/teacher/subjects
+// @access  Private (teacher only)
+const getTeacherSubjects = asyncHandler(async (req, res) => {
+    const { semesterId } = req.query; // Get semester from query params
+
+    try {
+        // Get teacher's subjects filtered by semester
+        const teacherData = await User.findById(req.user._id)
+            .populate({
+                path: 'subjects',
+                match: { semester: semesterId }, // Only get subjects for this semester
+                select: 'name semester'
+            })
+            .select('subjects');
+
+        if (!teacherData || !teacherData.subjects) {
+            return res.json([]);
+        }
+
+        res.json(teacherData.subjects);
+        
+    } catch (error) {
+        console.error('Error in getTeacherSubjects:', error);
+        res.status(500);
+        throw new Error('Error fetching subjects: ' + error.message);
+    }
+});
+
+// @desc    Get students for a specific subject and semester
+// @route   GET /api/teacher/subject-students
+// @access  Private (teacher only)
+const getSubjectStudents = asyncHandler(async (req, res) => {
+    const { subjectId, semesterId } = req.query;
+
+    if (!subjectId || !semesterId) {
+        res.status(400);
+        throw new Error('Subject ID and Semester ID are required');
+    }
+
+    try {
+        // Find the subject first - THIS IS IMPORTANT
+        const subject = await Subject.findById(subjectId)
+            .populate('strand')
+            .populate('yearLevel');
+
+        if (!subject) {
+            res.status(404);
+            throw new Error('Subject not found');
+        }
+
+        // This query is more precise because it matches:
+        // 1. Students enrolled in the subject
+        // 2. Students in the correct strand for this subject
+        // 3. Students in the correct year level for this subject
+        const students = await User.find({
+            role: 'student',
+            subjects: subjectId,
+            semester: semesterId,
+            strand: subject.strand._id,      // Match subject's strand
+            yearLevel: subject.yearLevel._id // Match subject's year level
+        })
+        .populate('sections')
+        .populate('strand')
+        .populate('yearLevel')
+        .select('username sections strand yearLevel');
+
+        console.log('Found students:', students); // Add debug log
+
+        res.json(students);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500);
+        throw new Error('Error fetching subject students: ' + error.message);
+    }
 });
 
 
+    
 
 export { 
     getGradesByStudent, 
@@ -442,5 +736,9 @@ export {
     deleteGrade, 
     generateForm137, 
     fillOutStudentForm,
-    importStudents 
+    importStudents,
+    getTeacherSections,
+    getStudentData,
+    getTeacherSubjects,
+    getSubjectStudents
 };

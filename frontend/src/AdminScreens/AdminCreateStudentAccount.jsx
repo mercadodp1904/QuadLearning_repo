@@ -225,11 +225,16 @@ useEffect(() => {
 // Update the editUser state
 const [editUser, setEditUser] = useState({
     id: '',
+    username: '',
+    role: 'student',
     strand: '',
     section: '',
     subjects: [],
-    semester: ''
+    semester: '',
+    yearLevel: '',
 });
+
+
 // Update useEffect for sections filtering
 useEffect(() => {
     if (editUser.strand) {
@@ -249,32 +254,46 @@ useEffect(() => {
     }
 }, [newUser.strand, editUser.strand, sections]);
 
-// Update useEffect for subjects filtering  
+// Update the useEffect for filtering subjects
 useEffect(() => {
-    if (editUser.section) {
-        console.log('Filtering subjects for section:', editUser.section);
-        const subjectsForSection = subjects.filter(subject => 
-            subject.sections && subject.sections.some(sec => sec._id === editUser.section)
+    const activeUser = showAddModal ? newUser : editUser;
+    
+    if (activeUser.strand && activeUser.semester && activeUser.yearLevel) {
+        console.log('Filtering subjects for:', {
+            strand: activeUser.strand,
+            semester: activeUser.semester,
+            yearLevel: activeUser.yearLevel
+        });
+
+        // Filter subjects that match all criteria
+        const filteredSubjects = subjects.filter(subject => 
+            subject.strand._id === activeUser.strand &&
+            subject.semester._id === activeUser.semester &&
+            subject.yearLevel._id === activeUser.yearLevel
         );
-        console.log('Filtered subjects:', subjectsForSection);
-        setFilteredSubjects(subjectsForSection);
-    } else if (newUser.section) {
-        const subjectsForSection = subjects.filter(subject => 
-            subject.sections && subject.sections.some(sec => sec._id === newUser.section)
-        );
-        setFilteredSubjects(subjectsForSection);
+
+        console.log('Filtered subjects:', filteredSubjects);
+        setAvailableSubjects(filteredSubjects);
     } else {
-        setFilteredSubjects([]);
+        setAvailableSubjects([]);
     }
-}, [newUser.section, editUser.section, subjects]);
+}, [
+    newUser.strand, newUser.semester, newUser.yearLevel,
+    editUser.strand, editUser.semester, editUser.yearLevel,
+    subjects, showAddModal
+]);
+
 // Update handleEditShow
 const handleEditShow = (user) => {
     setEditUser({
         id: user._id,
+        username: user.username,
+        role: user.role,
         strand: user.strand?._id || '',
+        yearLevel: user.yearLevel?._id || '',
+        semester: user.semester?._id || '',
         section: user.sections?.[0]?._id || '',
         subjects: user.subjects?.map(subject => subject._id) || [],
-        semester: user.semester?._id || ''
     });
     setEditModalShow(true);
 };
@@ -296,8 +315,17 @@ const handleEditSubmit = async (e) => {
     setError('');
 
     try {
-        // Add console.log to debug the request
-        console.log('Sending update request for user:', editUser);
+        const userData = {
+            username: editUser.username,
+            role: 'student',
+            sections: [editUser.section],
+            strand: editUser.strand,
+            yearLevel: editUser.yearLevel,
+            semester: editUser.semester,
+            subjects: editUser.subjects
+        };
+
+        console.log('Sending update request:', userData);
 
         const response = await fetch(`/api/admin/users/${editUser.id}`, {
             method: 'PUT',
@@ -305,30 +333,24 @@ const handleEditSubmit = async (e) => {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
-            body: JSON.stringify({
-                strand: editUser.strand,
-                assignedSections: editUser.section,
-                assignedSubjects: editUser.subjects,
-                semester: editUser.semester
-            }),
+            body: JSON.stringify(userData),
         });
-        // Add response logging
-        console.log('Response status:', response.status);
+
         const data = await response.json();
         console.log('Response data:', data);
 
         if (!response.ok) {
             throw new Error(data.message || 'Failed to update user');
         }
+
         handleEditClose();
+        fetchData(); // Refresh the data
     } catch (error) {
         setError(error.message);
         console.error('Error:', error);
     } finally {
         setLoading(false);
-        fetchData();
     }
-   
 };
     
     
@@ -721,24 +743,66 @@ console.log('Filtered Users:', filteredUsers);
     </Modal.Header>
     <Modal.Body>
         <Form onSubmit={handleEditSubmit}>
-            {/* Strand Field */}
+            {/* Username Field (Read Only) */}
+            <Form.Group className="mb-3">
+                <Form.Label>Username</Form.Label>
+                <Form.Control
+                    type="text"
+                    value={editUser.username}
+                    readOnly
+                    disabled
+                />
+            </Form.Group>
+
+            {/* Role Field (Read Only) */}
+            <Form.Group className="mb-3">
+                <Form.Label>Role</Form.Label>
+                <Form.Control
+                    type="text"
+                    value="Student"
+                    readOnly
+                    disabled
+                />
+            </Form.Group>
+
+            {/* Year Level Selection */}
+            <Form.Group className="mb-3">
+                <Form.Label>Year Level</Form.Label>
+                <Form.Select
+                    value={editUser.yearLevel}
+                    onChange={(e) => setEditUser(prev => ({
+                        ...prev,
+                        yearLevel: e.target.value,
+                        semester: '',
+                        subjects: []
+                    }))}
+                    required
+                >
+                    <option value="">Select Year Level</option>
+                    {yearLevels.map(yearLevel => (
+                        <option key={yearLevel._id} value={yearLevel._id}>
+                            {yearLevel.name}
+                        </option>
+                    ))}
+                </Form.Select>
+            </Form.Group>
+
+            {/* Strand Selection */}
             <Form.Group className="mb-3">
                 <Form.Label>Strand</Form.Label>
                 <Form.Select
-                    value={editUser.strand || ''}
-                    onChange={(e) => {
-                        const selectedStrand = e.target.value;
-                        setEditUser({
-                            ...editUser,
-                            strand: selectedStrand,
-                            section: '',
-                            subjects: []
-                        });
-                    }}
+                    value={editUser.strand}
+                    onChange={(e) => setEditUser(prev => ({
+                        ...prev,
+                        strand: e.target.value,
+                        section: '',
+                        semester: '',
+                        subjects: []
+                    }))}
                     required
                 >
                     <option value="">Select Strand</option>
-                    {strands.map((strand) => (
+                    {strands.map(strand => (
                         <option key={strand._id} value={strand._id}>
                             {strand.name}
                         </option>
@@ -746,21 +810,48 @@ console.log('Filtered Users:', filteredUsers);
                 </Form.Select>
             </Form.Group>
 
-            {/* Section Field */}
+            {/* Semester Selection */}
+            <Form.Group className="mb-3">
+                <Form.Label>Semester</Form.Label>
+                <Form.Select
+                    value={editUser.semester}
+                    onChange={(e) => setEditUser(prev => ({
+                        ...prev,
+                        semester: e.target.value,
+                        subjects: []
+                    }))}
+                    required
+                    disabled={!editUser.strand || !editUser.yearLevel}
+                >
+                    <option value="">Select Semester</option>
+                    {semesters
+                        .filter(semester => 
+                            semester.strand._id === editUser.strand &&
+                            semester.yearLevel._id === editUser.yearLevel
+                        )
+                        .map(semester => (
+                            <option key={semester._id} value={semester._id}>
+                                {semester.name}
+                            </option>
+                        ))
+                    }
+                </Form.Select>
+            </Form.Group>
+
+            {/* Section Selection */}
             <Form.Group className="mb-3">
                 <Form.Label>Section</Form.Label>
                 <Form.Select
-                    value={editUser.section || ''}
-                    onChange={(e) => setEditUser({ 
-                        ...editUser, 
-                        section: e.target.value,
-                        subjects: []
-                    })}
+                    value={editUser.section}
+                    onChange={(e) => setEditUser(prev => ({
+                        ...prev,
+                        section: e.target.value
+                    }))}
                     required
                     disabled={!editUser.strand}
                 >
                     <option value="">Select Section</option>
-                    {filteredSections.map((section) => (
+                    {filteredSections.map(section => (
                         <option key={section._id} value={section._id}>
                             {section.name}
                         </option>
@@ -768,55 +859,33 @@ console.log('Filtered Users:', filteredUsers);
                 </Form.Select>
             </Form.Group>
 
-            {/* Subjects Field */}
+            {/* Subjects Selection */}
             <Form.Group className="mb-3">
                 <Form.Label>Subjects</Form.Label>
-                <Form.Select
-                    multiple
-                    value={editUser.subjects || []}
-                    onChange={(e) => {
-                        const selectedValues = Array.from(
-                            e.target.selectedOptions,
-                            option => option.value
-                        );
-                        setEditUser({
-                            ...editUser,
-                            subjects: selectedValues
-                        });
-                    }}
-                    required
-                    disabled={!editUser.section}
-                    style={{ height: '150px' }}
-                >
-                    {filteredSubjects.map((subject) => (
-                        <option key={subject._id} value={subject._id}>
-                            {subject.name}
-                        </option>
-                    ))}
-                </Form.Select>
-                <Form.Text className="text-muted">
-                    Hold Ctrl (Windows) or Command (Mac) to select multiple subjects
-                </Form.Text>
-            </Form.Group>
-
-            {/* Semester Field */}
-            <Form.Group className="mb-3">
-                <Form.Label>Semester</Form.Label>
-                <Form.Select
-                    value={editUser.semester || ''}
-                    onChange={(e) => setEditUser({ 
-                        ...editUser, 
-                        semester: e.target.value 
-                    })}
-                    required
-                >
-                    <option value="">Select Semester</option>
-                    {semesters.map((semester) => (
-                        <option key={semester._id} value={semester._id}>
-                            {semester.name}
-                        </option>
-                    ))}
-                </Form.Select>
+                {availableSubjects.length > 0 ? (
+                    availableSubjects.map(subject => (
+                        <div key={subject._id} className="mb-2">
+                            <Form.Check
+                                type="checkbox"
+                                id={`edit-${subject._id}`}
+                                label={subject.name}
+                                checked={editUser.subjects.includes(subject._id)}
+                                onChange={(e) => {
+                                    setEditUser(prev => ({
+                                        ...prev,
+                                        subjects: e.target.checked
+                                            ? [...prev.subjects, subject._id]
+                                            : prev.subjects.filter(id => id !== subject._id)
+                                    }));
+                                }}
+                            />
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-muted">
+                        Please select strand, year level, and semester to view available subjects
+                    </p>
+                )}
             </Form.Group>
 
             {/* Error message */}
