@@ -11,6 +11,7 @@ const studentSchema = mongoose.Schema(
             unique: true
         },
         firstName: {
+
             type: String,
             // required: true removed
         },
@@ -19,7 +20,12 @@ const studentSchema = mongoose.Schema(
             // required: true removed
         },
         middleInitial: {
+
             type: String,
+            maxlength: 1,
+        },
+        middleInitial: {
+            type: String, // Middle initial is optional
             maxlength: 1,
         },
         gender: {
@@ -32,7 +38,7 @@ const studentSchema = mongoose.Schema(
             // required: true removed
         },
         birthplace: {
-            province: String,
+            province: String,   
             municipality: String,
             barrio: String,
         },

@@ -126,7 +126,6 @@ const TeacherGenerateForm = () => {
                             <th>Section</th>
                             <th>Year Level</th>
                             <th>Strand</th>
-                            <th>Advisory</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -137,7 +136,6 @@ const TeacherGenerateForm = () => {
                                 <td>{student.sectionName}</td>
                                 <td>{student.yearLevel}</td>
                                 <td>{student.strand}</td>
-                                <td>{student.isAdvisory ? 'Yes' : 'No'}</td>
                                 <td>
                                     <Button
                                         variant="primary"

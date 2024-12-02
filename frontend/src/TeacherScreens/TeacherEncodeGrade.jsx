@@ -200,6 +200,8 @@ useEffect(() => {
 }, []);
 
 
+
+
 const handleGradeChange = async (studentId, subjectId, gradeType, gradeValue, semesterId) => {
     try {
         setLoading(true);

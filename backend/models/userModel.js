@@ -28,6 +28,7 @@ const userSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Subject',
     }],
+
     yearLevel: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'YearLevel',
@@ -54,6 +55,7 @@ const userSchema = mongoose.Schema({
         ref: 'Section',
         // This will only be populated for teachers
     },
+
 
 
 }, { timestamps: true });
