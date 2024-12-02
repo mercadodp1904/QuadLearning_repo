@@ -28,6 +28,13 @@ const userSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Subject',
     }],
+    semester: [{ 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Semester',
+        required: function() {
+            return this.role === 'teacher';
+        }
+    }],
 
 
 }, { timestamps: true });
