@@ -30,7 +30,7 @@ const studentSchema = mongoose.Schema(
             required: true,
         },
         birthplace: {
-            province: String,
+            province: String,   
             municipality: String,
             barrio: String,
         },

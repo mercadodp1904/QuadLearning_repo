@@ -9,7 +9,7 @@ import Semester from './models/semesterModel.js'; // Import Semester model
 const createPredefinedRStudent = async () => {
     try {
         // Fetch the user by username and populate associated fields
-        const user = await User.findOne({ username: 'student001' })
+        const user = await User.findOne({ username: 'newtest1' })
             .populate('sections') // Populates the sections array
             .populate('strand') // Populates the strand field
             .populate({
@@ -36,19 +36,19 @@ const createPredefinedRStudent = async () => {
             throw new Error('Sections or Strand not found for the user.');
         }
 
-        const firstSemester = await Semester.findById("673ffba5e2a9c5ea7906c125");
-        const secondSemester = await Semester.findById("673de694adff7c2a8853f881");
+        const firstSemester = await Semester.findById("674af52e97b6619ea91ec6d6");
+        const secondSemester = await Semester.findById("674acbbb4e39cd8deb19e4f2");
 
         if (!firstSemester || !secondSemester) {
             throw new Error("One or both semesters could not be found.");
-}
+        }
 
         // Predefined student data
         const studentData = {
             user: user._id,
-            profileCompleted: false,
-            lrn: '123456789012',
-            name: 'John Doe',
+            firstName: 'John',
+            lastName: 'Doe',
+            middleInitial: 'A',
             gender: 'Male',
             birthdate: new Date('2007-01-15'),
             birthplace: {
@@ -62,7 +62,7 @@ const createPredefinedRStudent = async () => {
                 occupation: 'Teacher',
             },
             yearLevel: '12',
-            section: sections.map(section => section._id), // Use the array of section IDs
+            section: sections[0]?._id || null, // Use the first section ID (null if no sections)
             strand: strand._id, // Using strand's _id
             school: {
                 name: 'Tropical Village National High School',
@@ -74,34 +74,22 @@ const createPredefinedRStudent = async () => {
             grades: [
                 {
                     semester: firstSemester._id, // First semester grades
-                    year: '2024',
                     subjects: subjects.map((subject) => ({
                         subject: subject._id, // Reference to Subject
-                        name: subject.name,
                         midterm: 85,
                         finals: 90,
                         finalRating: 87.5,
                         action: 'PASSED',
-                        teachers: subject.teachers.map(teacher => ({
-                            teacherName: teacher.username, // Display teacher's username
-                            teacherId: teacher._id,
-                        })),
                     })),
                 },
                 {
                     semester: secondSemester._id, // Second semester grades
-                    year: '2024',
                     subjects: subjects.map((subject) => ({
                         subject: subject._id, // Reference to Subject
-                        name: subject.name,
                         midterm: 88,
                         finals: 92,
                         finalRating: 90,
                         action: 'PASSED',
-                        teachers: subject.teachers.map(teacher => ({
-                            teacherName: teacher.username, // Display teacher's username
-                            teacherId: teacher._id,
-                        })),
                     })),
                 },
             ],
