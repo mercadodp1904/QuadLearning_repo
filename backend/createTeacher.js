@@ -20,7 +20,7 @@ mongoose.connect(process.env.MONGO_URI)
 const predefinedTeachers = [
     {
         username: 'teacher001',
-        password: 'password123', // In a real app, this should be hashed
+        password: 'password123', // Password to be hashed
         name: 'John Doe',
         role: 'teacher',
         subject: '',
@@ -30,7 +30,7 @@ const predefinedTeachers = [
     },
     {
         username: 'teacher002',
-        password: 'password456',
+        password: 'password456', // Password to be hashed
         name: 'Jane Smith',
         role: 'teacher',
         subject: '',
@@ -40,7 +40,7 @@ const predefinedTeachers = [
     },
     {
         username: 'teacher003',
-        password: 'password789',
+        password: 'password789', // Password to be hashed
         name: 'Michael Johnson',
         role: 'teacher',
         subject: '',
@@ -56,6 +56,9 @@ const createPredefinedTeachers = async () => {
     try {
         for (let teacher of predefinedTeachers) {
 
+            // Hash the password before saving the teacher record
+            const hashedPassword = await bcrypt.hash(teacher.password, 10); // Hash with a salt of 10 rounds
+            teacher.password = hashedPassword;
 
             // Create the teacher record in the database
             const createdTeacher = await User.create(teacher);

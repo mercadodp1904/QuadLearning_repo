@@ -24,6 +24,7 @@ const fillOutStudentForm = asyncHandler(async (req, res) => {
     const { studentId } = req.params;
     const teacherId = req.user._id; // Authenticated teacher's ID
 
+
       // First get the user to get their section
       const user = await User.findById(studentId)
       .populate('sections')
@@ -50,10 +51,12 @@ const fillOutStudentForm = asyncHandler(async (req, res) => {
         section._id.toString() === userSection._id.toString()
     );
 
+
     if (!isAuthorized) {
         res.status(403);
         throw new Error('Not authorized to update this student');
     }
+
 
     // Find the student record
     const student = await Student.findOne({ user: studentId });
@@ -61,6 +64,7 @@ const fillOutStudentForm = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error('Student record not found');
     }
+
 
     // Update fields based on the student model
     const {
@@ -78,6 +82,7 @@ const fillOutStudentForm = asyncHandler(async (req, res) => {
     } = req.body;
 
     // Update basic information
+
     if (firstName) student.firstName = firstName;
     if (lastName) student.lastName = lastName;
     if (middleInitial) student.middleInitial = middleInitial;
@@ -123,6 +128,7 @@ const fillOutStudentForm = asyncHandler(async (req, res) => {
             section: updatedStudent.section?.name,
             strand: updatedStudent.strand?.name,
         }
+
     });
 });
 
@@ -247,6 +253,7 @@ const importStudents = asyncHandler(async (req, res) => {
 // @route   POST /api/teacher/grades
 // @access  Private (teacher role)
 const addGrade = asyncHandler(async (req, res) => {
+
     const { studentId, subjectId, gradeType, gradeValue, semesterId } = req.body;
 
     // Validate input
@@ -257,9 +264,11 @@ const addGrade = asyncHandler(async (req, res) => {
 
     // Validate grade value
     if (gradeValue < 0 || gradeValue > 100) {
+
         res.status(400);
         throw new Error('Grade must be between 0 and 100');
     }
+
 
     try {
         // Find the student
@@ -304,6 +313,13 @@ const addGrade = asyncHandler(async (req, res) => {
         } else if (gradeType === 'finals') {
             subjectGrade.finals = gradeValue;
         }
+    const newGrade = await Grade.create({
+        studentId,
+        teacherId: req.user._id,
+        subject,
+        grade,
+        year,
+    });
 
         // Calculate final rating if both grades exist
         if (subjectGrade.midterm !== null && subjectGrade.finals !== null) {
@@ -332,7 +348,6 @@ const addGrade = asyncHandler(async (req, res) => {
         throw new Error('Error saving grade: ' + error.message);
     }
 });
-
 // @desc    Update grade for a student
 // @route   PUT /api/grades/:id
 // @access  Private (teacher role)
@@ -735,10 +750,12 @@ export {
     updateGrade, 
     deleteGrade, 
     generateForm137, 
+
     fillOutStudentForm,
     importStudents,
     getTeacherSections,
     getStudentData,
     getTeacherSubjects,
     getSubjectStudents
+
 };

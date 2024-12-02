@@ -696,6 +696,7 @@ const createSubject = asyncHandler(async (req, res) => {
         throw new Error('Please provide all required fields');
     }
 
+
     // Find the semester and strand documents
     const semesterDoc = await Semester.findById(semester).populate('strand');
     const strandDoc = await Strand.findById(strand);
@@ -752,9 +753,11 @@ const createSubject = asyncHandler(async (req, res) => {
 const filterSubjects = asyncHandler(async (req, res) => {
     const { sections, semesters } = req.body; // Changed from semester to semesters
 
+
     if (!sections.length || !semesters.length) {
         return res.status(400).json({ message: 'Sections and semesters are required' });
     }
+
 
     try {
         // Get all sections data to access their strand and year level
@@ -776,6 +779,7 @@ const filterSubjects = asyncHandler(async (req, res) => {
         res.status(500);
         throw new Error(`Error filtering subjects: ${error.message}`);
     }
+
 });
 
 
