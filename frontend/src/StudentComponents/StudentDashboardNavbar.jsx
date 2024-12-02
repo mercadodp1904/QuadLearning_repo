@@ -3,7 +3,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import React, { useState, useEffect } from 'react';
 import { Table, Form } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-function TeacherDashboardNavbar() {
+function StudentDashboardNavbar() {
 
 
   const [loading, setLoading] = useState(false); // Define loading state
@@ -64,12 +64,12 @@ function TeacherDashboardNavbar() {
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="mx-auto">
               <Nav.Link className="mx-3" href="#home">Home</Nav.Link>
-              <Nav.Link className="mx-3" href="/login/TeacherScreens/TeacherViewStudents">View Students</Nav.Link>
-              <Nav.Link className="mx-3" href="/login/TeacherScreens/TeacherEncodeGrade">Encode Grades</Nav.Link>
-              <Nav.Link className="mx-3" href="/login/TeacherScreens/TeacherGenerateForm">Generate Form</Nav.Link>
+              <Nav.Link className="mx-3" href="/login/StudentScreens/StudentProfile">Profile</Nav.Link>
+              <Nav.Link className="mx-3" href="/login/StudentScreens/StudentViewGrades">Grades</Nav.Link>
             </Nav>
             <Nav>
               <Nav.Link onClick={handleLogOut} disabled={loading} className='btn btn-success'>
+                
                 {loading ? 'Logging out...' : 'Log Out'}
               </Nav.Link>
             </Nav>
@@ -80,4 +80,4 @@ function TeacherDashboardNavbar() {
   );
 }
 
-export default TeacherDashboardNavbar;
+export default StudentDashboardNavbar;

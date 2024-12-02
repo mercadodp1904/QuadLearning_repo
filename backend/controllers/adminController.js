@@ -150,14 +150,19 @@ const createUserAccount = asyncHandler(async (req, res) => {
         // Create the user
         const user = await User.create(userData);
         
-        const student = await Student.create({
-            user: user._id,
-        });
+        // Create associated student record if role is student
+        let student;
+        if (role === 'student') {
+            student = await Student.create({
+                user: user._id,
+            });
+        }
 
-        const populatedStudent = await Student.findById(student._id)
-    .populate('userData')    // Replaces user ID with actual user document
-    .populate('strand')      // Replaces strand ID with actual strand document
-    .populate('section')     // Replaces section ID with actual section document
+        const populatedStudent = student ? await Student.findById(student._id)
+            .populate('userData')
+            .populate('strand')
+            .populate('section')
+            : null;
 
         await Section.updateMany(
             { _id: { $in: sections } },

@@ -9,6 +9,7 @@ import { createPredefinedSuperAdmin } from './createSAdmin.js';
 import adminRoutes from './routes/adminRoutes.js';
 import teacherRoutes from './routes/teacherRoutes.js';
 import semesterRoutes from './routes/semesterRoutes.js';
+import studentRoutes from './routes/studentRoutes.js';
 
 import { createPredefinedStudents } from './createStudent.js';
 import { createPredefinedSemester } from './createSemester.js'; 
@@ -63,6 +64,7 @@ app.use('/api/superadmin', superadminRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/semesters', semesterRoutes);
+app.use('/api/student', studentRoutes);
 
 // Basic route
 app.get('/', (req, res) => res.send('Server is ready'));

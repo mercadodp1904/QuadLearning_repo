@@ -258,10 +258,10 @@ const handleGradeChange = async (studentId, subjectId, gradeType, gradeValue, se
     }
 };
     
-const fetchStudentGrades = async () => {
+const getSubjectGrades = async () => {
     try {
         const response = await fetch(
-            `/api/teacher/grades/${selectedSubject}?semesterId=${currentSemester}`,
+            `/api/teacher/subject-grades/${selectedSubject}?semesterId=${currentSemester}`,
             {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -281,10 +281,9 @@ const fetchStudentGrades = async () => {
     }
 };
 
-// Add this useEffect to fetch grades when subject or semester changes
 useEffect(() => {
     if (selectedSubject && currentSemester) {
-        fetchStudentGrades();
+        getSubjectGrades();
     } else {
         setStudentGrades({}); // Clear grades if no subject/semester selected
     }
@@ -360,15 +359,6 @@ useEffect(() => {
     }, []);
 
     const filteredStudents = useMemo(() => {
-        console.log('Filter Criteria:', {
-            selectedSubject,
-            currentSemester,
-            selectedStrand,
-            selectedYearLevel,
-            selectedSection,
-            showAdvisoryOnly
-        });
-    
         if (!selectedSubject || !currentSemester) {
             return [];
         }
@@ -380,32 +370,32 @@ useEffect(() => {
             sectionName: student.sections[0]?.name || 'No Section',
             yearLevelName: student.yearLevel?.name || 'Not Set',
             strandName: student.strand?.name || 'Not Set',
-            isAdvisory: student.sections[0]?.name === 'STEM202'
+            isAdvisory: student.isAdvisory // Use the boolean from backend
         }));
     
-        console.log('Initial students:', filteredList);
+        console.log('Filtered list before advisory filter:', filteredList); // Debug log
     
         // Apply filters
         if (showAdvisoryOnly) {
-            filteredList = filteredList.filter(student => student.isAdvisory);
+            filteredList = filteredList.filter(student => {
+                console.log(`Student ${student.username} isAdvisory:`, student.isAdvisory); // Debug log
+                return student.isAdvisory;
+            });
         } else {
             if (selectedStrand) {
                 filteredList = filteredList.filter(student => student.strandName === selectedStrand);
-                console.log('After strand filter:', filteredList);
             }
             
             if (selectedYearLevel) {
                 filteredList = filteredList.filter(student => student.yearLevelName === selectedYearLevel);
-                console.log('After year level filter:', filteredList);
             }
             
             if (selectedSection) {
                 filteredList = filteredList.filter(student => student.sectionName === selectedSection);
-                console.log('After section filter:', filteredList);
             }
         }
     
-        console.log('Final filtered students:', filteredList);
+        console.log('Final filtered list:', filteredList); // Debug log
         return filteredList;
     }, [
         subjectStudents,

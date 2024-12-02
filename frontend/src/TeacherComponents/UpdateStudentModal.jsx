@@ -32,47 +32,49 @@ const UpdateStudentModal = ({ show, handleClose, studentId, token }) => {
     });
     const [isEditing, setIsEditing] = useState(false);  // Add this state
 
-      // Function to fetch student data
-      const fetchStudentData = async () => {
+    const fetchStudentData = async () => {
         try {
-            const token = localStorage.getItem('token');
-            console.log('Fetching data for student:', studentId);
-            
             const response = await fetch(`/api/teacher/student/${studentId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-
+ 
             if (!response.ok) {
                 throw new Error('Failed to fetch student data');
             }
-
+ 
             const data = await response.json();
             console.log('Received student data:', data);
-
-            if (data.success) {
-                setFormData(prevData => ({
-                    ...prevData,
-                    ...data.student,
-                    birthplace: data.student.birthplace || {
-                        province: '',
-                        municipality: '',
-                        barrio: ''
-                    },
-                    guardian: data.student.guardian || {
-                        name: '',
-                        occupation: ''
-                    },
-                    school: {
-                        name: 'Tropical Village National Highschool',
-                        year: data.student?.school?.year || ''
-                    },
-                    attendance: data.student.attendance || {
-                        totalYears: ''
-                    }
-                }));
-            }
+ 
+            setFormData({
+                firstName: data.firstName || '',
+                lastName: data.lastName || '',
+                middleInitial: data.middleInitial || '',
+                gender: data.gender || '',
+                birthdate: data.birthdate ? data.birthdate.split('T')[0] : '',
+                contactNumber: data.contactNumber || '',
+                birthplace: {
+                    province: data.birthplace?.province || '',
+                    municipality: data.birthplace?.municipality || '',
+                    barrio: data.birthplace?.barrio || ''
+                },
+                address: data.address || '',
+                guardian: {
+                    name: data.guardian?.name || '',
+                    occupation: data.guardian?.occupation || ''
+                },
+                yearLevel: data.yearLevel?.name || '',
+                section: data.section?.name || '',
+                strand: data.strand?.name || '',
+                school: {
+                    name: 'Tropical Village National Highschool',
+                    year: data.school?.year || ''
+                },
+                attendance: {
+                    totalYears: data.attendance?.totalYears || ''
+                }
+            });
         } catch (error) {
             console.error('Error fetching student data:', error);
             alert('Failed to load student data: ' + error.message);

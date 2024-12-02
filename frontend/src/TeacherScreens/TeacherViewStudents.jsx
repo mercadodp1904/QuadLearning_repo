@@ -26,6 +26,8 @@ const TeacherViewStudents = () => {
     const [selectedStudentId, setSelectedStudentId] = useState(null);
     const [teacherAdvisoryClassId, setTeacherAdvisoryClassId] = useState('');
 
+    
+
 // Update the fetchData function in useEffect
 useEffect(() => {
     const fetchData = async () => {
@@ -178,7 +180,7 @@ const filteredStudents = sections.flatMap(section => {
             sectionName: section.name,
             yearLevelName: section.yearLevel?.name || 'Not Set',
             strandName: section.strand?.name || 'Not Set',
-            isAdvisory: section.name === 'STEM202'
+            isAdvisory: student.isAdvisory
         }));
     }
     

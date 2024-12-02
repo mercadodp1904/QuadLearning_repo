@@ -23,6 +23,9 @@ import ManageSemesters from './AdminScreens/ManageSemesters';
 import ManageSections from './AdminScreens/ManageSections';
 import TeacherViewStudents from './TeacherScreens/TeacherViewStudents';
 import TeacherEncodeGrade from './TeacherScreens/TeacherEncodeGrade';
+import TeacherGenerateForm from './TeacherScreens/TeacherGenerateForm';
+import StudentProfile from './StudentScreens/StudentProfile';
+import StudentViewGrades from './StudentScreens/StudentViewGrades';
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path='/' element={<App />}>
@@ -41,6 +44,9 @@ const router = createBrowserRouter(
       <Route path='/admin/ManageSections' element={<ManageSections />}/>
       <Route path='/login/TeacherScreens/TeacherViewStudents' element={<TeacherViewStudents />}/>
       <Route path='/login/TeacherScreens/TeacherEncodeGrade' element={<TeacherEncodeGrade />}/>
+      <Route path='/login/TeacherScreens/TeacherGenerateForm' element={<TeacherGenerateForm />}/>
+      <Route path='/login/StudentScreens/StudentProfile' element={<StudentProfile />}/>
+      <Route path='/login/StudentScreens/StudentViewGrades' element={<StudentViewGrades />}/>
     </Route>
   )
 );

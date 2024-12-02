@@ -1,6 +1,4 @@
 import asyncHandler from 'express-async-handler';
-import Grade from '../models/gradeModel.js';
-
 import User from '../models/userModel.js';
 import Section from '../models/sectionModel.js';
 import Student from '../models/studentModel.js';
@@ -404,32 +402,54 @@ const deleteGrade = asyncHandler(async (req, res) => {
 const generateForm137 = asyncHandler(async (req, res, next) => {
     try {
         const { studentId } = req.params;
+
+  
         const student = await Student.findById(studentId)
-            .populate('section strand grades.subjects.subject grades.semester')
+            .populate('user')
+            .populate('yearLevel')
+            .populate('section')
+            .populate('strand')
+            .populate({
+                path: 'grades',
+                populate: [
+                    { path: 'semester' },
+                    { path: 'subjects.subject', model: 'Subject' }
+                ]
+            })
             .lean();
 
-        console.log(student.grades); // Check if grades.semester is populated
+            console.log('Found student data:', student); // Debug log
+
+            
+
         if (!student) {
             res.status(404);
             throw new Error('Student not found');
         }
 
+        // Compute full name dynamically
+        const fullName = `${student.firstName || ''} ${student.middleInitial ? student.middleInitial + '.' : ''} ${student.lastName || ''}`.trim();
+        const sanitizedStudentName = fullName.replace(/[\/\\?%*:|"<>]/g, '_');
+
+        // Set up PDF document
         const doc = new PDFDocument({ size: 'A4', margin: 30 });
         const pdfDirectory = path.join(__dirname, '../../pdfs');
+
         if (!fs.existsSync(pdfDirectory)) {
             fs.mkdirSync(pdfDirectory, { recursive: true });
         }
 
-        const sanitizedStudentName = student.name.replace(/[\/\\?%*:|"<>]/g, '_');
         const filePath = path.join(pdfDirectory, `form137-${sanitizedStudentName}.pdf`);
         const writeStream = fs.createWriteStream(filePath);
 
+        // Configure PDF response headers
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=form137-${sanitizedStudentName}.pdf`);
 
         doc.pipe(res);
         doc.pipe(writeStream);
 
+        // Start PDF content
         doc.font('Helvetica');
 
         // Header Section
@@ -450,6 +470,7 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 
         doc.fontSize(15).text('Learner Information', 225, 100, { underline: true });
         doc.moveDown();
+
         const drawField = (label, value, x, y, width = 100) => {
             doc.fontSize(9).text(label, x, y, { width });
             doc.rect(x + width - 45, y - 2, 210, 12).stroke();
@@ -458,10 +479,11 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 
         let startY = doc.y;
 
-        drawField('LRN', student.lrn || 'N/A', 30, startY);
-        drawField('Name', student.name || 'N/A', 30, startY + 20);
+        // Replace LRN with user.username
+        drawField('LRN', student.user.username || 'N/A', 30, startY);
+        drawField('Name', fullName || 'N/A', 30, startY + 20);
         drawField('Strand', student.strand?.name || 'N/A', 30, startY + 40);
-        drawField('Year Level', student.yearLevel || 'N/A', 30, startY + 60);
+        drawField('Year Level', student.yearLevel?.name || 'N/A', 30, startY + 60);
         drawField('Section', student.section?.name || 'N/A', 30, startY + 80);
         drawField('Address', student.address || 'N/A', 30, startY + 100);
 
@@ -469,25 +491,25 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 
         const drawSemesterTable = (semesterTitle, semesterGrades) => {
             doc.moveDown();
-            
+
             // Center the semester title
             const titleWidth = doc.widthOfString(semesterTitle);
             const xPosition = 225;
             doc.fontSize(10).text(semesterTitle, xPosition, doc.y, { underline: true });
-            
+
             const tableTop = doc.y + 10;
             const tableWidth = 400;
             const columnWidth = tableWidth / 4;
-        
+
             // Draw table headers with centered alignment
             doc.fontSize(9)
                 .text('Subject', 30, tableTop, { width: columnWidth, align: 'center' })
                 .text('Midterm', 30 + 2 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
                 .text('Finals', 30 + 3 * columnWidth, tableTop, { width: columnWidth, align: 'center' })
                 .text('Final Rating', 30 + 4 * columnWidth, tableTop, { width: columnWidth, align: 'center' });
-        
+
             let currentY = tableTop + 20;
-        
+
             if (!semesterGrades || semesterGrades.length === 0) {
                 doc.fontSize(10).text('No grades available.', { align: 'center' });
             } else {
@@ -585,10 +607,13 @@ const getStudentData = asyncHandler(async (req, res) => {
     const { studentId } = req.params;
     
     try {
-        // Find student and populate the section and strand references
+        
         const student = await Student.findOne({ user: studentId })
+            .populate('user')
+            .populate('yearLevel')
             .populate('section')
-            .populate('strand');
+            .populate('strand')
+            .lean();
 
         // Also get the user data to get yearLevel
         const user = await User.findById(studentId)
@@ -602,6 +627,14 @@ const getStudentData = asyncHandler(async (req, res) => {
                 message: 'Student not found'
             });
         }
+          // Combine User and Student profile data
+    const studentData = {
+        ...student,
+        ...student.studentProfile,
+        username: student.username
+    };
+
+    res.json(studentData);
 
         // Format the date to YYYY-MM-DD for the input field
         const formattedBirthdate = student.birthdate ? 
@@ -690,7 +723,14 @@ const getSubjectStudents = asyncHandler(async (req, res) => {
     }
 
     try {
-        // Find the subject first - THIS IS IMPORTANT
+        // Get the teacher's advisory section
+        const teacher = await User.findById(req.user._id)
+            .populate('advisorySection')
+            .lean();
+
+        const advisorySectionId = teacher.advisorySection?._id;
+
+        // Find the subject
         const subject = await Subject.findById(subjectId)
             .populate('strand')
             .populate('yearLevel');
@@ -700,25 +740,38 @@ const getSubjectStudents = asyncHandler(async (req, res) => {
             throw new Error('Subject not found');
         }
 
-        // This query is more precise because it matches:
-        // 1. Students enrolled in the subject
-        // 2. Students in the correct strand for this subject
-        // 3. Students in the correct year level for this subject
+        // Get students
         const students = await User.find({
             role: 'student',
             subjects: subjectId,
             semester: semesterId,
-            strand: subject.strand._id,      // Match subject's strand
-            yearLevel: subject.yearLevel._id // Match subject's year level
+            strand: subject.strand._id,
+            yearLevel: subject.yearLevel._id
         })
-        .populate('sections')
+        .populate({
+            path: 'sections',
+            select: 'name _id'
+        })
         .populate('strand')
         .populate('yearLevel')
         .select('username sections strand yearLevel');
 
-        console.log('Found students:', students); // Add debug log
+        // Map students with advisory information
+        const studentsWithAdvisory = students.map(student => ({
+            _id: student._id,
+            username: student.username,
+            sections: student.sections,
+            strand: student.strand,
+            yearLevel: student.yearLevel,
+            // Check if any of the student's sections match the teacher's advisory section
+            isAdvisory: student.sections.some(section => 
+                section._id.toString() === advisorySectionId?.toString()
+            )
+        }));
 
-        res.json(students);
+        console.log('Students with advisory:', studentsWithAdvisory); // Debug log
+        res.json(studentsWithAdvisory);
+
     } catch (error) {
         console.error('Error:', error);
         res.status(500);
@@ -726,6 +779,62 @@ const getSubjectStudents = asyncHandler(async (req, res) => {
     }
 });
 
+
+// @desc    Get grades for students in a subject
+// @route   GET /api/teacher/grades/:subjectId
+// @access  Private (teacher only)
+const getSubjectGrades = asyncHandler(async (req, res) => {
+    const { subjectId } = req.params;
+    const { semesterId } = req.query;
+
+    if (!subjectId || !semesterId) {
+        res.status(400);
+        throw new Error('Subject ID and Semester ID are required');
+    }
+
+    try {
+        // Find all students who have grades for this subject and semester
+        const students = await Student.find({
+            'grades.semester': semesterId,
+            'grades.subjects.subject': subjectId
+        });
+
+        // Format the grades data
+        const gradesData = {};
+        
+        students.forEach(student => {
+            // Find the semester grades
+            const semesterGrades = student.grades.find(
+                g => g.semester.toString() === semesterId
+            );
+            
+            if (semesterGrades) {
+                // Find the subject grades within the semester
+                const subjectGrades = semesterGrades.subjects.find(
+                    s => s.subject.toString() === subjectId
+                );
+
+                if (subjectGrades) {
+                    gradesData[student.user] = {
+                        [subjectId]: {
+                            midterm: subjectGrades.midterm,
+                            finals: subjectGrades.finals,
+                            finalRating: subjectGrades.finalRating,
+                            action: subjectGrades.action
+                        }
+                    };
+                }
+            }
+        });
+
+        res.json(gradesData);
+        
+    } catch (error) {
+        console.error('Error in getSubjectGrades:', error);
+        res.status(500);
+        throw new Error('Error fetching grades: ' + error.message);
+    }
+});
 
     
 
@@ -740,5 +849,6 @@ export {
     getTeacherSections,
     getStudentData,
     getTeacherSubjects,
-    getSubjectStudents
+    getSubjectStudents,
+    getSubjectGrades
 };
