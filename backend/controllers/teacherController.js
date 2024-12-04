@@ -424,7 +424,7 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 
         // Fetch the student data with necessary relationships populated
         const student = await Student.findById(studentId)
-            .populate('section strand grades.subjects.subject grades.semester user')
+            .populate('section strand grades.subjects.subject grades.semester user yearLevel')
             .lean();
 
         if (!student) {
