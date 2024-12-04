@@ -458,16 +458,22 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
         doc.font('Helvetica');
 
         // Header Section
-        const leftImageX = 30;
-        const leftImageY = 20;
-        const imageWidth = 50;
-        const imageHeight = 50;
-        doc.rect(leftImageX, leftImageY, imageWidth, imageHeight).stroke(); // Placeholder for the left image
+        const leftImagePath = path.join(__dirname, '../../frontend/img/DepED.png');
+        const rightImagePath = path.join(__dirname, '../../frontend/img/TVNHS.png');
 
-        const rightImageX = 500; // Adjust to the right side of the page
-        const rightImageY = 20;
-        doc.rect(rightImageX, rightImageY, imageWidth, imageHeight).stroke(); // Placeholder for the right image
-
+        if (fs.existsSync(leftImagePath)) {
+            doc.image(leftImagePath, 95, 20, { width: 65, height: 65 });
+        } else {
+            console.error('Left image not found:', leftImagePath);
+        }
+        
+        // Right image
+        if (fs.existsSync(rightImagePath)) {
+            doc.image(rightImagePath, 455, 20, { width: 65, height: 65 });
+        } else {
+            console.error('Right image not found:', rightImagePath);
+        }
+  
         doc.fontSize(16).text('Republic of the Philippines', 50, 20, { align: 'center' });
         doc.fontSize(14).text('Department of Education', 50, 40, { align: 'center' });
         doc.fontSize(12).text('Senior High School Student Permanent Record', 50, 60, { align: 'center' });
@@ -478,21 +484,21 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 
         const drawField = (label, value, x, y, width = 100) => {
             doc.fontSize(9).text(label, x, y, { width });
-            doc.rect(x + width - 45, y - 2, 210, 12).stroke();
-            doc.text(value || '', x + width - 40, y, { width: 200 });
+            doc.rect(x + width - 55, y - 2, 210, 12).stroke();
+            doc.text(value || '', x + width - 50, y, { width: 200 });
         };
 
         let startY = doc.y;
 
         // Replace LRN with user.username
         drawField('LRN', student.user.username || 'N/A', 30, startY);
-        drawField('Name', fullName || 'N/A', 30, startY + 20);
-        drawField('Strand', student.strand?.name || 'N/A', 30, startY + 40);
-        drawField('Year Level', student.yearLevel?.name || 'N/A', 30, startY + 60);
-        drawField('Section', student.section?.name || 'N/A', 30, startY + 80);
-        drawField('Address', student.address || 'N/A', 30, startY + 100);
+        drawField('Name', fullName || 'N/A', 305, startY);
+        drawField('Strand', student.strand?.name || 'N/A', 30, startY + 20);
+        drawField('Year Level', student.yearLevel || 'N/A', 305, startY + 20);
+        drawField('Section', student.section?.name || 'N/A', 30, startY + 40);
+        drawField('Address', student.address || 'N/A', 305, startY + 40);
 
-        doc.fontSize(15).text('Scholastic Grades\n', 220, 300, { underline: true });
+        doc.fontSize(15).text('Scholastic Grades\n', 220, 285, { underline: true });
 
         const drawSemesterTable = (semesterTitle, semesterGrades) => {
             doc.moveDown();
