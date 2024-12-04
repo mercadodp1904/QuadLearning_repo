@@ -1,40 +1,57 @@
-import { Container, Card, Button } from 'react-bootstrap';
+import { Container, Card, Button, Row, Col } from 'react-bootstrap';
 import { LinkContainer } from 'react-router-bootstrap';
 
 const Hero = () => {
   return (
-    <div className='hero-section py-5'>
-      <Container className='d-flex justify-content-center'>
-        <Card className='p-5 d-flex flex-column align-items-center hero-card bg-white w-75'>
-          {/* School Logo could be added here */}
-          <img 
-            src="./img/TVNHS.png" 
-            alt="School Logo" 
-            className="mb-4"
-            style={{ width: '100px' }}
-          />
-          
-          <h1 className='text-center mb-3 school-title'>
-            Welcome to<br />
-            <span className='highlight'>Tropical Village</span><br />
-            National High School
-          </h1>
+    <div 
+  className='hero-section py-5 d-flex align-items-center' 
+  style={{ 
+    minHeight: '100vh', 
+    backgroundImage: 'url("/img/bg.jpg")',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat'
+  }}
+>
 
-          <p className='text-center mb-4 welcome-text'>
-            Empowering minds, building futures.<br />
-            Your gateway to learning and excellence.
-          </p>
-
-          <div className='d-flex gap-3'>
-            <LinkContainer to='/login'>
-              <Button variant='success' size='lg' className='get-started-btn'>
-                Get Started
-              </Button>
-            </LinkContainer>
-          </div>
-        </Card>
-      </Container>
-    </div>
+    <div className='hero-section py-5 d-flex align-items-center' >
+    <Container>
+      <Row className='justify-content-center'>
+        <Col md={8} lg={6}>
+          <Card className='p-5 text-center hero-card bg-white'>
+            {/* School Logo could be added here */}
+            <div className='d-flex justify-content-center mb-4'>
+              <img 
+                src="./img/TVNHS.png" 
+                alt="School Logo" 
+                style={{ width: '100px' }}
+              />
+            </div>
+            
+            <h1 className='mb-3 school-title'>
+              Welcome to<br />
+              <span className='highlight'>Tropical Village</span><br />
+              National High School
+            </h1>
+  
+            <p className='mb-4 welcome-text'>
+              Empowering minds, building futures.<br />
+              Your gateway to learning and excellence.
+            </p>
+  
+            <div className='d-flex justify-content-center'>
+              <LinkContainer to='/login'>
+                <Button variant='success' size='lg' className='get-started-btn'>
+                  Get Started
+                </Button>
+              </LinkContainer>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+    </Container>
+  </div>
+  </div>
   );
 };
 

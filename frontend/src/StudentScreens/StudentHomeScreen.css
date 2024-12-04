@@ -1,0 +1,24 @@
+.student-profile-card {
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 20px;
+}
+
+.student-profile-card .card-header {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.student-profile-card .card-body {
+    font-size: 1.1rem;
+}
+
+.student-profile-card .card-title {
+    margin-bottom: 20px;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.student-profile-card .card-text {
+    line-height: 1.6;
+}

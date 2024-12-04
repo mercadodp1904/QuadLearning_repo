@@ -64,7 +64,7 @@ const Header = () => {
             <Navbar.Brand>
               <img
                 alt=""
-                src="../img/TVNHS.png"
+                src="/img/TVNHS.png"
                 width="30"
                 height="30"
                 className="d-inline-block align-top"

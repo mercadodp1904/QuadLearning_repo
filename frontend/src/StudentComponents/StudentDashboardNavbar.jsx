@@ -57,21 +57,33 @@ function StudentDashboardNavbar() {
 
   return (
     <>
-      <Navbar expand="lg" className="bg-body-tertiary">
+      <Navbar expand="lg" className="bg-success text-white shadow-sm navbar-green">
         <Container>
-          <Navbar.Brand href="#home" className="me-4">TVNHS</Navbar.Brand>
-          <Navbar.Toggle aria-controls="basic-navbar-nav" />
-          <Navbar.Collapse id="basic-navbar-nav">
-            <Nav className="mx-auto">
-              <Nav.Link className="mx-3" href="#home">Home</Nav.Link>
-              <Nav.Link className="mx-3" href="/login/StudentScreens/StudentProfile">Profile</Nav.Link>
-              <Nav.Link className="mx-3" href="/login/StudentScreens/StudentViewGrades">Grades</Nav.Link>
+        <Navbar.Brand>
+              <img
+                alt=""
+                src="/img/TVNHS.png"
+                width="40"
+                height="40"
+                className="d-inline-block align-top"
+              />{' '}
+            </Navbar.Brand>
+    <Navbar.Brand href="/login/TeacherScreens/TeacherHomeScreen" className="text-white me-4">TVNHS</Navbar.Brand>
+    <Navbar.Toggle aria-controls="basic-navbar-nav" />
+    <Navbar.Collapse id="basic-navbar-nav">
+      <Nav className="mx-auto">
+              <Nav.Link className="mx-3 text-white" href="/login/StudentScreens/StudentHomeScreen">Home</Nav.Link>
+              <Nav.Link className="mx-3 text-white" href="/login/StudentScreens/StudentProfile">Profile</Nav.Link>
+              <Nav.Link className="mx-3 text-white" href="/login/StudentScreens/StudentViewGrades">Grades</Nav.Link>
             </Nav>
             <Nav>
-              <Nav.Link onClick={handleLogOut} disabled={loading} className='btn btn-success'>
-                
-                {loading ? 'Logging out...' : 'Log Out'}
-              </Nav.Link>
+            <Nav.Link 
+          onClick={handleLogOut} 
+          disabled={loading} 
+          className='btn btn-success text-white'
+        >
+          {loading ? 'Logging out...' : 'Log Out'}
+        </Nav.Link>
             </Nav>
           </Navbar.Collapse>
         </Container>

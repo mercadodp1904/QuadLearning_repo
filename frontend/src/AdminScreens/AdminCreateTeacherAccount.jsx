@@ -10,6 +10,48 @@ import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import Header from '../components/Header';
 import Alert from 'react-bootstrap/Alert';
+
+const modalStyles = {
+    modal: {
+        maxWidth: '800px',
+        margin: '1.75rem auto',
+    },
+    formGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: '1rem',
+    },
+    fullWidth: {
+        gridColumn: '1 / -1',
+    },
+    formSection: {
+        padding: '1rem',
+        marginBottom: '1rem',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '8px',
+        border: '1px solid #dee2e6',
+    },
+    modalHeader: {
+        background: '#f8f9fa',
+        borderBottom: '2px solid #dee2e6',
+        padding: '1rem 1.5rem',
+    },
+    modalFooter: {
+        background: '#f8f9fa',
+        borderTop: '2px solid #dee2e6',
+        padding: '1rem 1.5rem',
+    },
+    deleteModal: {
+        textAlign: 'center',
+        padding: '2rem',
+    },
+    deleteIcon: {
+        fontSize: '3rem',
+        color: '#dc3545',
+        marginBottom: '1rem',
+    }
+};
+
 const AdminCreateTeacherAccount = () => {
     const [show, setShow] = useState(false);
     const [editModalShow, setEditModalShow] = useState(false);
@@ -375,69 +417,84 @@ useEffect(() => {
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </InputGroup>
-                                    <Button 
-                                        className='btn btn-primary'
-                                        onClick={() => setShowAddModal(true)}
-                                    >
-                                        Add Teacher
-                                    </Button>
+                                    <button 
+        className='btn btn-outline-success mx-2 px-10'
+        style={{ width: '150px' }} // Fixed width of 150 pixels
+        size="sm" 
+        onClick={() => setShowAddModal(true)}
+    >
+        Add Users
+    </button>
                                 </div>
 
                                 {/* Teachers Table */}
-                                // Update your table JSX
-<Table className="admin-table table-striped table-bordered">
+                                <Table responsive hover className='custom-table text-center align-middle'>
     <thead>
         <tr>
-            <th style={{ width: '10%' }}>Name</th>
-            <th style={{ width: '20%' }}>Sections</th>
-            <th style={{ width: '15%' }}>Advisory Section</th>
-            <th style={{ width: '20%' }}>Subjects</th>
-            <th style={{ width: '25%' }}>Semesters</th>
-            <th style={{ width: '10%' }}>Actions</th>
+            <th>Teacher ID</th>
+            <th>Sections Handled</th>
+            <th>Advisory Section</th>
+            <th>Subjects</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
-        {filteredUsers?.map((user) => (
-            <tr key={user._id}>
-                <td>{user.username}</td>
-                <td>
-                    <div className="list-items">
-                        {user.sections?.map(section => (
-                            <span key={section._id} className="list-item">
-                                {section.name}
-                            </span>
-                        ))}
-                    </div>
-                </td>
-                <td className="text-center">
-                    {user.advisorySection?.name || 'None'}
-                </td>
-                <td>
-                    <div className="list-items">
-                        {user.subjects?.map(subject => (
-                            <span key={subject._id} className="list-item">
-                                {subject.name}
-                            </span>
-                        ))}
-                    </div>
-                </td>
-                <td>
-                    <div className="list-items">
-                        {user.semesters?.map(semester => (
-                            <span key={semester._id} className="list-item">
-                                {`${semester.name} - ${semester.strand.name} - ${semester.yearLevel.name}`}
-                            </span>
-                        ))}
-                    </div>
-                </td>
-                <td>
-                    <div className="d-flex gap-2 justify-content-center">
-                        <Button variant="primary" onClick={() => handleEditShow(user)}>Edit</Button>
-                        <Button variant="danger" onClick={() => handleShow(user._id)}>Delete</Button>
-                    </div>
-                </td>
-            </tr>
-        ))}
+        {filteredUsers
+            .slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage)
+            .map(user => (
+                <tr key={user._id}>
+                    <td>
+                        <div className="d-flex align-items-center justify-content-center">
+                            {user.username}
+                        </div>
+                    </td>
+                    <td>
+                        <div className="subjects-list">
+                            {user.sections?.map((section) => (
+                                <span key={section._id} className="subject-pill">
+                                    {section.name}
+                                </span>
+                            )) || 'No Sections'}
+                        </div>
+                    </td>
+                    <td>
+                        <span className="text-muted">
+                            {user.advisorySection?.name || 'Not Assigned'}
+                        </span>
+                    </td>
+                    <td>
+                        <div className="subjects-list">
+                            {user.subjects?.map((subject) => (
+                                <span key={subject._id} className="subject-pill">
+                                    {subject.name}
+                                </span>
+                            )) || 'No Subjects'}
+                        </div>
+                    </td>
+                    <td>
+                        <div className="action-buttons">
+                            <Button 
+                                variant="outline-success" 
+                                size="sm" 
+                                className="btn-action"
+                                onClick={() => handleEditShow(user)}
+                            >
+                                <i className="bi bi-pencil-square me-1"></i>
+                                Edit
+                            </Button>
+                            <Button 
+                                variant="outline-danger" 
+                                size="sm" 
+                                className="btn-action"
+                                onClick={() => handleDelete(user._id)}
+                            >
+                                <i className="bi bi-trash me-1"></i>
+                                Delete
+                            </Button>
+                        </div>
+                    </td>
+                </tr>
+            ))}
     </tbody>
 </Table>
 
@@ -462,275 +519,329 @@ useEffect(() => {
                                     </Button>
                                 </div>
 
-                                {/* Add Teacher Modal */}
-                                <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
-    <Modal.Header closeButton>
-        <Modal.Title>Add New Teacher</Modal.Title>
+                                {/* Add Modal */}
+<Modal 
+    show={showAddModal} 
+    onHide={() => setShowAddModal(false)}
+    size="lg"
+    centered
+>
+    <Modal.Header closeButton style={modalStyles.modalHeader}>
+        <Modal.Title>
+            <i className="bi bi-person-plus-fill me-2"></i>
+            Add New Teacher Account
+        </Modal.Title>
     </Modal.Header>
-    <Modal.Body>
-        {error && <Alert variant="danger">{error}</Alert>}
+    <Modal.Body className="p-4">
         <Form onSubmit={handleAddUser}>
-            <Form.Group className="mb-3">
-                <Form.Label>Username*</Form.Label>
-                <Form.Control
-                    type="text"
-                    value={newUser.username}
-                    onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                    required
-                    isInvalid={!newUser.username}
-                />
-                <Form.Control.Feedback type="invalid">
-                    Username is required
-                </Form.Control.Feedback>
-            </Form.Group>
+           {/* Basic Information Section */}
+<div style={{...modalStyles.formSection, ...modalStyles.fullWidth}}>
+    <h6 className="mb-3">Basic Information</h6>
+    <div style={modalStyles.formGrid}>
+        <Form.Group>
+            <Form.Label>Username*</Form.Label>
+            <Form.Control
+                type="text"
+                value={newUser.username}
+                onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                required
+                style={{ borderColor: '#ced4da' }} // Override default validation styling
+            />
+        </Form.Group>
 
-            <Form.Group className="mb-3">
-                <Form.Label>Password*</Form.Label>
-                <Form.Control
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                    required
-                    isInvalid={!newUser.password}
-                />
-                <Form.Control.Feedback type="invalid">
-                    Password is required
-                </Form.Control.Feedback>
-            </Form.Group>
+        <Form.Group>
+            <Form.Label>Password*</Form.Label>
+            <Form.Control
+                type="password"
+                value={newUser.password}
+                onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                required
+                style={{ borderColor: '#ced4da' }} // Override default validation styling
+            />
+        </Form.Group>
+    </div>
+</div>
 
-            <Form.Group className="mb-3">
-                <Form.Label>Role*</Form.Label>
-                   <Form.Select
-                    value={newUser.role}
-                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                    required
-                >
-                    <option value="teacher">Teacher</option>
-                </Form.Select>
-            </Form.Group>
-
-<Form.Group className="mb-3">
-    <Form.Label>Advisory Section</Form.Label>
-    <Form.Select
-        value={newUser.advisorySection || ''}
-        onChange={(e) => setNewUser({...newUser, advisorySection: e.target.value})}
-    >
-        <option value="">Select Advisory Section (Optional)</option>
-        {Array.isArray(advisorySections) && advisorySections.map((section) => (
-            <option 
-                key={section._id} 
-                value={section._id}
+{/* Teaching Assignment Section */}
+<div style={{...modalStyles.formSection, ...modalStyles.fullWidth}}>
+    <h6 className="mb-3">Teaching Assignment</h6>
+    <div style={modalStyles.formGrid}>
+        <Form.Group>
+            <Form.Label>Sections*</Form.Label>
+            <Form.Select
+                multiple
+                value={newUser.sections}
+                onChange={(e) => setNewUser({
+                    ...newUser, 
+                    sections: Array.from(e.target.selectedOptions, option => option.value)
+                })}
+                required
+                style={{ borderColor: '#ced4da' }} // Override default validation styling
             >
-                {section.name}
-            </option>
-        ))}
-    </Form.Select>
-</Form.Group>
+                {sections.map((section) => (
+                    <option key={section._id} value={section._id}>
+                        {section.name}
+                    </option>
+                ))}
+            </Form.Select>
+        </Form.Group>
 
-            <Form.Group className="mb-3">
-                <Form.Label>Sections*</Form.Label>
-                <Form.Select
-                    multiple
-                    value={newUser.sections}
-                    onChange={(e) => setNewUser({...newUser, sections: Array.from(e.target.selectedOptions, option => option.value)})}
-                    required
-                    isInvalid={!newUser.sections.length}
-                >
-                    {sections.map((section) => (
-                        <option key={section._id} value={section._id}>
-                            {section.name}
-                        </option>
-                    ))}
-                </Form.Select>
-                <Form.Control.Feedback type="invalid">
-                    Please select at least one section
-                </Form.Control.Feedback>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-                <Form.Label>Semesters*</Form.Label>
-                <Form.Select
-                    multiple
-                    value={newUser.semesters}
-                    onChange={(e) => setNewUser({...newUser, semesters: Array.from(e.target.selectedOptions, option => option.value)})}
-                    required
-                    isInvalid={!newUser.semesters.length}
-                >
-                    {semesters.map((semester) => (
-                        <option key={semester._id} value={semester._id}>
-                            {semester.name}
-                        </option>
-                    ))}
-                </Form.Select>
-                <Form.Control.Feedback type="invalid">
-                    Please select at least one semester
-                </Form.Control.Feedback>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-                <Form.Label>Subjects*</Form.Label>
-                <Form.Select
-                    multiple
-                    value={newUser.subjects}
-                    onChange={(e) => setNewUser({...newUser, subjects: Array.from(e.target.selectedOptions, option => option.value)})}
-                    required
-                    isInvalid={!newUser.subjects.length}
-                    disabled={!newUser.sections.length || !newUser.semesters.length}
-                >
-                    {availableSubjects.map((subject) => (
-                        <option key={subject._id} value={subject._id}>
-                            {subject.name}
-                        </option>
-                    ))}
-                </Form.Select>
-                <Form.Control.Feedback type="invalid">
-                    Please select at least one subject
-                </Form.Control.Feedback>
-            </Form.Group>
-
-            <Button 
-                variant="primary" 
-                type="submit"
-                disabled={loading}
+        <Form.Group>
+            <Form.Label>Advisory Section</Form.Label>
+            <Form.Select
+                value={newUser.advisorySection}
+                onChange={(e) => setNewUser({...newUser, advisorySection: e.target.value})}
+                style={{ borderColor: '#ced4da' }} // Override default validation styling
             >
-                {loading ? 'Adding...' : 'Add Teacher'}
-            </Button>
-        </Form>
-    </Modal.Body>
-</Modal>
+                <option value="">Select Advisory Section (Optional)</option>
+                {advisorySections.map((section) => (
+                    <option key={section._id} value={section._id}>
+                        {section.name}
+                    </option>
+                ))}
+            </Form.Select>
+        </Form.Group>
 
-                                {/* Edit Teacher Modal */}
-                                <Modal show={editModalShow} onHide={handleEditClose}>
-    <Modal.Header closeButton>
-        <Modal.Title>Edit Teacher Account</Modal.Title>
-    </Modal.Header>
-    <Modal.Body>
-        <Form onSubmit={handleEditSubmit}>
-            {/* Sections Selection */}
-            <Form.Group className="mb-3">
-                <Form.Label>Sections</Form.Label>
-                <Form.Select
-                    multiple
-                    value={editUser.sections}
-                    onChange={(e) => setEditUser({
-                        ...editUser,
-                        sections: Array.from(e.target.selectedOptions, option => option.value)
-                    })}
-                    required
-                >
-                    {sections.map((section) => (
-                        <option key={section._id} value={section._id}>
-                            {section.name}
-                        </option>
-                    ))}
-                </Form.Select>
-                <Form.Text className="text-muted">
-                    Hold Ctrl (Windows) or Command (Mac) to select multiple sections
-                </Form.Text>
-            </Form.Group>
+        <Form.Group>
+            <Form.Label>Semesters*</Form.Label>
+            <Form.Select
+                multiple
+                value={newUser.semesters}
+                onChange={(e) => setNewUser({
+                    ...newUser, 
+                    semesters: Array.from(e.target.selectedOptions, option => option.value)
+                })}
+                required
+                style={{ borderColor: '#ced4da' }} // Override default validation styling
+            >
+                {semesters.map((semester) => (
+                    <option key={semester._id} value={semester._id}>
+                        {semester.name}
+                    </option>
+                ))}
+            </Form.Select>
+        </Form.Group>
+    </div>
+</div>
 
-            {/* Semesters Selection */}
-            <Form.Group className="mb-3">
-                <Form.Label>Semesters</Form.Label>
-                <Form.Select
-                    multiple
-                    value={editUser.semesters}
-                    onChange={(e) => setEditUser({
-                        ...editUser,
-                        semesters: Array.from(e.target.selectedOptions, option => option.value)
-                    })}
-                    required
-                >
-                    {semesters.map((semester) => (
-                        <option key={semester._id} value={semester._id}>
-                            {semester.name} - {semester.strand.name} - {semester.yearLevel.name}
-                        </option>
-                    ))}
-                </Form.Select>
-            </Form.Group>
-
-            {/* Advisory Section Selection */}
-            <Form.Group className="mb-3">
-                <Form.Label>Advisory Section</Form.Label>
-                <Form.Select
-                    value={editUser.advisorySection}
-                    onChange={(e) => setEditUser({
-                        ...editUser,
-                        advisorySection: e.target.value
-                    })}
-                >
-                    <option value="">Select Advisory Section (Optional)</option>
-                    {advisorySections.map((section) => (
-                        <option key={section._id} value={section._id}>
-                            {section.name}
-                        </option>
-                    ))}
-                </Form.Select>
-            </Form.Group>
-
-           {/* Subjects Selection */}
-<Form.Group className="mb-3">
-    <Form.Label>Subjects</Form.Label>
-    {loading ? (
-        <p>Loading subjects...</p>
-    ) : availableSubjects.length > 0 ? (
-        <Form.Select
-            multiple
-            value={editUser.subjects}
-            onChange={(e) => setEditUser({
-                ...editUser,
-                subjects: Array.from(e.target.selectedOptions, option => option.value)
-            })}
-            required
-        >
-            {availableSubjects.map((subject) => (
-                <option key={subject._id} value={subject._id}>
-                    {subject.name}
-                </option>
-            ))}
-        </Form.Select>
-    ) : (
-        <p className="text-muted">
-            {editUser.sections.length === 0 || editUser.semesters.length === 0 
-                ? "Please select sections and semesters to view available subjects"
-                : "No subjects available for the selected sections and semesters"}
-        </p>
-    )}
-</Form.Group>
-
-            {error && <Alert variant="danger">{error}</Alert>}
-
-            <div className="d-flex justify-content-end gap-2">
-                <Button variant="secondary" onClick={handleEditClose}>
-                    Cancel
-                </Button>
-                <Button 
-                    variant="primary" 
-                    type="submit"
-                    disabled={loading}
-                >
-                    {loading ? 'Updating...' : 'Update Teacher'}
-                </Button>
+            {/* Subjects Section */}
+            <div style={{...modalStyles.formSection, ...modalStyles.fullWidth}}>
+                <h6 className="mb-3">Subject Assignment</h6>
+                <Form.Group>
+                    <Form.Label>Subjects*</Form.Label>
+                    {availableSubjects.length > 0 ? (
+                        <Form.Select
+                            multiple
+                            value={newUser.subjects}
+                            onChange={(e) => setNewUser({
+                                ...newUser, 
+                                subjects: Array.from(e.target.selectedOptions, option => option.value)
+                            })}
+                            required
+                            isInvalid={!newUser.subjects.length}
+                            disabled={!newUser.sections.length || !newUser.semesters.length}
+                        >
+                            {availableSubjects.map((subject) => (
+                                <option key={subject._id} value={subject._id}>
+                                    {subject.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    ) : (
+                        <p className="text-muted">
+                            Please select sections and semesters to view available subjects
+                        </p>
+                    )}
+                    <Form.Control.Feedback type="invalid">
+                        Please select at least one subject
+                    </Form.Control.Feedback>
+                </Form.Group>
             </div>
+
+            {error && <div className="alert alert-danger mt-3">{error}</div>}
         </Form>
     </Modal.Body>
+    <Modal.Footer style={modalStyles.modalFooter}>
+        <Button variant="secondary" onClick={() => setShowAddModal(false)}>
+            <i className="bi bi-x-circle me-2"></i>Cancel
+        </Button>
+        <Button 
+            variant="primary" 
+            onClick={handleAddUser}
+            disabled={loading}
+        >
+            {loading ? (
+                <>
+                    <span className="spinner-border spinner-border-sm me-2" />
+                    Adding...
+                </>
+            ) : (
+                <>
+                    <i className="bi bi-check-circle me-2"></i>
+                    Add Teacher
+                </>
+            )}
+        </Button>
+    </Modal.Footer>
 </Modal>
 
-                                {/* Delete Confirmation Modal */}
-                                <Modal show={show} onHide={handleClose}>
-                                    <Modal.Header closeButton>
-                                        <Modal.Title>Confirm Delete</Modal.Title>
-                                    </Modal.Header>
-                                    <Modal.Body>Are you sure you want to delete this teacher?</Modal.Body>
-                                    <Modal.Footer>
-                                        <Button variant="secondary" onClick={handleClose}>
-                                            Cancel
-                                        </Button>
-                                        <Button variant="danger" onClick={() => deleteHandler(selectedUserId)}>
-                                            Delete
-                                        </Button>
-                                    </Modal.Footer>
-                                </Modal>
+{/* Edit Modal */}
+<Modal 
+    show={editModalShow} 
+    onHide={handleEditClose}
+    size="lg"
+    centered
+>
+    <Modal.Header closeButton style={modalStyles.modalHeader}>
+        <Modal.Title>
+            <i className="bi bi-pencil-square me-2"></i>
+            Edit Teacher Account
+        </Modal.Title>
+    </Modal.Header>
+    <Modal.Body className="p-4">
+        <Form onSubmit={handleEditSubmit}>
+            {/* Teaching Assignment Section */}
+            <div style={{...modalStyles.formSection, ...modalStyles.fullWidth}}>
+                <h6 className="mb-3">Teaching Assignment</h6>
+                <div style={modalStyles.formGrid}>
+                    <Form.Group>
+                        <Form.Label>Sections*</Form.Label>
+                        <Form.Select
+                            multiple
+                            value={editUser.sections}
+                            onChange={(e) => setEditUser({
+                                ...editUser,
+                                sections: Array.from(e.target.selectedOptions, option => option.value)
+                            })}
+                            required
+                        >
+                            {sections.map((section) => (
+                                <option key={section._id} value={section._id}>
+                                    {section.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
+
+                    <Form.Group>
+                        <Form.Label>Advisory Section</Form.Label>
+                        <Form.Select
+                            value={editUser.advisorySection}
+                            onChange={(e) => setEditUser({
+                                ...editUser,
+                                advisorySection: e.target.value
+                            })}
+                        >
+                            <option value="">Select Advisory Section (Optional)</option>
+                            {advisorySections.map((section) => (
+                                <option key={section._id} value={section._id}>
+                                    {section.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
+
+                    <Form.Group>
+                        <Form.Label>Semesters*</Form.Label>
+                        <Form.Select
+                            multiple
+                            value={editUser.semesters}
+                            onChange={(e) => setEditUser({
+                                ...editUser,
+                                semesters: Array.from(e.target.selectedOptions, option => option.value)
+                            })}
+                            required
+                        >
+                            {semesters.map((semester) => (
+                                <option key={semester._id} value={semester._id}>
+                                    {semester.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
+                </div>
+            </div>
+
+            {/* Subjects Section */}
+            <div style={{...modalStyles.formSection, ...modalStyles.fullWidth}}>
+                <h6 className="mb-3">Subject Assignment</h6>
+                <Form.Group>
+                    <Form.Label>Subjects*</Form.Label>
+                    {loading ? (
+                        <p>Loading subjects...</p>
+                    ) : availableSubjects.length > 0 ? (
+                        <Form.Select
+                            multiple
+                            value={editUser.subjects}
+                            onChange={(e) => setEditUser({
+                                ...editUser,
+                                subjects: Array.from(e.target.selectedOptions, option => option.value)
+                            })}
+                            required
+                        >
+                            {availableSubjects.map((subject) => (
+                                <option key={subject._id} value={subject._id}>
+                                    {subject.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    ) : (
+                        <p className="text-muted">
+                            {editUser.sections.length === 0 || editUser.semesters.length === 0 
+                                ? "Please select sections and semesters to view available subjects"
+                                : "No subjects available for the selected sections and semesters"}
+                        </p>
+                    )}
+                </Form.Group>
+            </div>
+
+            {error && <div className="alert alert-danger mt-3">{error}</div>}
+        </Form>
+    </Modal.Body>
+    <Modal.Footer style={modalStyles.modalFooter}>
+        <Button variant="secondary" onClick={handleEditClose}>
+            <i className="bi bi-x-circle me-2"></i>Cancel
+        </Button>
+        <Button 
+            variant="primary" 
+            onClick={handleEditSubmit}
+            disabled={loading}
+        >
+            {loading ? (
+                <>
+                    <span className="spinner-border spinner-border-sm me-2" />
+                    Updating...
+                </>
+            ) : (
+                <>
+                    <i className="bi bi-check-circle me-2"></i>
+                    Update Teacher
+                </>
+            )}
+        </Button>
+    </Modal.Footer>
+</Modal>
+
+{/* Delete Modal */}
+<Modal show={show} onHide={handleClose} centered>
+    <Modal.Body style={modalStyles.deleteModal}>
+        <div style={modalStyles.deleteIcon}>
+            <i className="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <h4 className="mb-3">Confirm Deletion</h4>
+        <p className="text-muted">
+            Are you sure you want to delete this teacher account? This action cannot be undone.
+        </p>
+    </Modal.Body>
+    <Modal.Footer style={modalStyles.modalFooter} className="justify-content-center">
+        <Button variant="secondary" onClick={handleClose}>
+            <i className="bi bi-x-circle me-2"></i>Cancel
+        </Button>
+        <Button variant="danger" onClick={() => deleteHandler(selectedUserId)}>
+            <i className="bi bi-trash me-2"></i>Delete
+        </Button>
+    </Modal.Footer>
+</Modal>
                             </Card.Body>
                         </Card>
                     </Container>

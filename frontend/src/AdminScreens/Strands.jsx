@@ -245,13 +245,13 @@ const AdminCreateStrand = () => {
 
                                     <div className="d-flex gap-2">
                                         <Button 
-                                            variant="secondary" 
+                                            variant="outline-secondary" 
                                             onClick={() => navigate('/admin/strands')}
                                         >
                                             Cancel
                                         </Button>
                                         <Button 
-                                            variant="primary" 
+                                            variant="outline-success" 
                                             type="submit"
                                             disabled={loading}
                                         >
@@ -292,8 +292,10 @@ const AdminCreateStrand = () => {
                                     </InputGroup>
                                 </div>
 
-                                <Table striped bordered hover>
-                                <thead className='text-center'>
+                                <Card className="shadow-sm">
+                    <Card.Body className="p-0">
+                    <Table responsive hover className='custom-table text-center align-middle'>
+                            <thead className="bg-light">
                                     <tr>
                                         <th>Name</th>
                                         <th>Description</th>
@@ -307,21 +309,27 @@ const AdminCreateStrand = () => {
                                                         <td>{strand.name}</td>
                                                         <td>{strand.description}</td>
                                                         <td>
-                                                        <div className="button-group">
-                                                        <button
-                                                                className="btn btn-primary custom-btn"
+                                                    <div className="action-buttons">
+                                                        <Button 
+                                                            variant="outline-success" 
+                                                            size="sm" 
+                                                                className="btn-action"
                                                                 onClick={() => handleEditShow(strand._id)}
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                            <button
-                                                            className="btn btn-danger custom-btn"
-                                                                onClick={() => handleShow(strand._id)}
-                                                            >
+                                                        >
+                                                            <i className="bi bi-pencil-square me-1"></i>
+                                                            Edit
+                                                        </Button>
+                                                        <Button 
+                                                            variant="outline-danger" 
+                                                            size="sm" 
+                                                            className="btn-action"
+                                                            onClick={() => handleShow(strand._id)}
+                                                        >
+                                                            <i className="bi bi-trash me-1"></i>
                                                             Delete
-                                                            </button>
-                                                            </div>
-                                                        </td>
+                                                        </Button>
+                                                    </div>
+                                                </td>
                                                     </tr>
                                                 ))
                                             ) : (
@@ -331,6 +339,8 @@ const AdminCreateStrand = () => {
                                             )}
                                         </tbody>
                                     </Table>
+                                    </Card.Body>
+                                </Card>
 
                                 <div className="d-flex justify-content-between mt-3">
                                     <Button 
@@ -360,11 +370,11 @@ const AdminCreateStrand = () => {
         </Modal.Header>
         <Modal.Body>The data will be erased and cannot be retrieved. Are you sure you want to continue?</Modal.Body>
         <Modal.Footer className='justify-content-center'>
-        <Button variant="primary" className="px-4" onClick={() => setShow(false)}>
+        <Button variant="outline-secondary" className="px-4" onClick={() => setShow(false)}>
             Cancel
           </Button>
       <Button 
-            variant="danger" 
+            variant="outline-danger" 
             className="px-4" 
             onClick={() => selectedStrandId && deleteHandler(selectedStrandId)}
         >
@@ -403,10 +413,10 @@ const AdminCreateStrand = () => {
         </Form>
     </Modal.Body>
     <Modal.Footer>
-        <Button variant="secondary" onClick={handleCloseModal}>
+        <Button variant="outline-secondary" onClick={handleCloseModal}>
             Cancel
         </Button>
-        <Button variant="primary" onClick={handleSaveChanges}>
+        <Button variant="outline-success" onClick={handleSaveChanges}>
             Save Changes
         </Button>
     </Modal.Footer>

@@ -11,6 +11,49 @@ import Button from 'react-bootstrap/Button';
 import Header from '../components/Header';
 
 const AdminCreateStudentAccount = () => {
+
+    // First, add these styles at the top of your file
+const modalStyles = {
+    modal: {
+      maxWidth: '800px',
+      margin: '1.75rem auto',
+    },
+    formGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '1rem',
+    },
+    fullWidth: {
+      gridColumn: '1 / -1',
+    },
+    formSection: {
+      padding: '1rem',
+      marginBottom: '1rem',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '8px',
+      border: '1px solid #dee2e6',
+    },
+    modalHeader: {
+      background: '#f8f9fa',
+      borderBottom: '2px solid #dee2e6',
+      padding: '1rem 1.5rem',
+    },
+    modalFooter: {
+      background: '#f8f9fa',
+      borderTop: '2px solid #dee2e6',
+      padding: '1rem 1.5rem',
+    },
+    deleteModal: {
+      textAlign: 'center',
+      padding: '2rem',
+    },
+    deleteIcon: {
+      fontSize: '3rem',
+      color: '#dc3545',
+      marginBottom: '1rem',
+    }
+  };
+
     const [show, setShow] = useState(false);
     const [editModalShow, setEditModalShow] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState(null);
@@ -355,15 +398,14 @@ const handleEditSubmit = async (e) => {
     
     
 
-    const filteredUsers = users
-    .filter((user) => user.role === "student")
-    .filter((user) => (selectedStrand ? user.strand === selectedStrand : true))
-    .filter((user) => (selectedSection ? user.section === selectedSection : true))
-    .filter((user) =>
-        user.username.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+const filteredUsers = users
+.filter((user) => user.role === "student")
+.filter((user) => (selectedStrand ? user.strand?._id === selectedStrand : true))
+.filter((user) => (selectedSection ? user.sections?.some(section => section._id === selectedSection) : true))
+.filter((user) =>
+    user.username.toLowerCase().includes(searchTerm.toLowerCase())
+);
 console.log('Filtered Users:', filteredUsers);
-
 
 
 
@@ -449,77 +491,94 @@ console.log('Filtered Users:', filteredUsers);
                 </div>
 
                 <div>
-                <button 
-            className='btn btn-primary mx-5 px-3 custom-width-btn'
-                    onClick={() => setShowAddModal(true)}
-                >
-                    Add Users
-                </button>
-                </div>
+    <button 
+        className='btn btn-outline-success mx-2 px-10'
+        style={{ width: '150px' }} // Fixed width of 150 pixels
+        size="sm" 
+        onClick={() => setShowAddModal(true)}
+    >
+        Add Users
+    </button>
+</div>
             </div>
         
               {/* Table */}
-              <Table responsive hover className="table-striped table-bordered text-center">
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Strand</th>
-      <th>Year Level</th>
-      <th>Section</th>
-      <th>Subjects</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-{/* Update the Table body rendering */}
-<tbody>
-  {filteredUsers.length > 0 ? (
-    filteredUsers.map((user) => (
-      <tr key={user._id}>
-        <td>{user.username}</td>
-        <td>{user.strand ? user.strand.name : 'No Strand'}</td> {/* Access strand.name */}
-        <td>{user.yearLevel ? user.yearLevel.name : 'No Year Level'}</td> {/* Access yearLevel.name */}
-        <td>
-          {user.sections && user.sections.length > 0
-            ? user.sections.map((section) => section.name).join(', ')
-            : 'No Sections'} {/* Access section.name and join if multiple */}
-        </td>
-        <td>
-        {user.subjects && user.subjects.length > 0
-            ? user.subjects.map((subject) => subject.name).join(', ')
-            : 'No Subjects'} {/* Access subject.name and join if multiple */}
-        </td>
-        <td>
-        <button
-                    className="btn btn-primary custom-btn"
-                    onClick={() => {
-                        console.log('Edit button clicked for user:', user); // Debug log
-                        handleEditShow(user);
-                    }}
-                >
-                    Edit
-                </button>
-          <button
-            className="btn btn-danger custom-btn"
-            onClick={() => handleShow(user._id)}
-          >
-            Delete
-          </button>
-        </td>
-      </tr>
-    ))
-  ) : (
-    <tr>
-      <td colSpan="4">No users found</td>
-    </tr>
-  )}
-</tbody>
+              <Table responsive hover className='custom-table text-center align-middle'>
+    <thead>
+        <tr>
+            <th>Student ID</th>
+            <th>Section</th>
+            <th>Strand</th>
+            <th>Year Level</th>
+            <th>Subjects</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {filteredUsers
+            .slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage)
+            .map(user => (
+                <tr key={user._id}>
+                    <td>
+                        <div className="d-flex align-items-center justify-content-center">
+                            {user.username}
+                        </div>
+                    </td>
+                    <td>
+                        <span className="text-muted">
+                            {user.sections?.[0]?.name || 'Not Assigned'}
+                        </span>
+                    </td>
+                    <td>
+                        <span className="text-muted">
+                            {user.strand?.name || 'Not Assigned'}
+                        </span>
+                    </td>
+                    <td>
+                        <span className="text-muted">
+                            {user.yearLevel?.name || 'Not Assigned'}
+                        </span>
+                    </td>
+                    <td>
+    <div className="subjects-list">
+        {user.subjects?.map((subject, index) => (
+            <span key={subject._id} className="subject-pill">
+                {subject.name}
+            </span>
+        )) || 'No Subjects'}
+    </div>
+</td>
+                    <td>
+                        <div className="action-buttons">
+                            <Button 
+                                variant="outline-success" 
+                                size="sm" 
+                                className="btn-action"
+                                onClick={() => handleEditShow(user)}
+                            >
+                                <i className="bi bi-pencil-square me-1"></i>
+                                Edit
+                            </Button>
+                            <Button 
+                                variant="outline-danger" 
+                                size="sm" 
+                                className="btn-action"
+                                onClick={() => handleShow(user._id)}
+                            >
+                                <i className="bi bi-trash me-1"></i>
+                                Delete
+                            </Button>
+                        </div>
+                    </td>
+                </tr>
+            ))}
+    </tbody>
 </Table>
 
 
                 <div className="d-flex justify-content-between mt-3">
                                     <Button 
                                         variant="outline-primary" 
-
                                         size="sm"
                                         disabled={currentPage === 1}
                                         onClick={() => handlePageChange('prev')}
@@ -538,334 +597,300 @@ console.log('Filtered Users:', filteredUsers);
 
                                 </div> 
 
-                                {/* Add Modal */}
-                                <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
-    <Modal.Header closeButton>
-        <Modal.Title>Add New User</Modal.Title>
+<Modal 
+    show={showAddModal} 
+    onHide={() => setShowAddModal(false)}
+    size="lg"
+    centered
+>
+    <Modal.Header closeButton style={modalStyles.modalHeader}>
+        <Modal.Title>
+            <i className="bi bi-person-plus-fill me-2"></i>
+            Add New Student Account
+        </Modal.Title>
     </Modal.Header>
-    <Modal.Body>
+    <Modal.Body className="p-4">
         <Form onSubmit={handleAddUser}>
-            {/* Username Field */}
-            <Form.Group className="mb-3">
-                <Form.Label>Username</Form.Label>
-                <Form.Control
-                    type="text"
-                    value={newUser.username || ''}
-                    onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                    required
-                />
-            </Form.Group>
+            {/* Basic Information Section */}
+            <div style={{...modalStyles.formSection, ...modalStyles.fullWidth}}>
+                <h6 className="mb-3">Basic Information</h6>
+                <div style={modalStyles.formGrid}>
+                    <Form.Group>
+                        <Form.Label>Username</Form.Label>
+                        <Form.Control
+                            type="text"
+                            value={newUser.username}
+                            onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                            required
+                        />
+                    </Form.Group>
 
-            {/* Password Field */}
-            <Form.Group className="mb-3">
-                <Form.Label>Password</Form.Label>
-                <Form.Control
-                    type="password"
-                    value={newUser.password || ''}
-                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                    required
-                />
-            </Form.Group>
-
-            {/* Role Field (Read Only) */}
-            <Form.Group className="mb-3">
-                <Form.Label>Role</Form.Label>
-                <Form.Control
-                    type="text"
-                    value="Student" // Set the value to "Student"
-                    readOnly
-                    disabled
-                />
-            </Form.Group>
-
-                {/* Year Level Selection */}
-    <Form.Group className="mb-3">
-        <Form.Label>Year Level</Form.Label>
-        <Form.Select
-            value={newUser.yearLevel}
-            onChange={(e) => setNewUser(prev => ({
-                ...prev,
-                yearLevel: e.target.value,
-                // Reset dependent fields
-                semester: '',
-                section: '',
-                subjects: []
-            }))}
-            required
-        >
-            <option value="">Select Year Level</option>
-            {yearLevels.map(yearLevel => (
-                <option key={yearLevel._id} value={yearLevel._id}>
-                    {yearLevel.name}
-                </option>
-            ))}
-        </Form.Select>
-    </Form.Group>
-
-    {/* Strand Selection */}
-    <Form.Group className="mb-3">
-        <Form.Label>Strand</Form.Label>
-        <Form.Select
-            value={newUser.strand}
-            onChange={(e) => setNewUser(prev => ({
-                ...prev,
-                strand: e.target.value,
-                // Reset dependent fields
-                section: '',
-                semester: '',
-                subjects: []
-            }))}
-            required
-        >
-            <option value="">Select Strand</option>
-            {strands.map(strand => (
-                <option key={strand._id} value={strand._id}>
-                    {strand.name}
-                </option>
-            ))}
-        </Form.Select>
-    </Form.Group>
-
-    {/* Semester Selection */}
-    <Form.Group className="mb-3">
-        <Form.Label>Semester</Form.Label>
-        <Form.Select
-            value={newUser.semester}
-            onChange={(e) => setNewUser(prev => ({
-                ...prev,
-                semester: e.target.value,
-                // Reset dependent fields
-                subjects: []
-            }))}
-            required
-            disabled={!newUser.strand || !newUser.yearLevel}
-        >
-            <option value="">Select Semester</option>
-            {semesters
-                .filter(semester => 
-                    semester.strand._id === newUser.strand &&
-                    semester.yearLevel._id === newUser.yearLevel
-                )
-                .map(semester => (
-                    <option key={semester._id} value={semester._id}>
-                        {semester.name}
-                    </option>
-                ))
-            }
-        </Form.Select>
-    </Form.Group>
-
-    {/* Section Selection */}
-    <Form.Group className="mb-3">
-        <Form.Label>Section</Form.Label>
-        <Form.Select
-            value={newUser.section}
-            onChange={(e) => setNewUser(prev => ({
-                ...prev,
-                section: e.target.value
-            }))}
-            required
-            disabled={!newUser.strand}
-        >
-            <option value="">Select Section</option>
-            {filteredSections.map(section => (
-                <option key={section._id} value={section._id}>
-                    {section.name}
-                </option>
-            ))}
-        </Form.Select>
-    </Form.Group>
-
-    {/* Subjects Selection */}
-    <Form.Group className="mb-3">
-        <Form.Label>Subjects</Form.Label>
-        {availableSubjects.length > 0 ? (
-            availableSubjects.map(subject => (
-                <div key={subject._id} className="mb-2">
-                    <Form.Check
-                        type="checkbox"
-                        id={subject._id}
-                        label={subject.name}
-                        checked={newUser.subjects.includes(subject._id)}
-                        onChange={(e) => {
-                            setNewUser(prev => ({
-                                ...prev,
-                                subjects: e.target.checked
-                                    ? [...prev.subjects, subject._id]
-                                    : prev.subjects.filter(id => id !== subject._id)
-                            }));
-                        }}
-                    />
+                    <Form.Group>
+                        <Form.Label>Password</Form.Label>
+                        <Form.Control
+                            type="password"
+                            value={newUser.password}
+                            onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                            required
+                        />
+                    </Form.Group>
                 </div>
-            ))
-        ) : (
-            <p className="text-muted">
-                Please select strand, year level, and semester to view available subjects
-            </p>
-        )}
-    </Form.Group>
-
-            {/* Modal Footer with Buttons */}
-            <div className="text-center mt-3">
-                <Button variant="secondary" onClick={() => setShowAddModal(false)} className="me-2">
-                    Cancel
-                </Button>
-                <Button variant="primary" type="submit">
-                    Add User
-                </Button>
             </div>
+
+            {/* Academic Information Section */}
+            <div style={{...modalStyles.formSection, ...modalStyles.fullWidth}}>
+                <h6 className="mb-3">Academic Information</h6>
+                <div style={modalStyles.formGrid}>
+                    <Form.Group>
+                        <Form.Label>Year Level</Form.Label>
+                        <Form.Select
+                            value={newUser.yearLevel}
+                            onChange={(e) => setNewUser({...newUser, yearLevel: e.target.value, semester: '', subjects: []})}
+                            required
+                        >
+                            <option value="">Select Year Level</option>
+                            {yearLevels.map(yearLevel => (
+                                <option key={yearLevel._id} value={yearLevel._id}>
+                                    {yearLevel.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
+
+                    <Form.Group>
+                        <Form.Label>Strand</Form.Label>
+                        <Form.Select
+                            value={newUser.strand}
+                            onChange={(e) => setNewUser({...newUser, strand: e.target.value, section: '', subjects: []})}
+                            required
+                        >
+                            <option value="">Select Strand</option>
+                            {strands.map(strand => (
+                                <option key={strand._id} value={strand._id}>
+                                    {strand.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
+
+                    <Form.Group>
+                        <Form.Label>Semester</Form.Label>
+                        <Form.Select
+                            value={newUser.semester}
+                            onChange={(e) => setNewUser({...newUser, semester: e.target.value, subjects: []})}
+                            required
+                            disabled={!newUser.strand || !newUser.yearLevel}
+                        >
+                            <option value="">Select Semester</option>
+                            {semesters.map(semester => (
+                                <option key={semester._id} value={semester._id}>
+                                    {semester.name} - {semester.strand.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
+
+                    <Form.Group>
+                        <Form.Label>Section</Form.Label>
+                        <Form.Select
+                            value={newUser.section}
+                            onChange={(e) => setNewUser({...newUser, section: e.target.value})}
+                            required
+                            disabled={!newUser.strand}
+                        >
+                            <option value="">Select Section</option>
+                            {filteredSections.map(section => (
+                                <option key={section._id} value={section._id}>
+                                    {section.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
+                </div>
+            </div>
+
+            {/* Subjects Section */}
+            <div style={{...modalStyles.formSection, ...modalStyles.fullWidth}}>
+                <h6 className="mb-3">Subjects</h6>
+                {availableSubjects.length > 0 ? (
+                    <div className="subjects-grid" style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                        gap: '0.5rem' 
+                    }}>
+                        {availableSubjects.map(subject => (
+                            <Form.Check
+                                key={subject._id}
+                                type="checkbox"
+                                id={`add-${subject._id}`}
+                                label={subject.name}
+                                checked={newUser.subjects.includes(subject._id)}
+                                onChange={(e) => {
+                                    setNewUser(prev => ({
+                                        ...prev,
+                                        subjects: e.target.checked
+                                            ? [...prev.subjects, subject._id]
+                                            : prev.subjects.filter(id => id !== subject._id)
+                                    }));
+                                }}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-muted">
+                        Please select strand, year level, and semester to view available subjects
+                    </p>
+                )}
+            </div>
+
+            {error && <div className="alert alert-danger mt-3">{error}</div>}
         </Form>
     </Modal.Body>
+    <Modal.Footer style={modalStyles.modalFooter}>
+        <Button variant="outline-secondary" onClick={() => setShowAddModal(false)}>
+            <i className="bi bi-x-circle me-2"></i>Cancel
+        </Button>
+        <Button variant="outline-success" onClick={handleAddUser}>
+            <i className="bi bi-check-circle me-2"></i>Add Student
+        </Button>
+    </Modal.Footer>
 </Modal>
 
 {/* Delete Modal */}
-<Modal show={show} onHide={handleClose}>
-    <Modal.Header closeButton>
-        <Modal.Title>Confirm Delete</Modal.Title>
-    </Modal.Header>
-    <Modal.Body>
-        Are you sure you want to delete this user?
+<Modal show={show} onHide={handleClose} centered>
+    <Modal.Body style={modalStyles.deleteModal}>
+        <div style={modalStyles.deleteIcon}>
+            <i className="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <h4 className="mb-3">Confirm Deletion</h4>
+        <p className="text-muted">
+            Are you sure you want to delete this student account? This action cannot be undone.
+        </p>
     </Modal.Body>
-    <Modal.Footer>
-        <Button variant="secondary" onClick={handleClose}>
-            Cancel
+    <Modal.Footer style={modalStyles.modalFooter} className="justify-content-center">
+        <Button variant="outline-secondary" onClick={handleClose}>
+            <i className="bi bi-x-circle me-2"></i>Cancel
         </Button>
-        <Button variant="danger" onClick={() => deleteHandler(selectedUserId)}>
-            Delete
+        <Button variant="outline-danger" onClick={() => deleteHandler(selectedUserId)}>
+            <i className="bi bi-trash me-2"></i>Delete
         </Button>
     </Modal.Footer>
 </Modal>
 
 {/* Edit Modal */}
-<Modal show={editModalShow} onHide={handleEditClose}>
-    <Modal.Header closeButton>
-        <Modal.Title>Edit Student Account</Modal.Title>
+<Modal 
+    show={editModalShow} 
+    onHide={handleEditClose}
+    size="lg"
+    centered
+>
+    <Modal.Header closeButton style={modalStyles.modalHeader}>
+        <Modal.Title>
+            <i className="bi bi-pencil-square me-2"></i>
+            Edit Student Account
+        </Modal.Title>
     </Modal.Header>
-    <Modal.Body>
+    <Modal.Body className="p-4">
         <Form onSubmit={handleEditSubmit}>
-            {/* Username Field (Read Only) */}
-            <Form.Group className="mb-3">
-                <Form.Label>Username</Form.Label>
-                <Form.Control
-                    type="text"
-                    value={editUser.username}
-                    readOnly
-                    disabled
-                />
-            </Form.Group>
+            {/* Basic Information */}
+            <div style={{...modalStyles.formSection, ...modalStyles.fullWidth}}>
+                <h6 className="mb-3">Basic Information</h6>
+                <Form.Group>
+                    <Form.Label>Username</Form.Label>
+                    <Form.Control
+                        type="text"
+                        value={editUser.username}
+                        readOnly
+                        disabled
+                        className="bg-light"
+                    />
+                </Form.Group>
+            </div>
 
-            {/* Role Field (Read Only) */}
-            <Form.Group className="mb-3">
-                <Form.Label>Role</Form.Label>
-                <Form.Control
-                    type="text"
-                    value="Student"
-                    readOnly
-                    disabled
-                />
-            </Form.Group>
+            {/* Academic Information */}
+            <div style={{...modalStyles.formSection, ...modalStyles.fullWidth}}>
+                <h6 className="mb-3">Academic Information</h6>
+                <div style={modalStyles.formGrid}>
+                    <Form.Group>
+                        <Form.Label>Year Level</Form.Label>
+                        <Form.Select
+                            value={editUser.yearLevel}
+                            onChange={(e) => setEditUser({...editUser, yearLevel: e.target.value, semester: '', subjects: []})}
+                            required
+                        >
+                            <option value="">Select Year Level</option>
+                            {yearLevels.map(yearLevel => (
+                                <option key={yearLevel._id} value={yearLevel._id}>
+                                    {yearLevel.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
 
-            {/* Year Level Selection */}
-            <Form.Group className="mb-3">
-                <Form.Label>Year Level</Form.Label>
-                <Form.Select
-                    value={editUser.yearLevel}
-                    onChange={(e) => setEditUser(prev => ({
-                        ...prev,
-                        yearLevel: e.target.value,
-                        semester: '',
-                        subjects: []
-                    }))}
-                    required
-                >
-                    <option value="">Select Year Level</option>
-                    {yearLevels.map(yearLevel => (
-                        <option key={yearLevel._id} value={yearLevel._id}>
-                            {yearLevel.name}
-                        </option>
-                    ))}
-                </Form.Select>
-            </Form.Group>
+                    <Form.Group>
+                        <Form.Label>Strand</Form.Label>
+                        <Form.Select
+                            value={editUser.strand}
+                            onChange={(e) => setEditUser({...editUser, strand: e.target.value, section: '', subjects: []})}
+                            required
+                        >
+                            <option value="">Select Strand</option>
+                            {strands.map(strand => (
+                                <option key={strand._id} value={strand._id}>
+                                    {strand.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
 
-            {/* Strand Selection */}
-            <Form.Group className="mb-3">
-                <Form.Label>Strand</Form.Label>
-                <Form.Select
-                    value={editUser.strand}
-                    onChange={(e) => setEditUser(prev => ({
-                        ...prev,
-                        strand: e.target.value,
-                        section: '',
-                        semester: '',
-                        subjects: []
-                    }))}
-                    required
-                >
-                    <option value="">Select Strand</option>
-                    {strands.map(strand => (
-                        <option key={strand._id} value={strand._id}>
-                            {strand.name}
-                        </option>
-                    ))}
-                </Form.Select>
-            </Form.Group>
+                    <Form.Group>
+                        <Form.Label>Semester</Form.Label>
+                        <Form.Select
+                            value={editUser.semester}
+                            onChange={(e) => setEditUser({...editUser, semester: e.target.value, subjects: []})}
+                            required
+                            disabled={!editUser.strand || !editUser.yearLevel}
+                        >
+                            <option value="">Select Semester</option>
+                            {semesters.map(semester => (
+                                <option key={semester._id} value={semester._id}>
+                                    {semester.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
 
-            {/* Semester Selection */}
-            <Form.Group className="mb-3">
-                <Form.Label>Semester</Form.Label>
-                <Form.Select
-                    value={editUser.semester}
-                    onChange={(e) => setEditUser(prev => ({
-                        ...prev,
-                        semester: e.target.value,
-                        subjects: []
-                    }))}
-                    required
-                    disabled={!editUser.strand || !editUser.yearLevel}
-                >
-                    <option value="">Select Semester</option>
-                    {semesters
-                        .filter(semester => 
-                            semester.strand._id === editUser.strand &&
-                            semester.yearLevel._id === editUser.yearLevel
-                        )
-                        .map(semester => (
-                            <option key={semester._id} value={semester._id}>
-                                {semester.name}
-                            </option>
-                        ))
-                    }
-                </Form.Select>
-            </Form.Group>
+                    <Form.Group>
+                        <Form.Label>Section</Form.Label>
+                        <Form.Select
+                            value={editUser.section}
+                            onChange={(e) => setEditUser({...editUser, section: e.target.value})}
+                            required
+                            disabled={!editUser.strand}
+                        >
+                            <option value="">Select Section</option>
+                            {filteredSections.map(section => (
+                                <option key={section._id} value={section._id}>
+                                    {section.name}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
+                </div>
+            </div>
 
-            {/* Section Selection */}
-            <Form.Group className="mb-3">
-                <Form.Label>Section</Form.Label>
-                <Form.Select
-                    value={editUser.section}
-                    onChange={(e) => setEditUser(prev => ({
-                        ...prev,
-                        section: e.target.value
-                    }))}
-                    required
-                    disabled={!editUser.strand}
-                >
-                    <option value="">Select Section</option>
-                    {filteredSections.map(section => (
-                        <option key={section._id} value={section._id}>
-                            {section.name}
-                        </option>
-                    ))}
-                </Form.Select>
-            </Form.Group>
-
-            {/* Subjects Selection */}
-            <Form.Group className="mb-3">
-                <Form.Label>Subjects</Form.Label>
+            {/* Subjects Section */}
+            <div style={{...modalStyles.formSection, ...modalStyles.fullWidth}}>
+                <h6 className="mb-3">Subjects</h6>
                 {availableSubjects.length > 0 ? (
-                    availableSubjects.map(subject => (
-                        <div key={subject._id} className="mb-2">
+                    <div className="subjects-grid" style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                        gap: '0.5rem' 
+                    }}>
+                        {availableSubjects.map(subject => (
                             <Form.Check
+                                key={subject._id}
                                 type="checkbox"
                                 id={`edit-${subject._id}`}
                                 label={subject.name}
@@ -879,35 +904,41 @@ console.log('Filtered Users:', filteredUsers);
                                     }));
                                 }}
                             />
-                        </div>
-                    ))
+                        ))}
+                    </div>
                 ) : (
                     <p className="text-muted">
                         Please select strand, year level, and semester to view available subjects
                     </p>
                 )}
-            </Form.Group>
-
-            {/* Error message */}
-            {error && <div className="alert alert-danger">{error}</div>}
-
-            {/* Modal Footer with Buttons */}
-            <div className="d-flex gap-2 justify-content-end">
-                <Button variant="secondary" onClick={handleEditClose}>
-                    Cancel
-                </Button>
-                <Button 
-                    variant="primary" 
-                    type="submit"
-                    disabled={loading}
-                >
-                    {loading ? 'Updating...' : 'Update Student'}
-                </Button>
             </div>
+
+            {error && <div className="alert alert-danger mt-3">{error}</div>}
         </Form>
     </Modal.Body>
+    <Modal.Footer style={modalStyles.modalFooter}>
+        <Button variant="outline-secondary" onClick={handleEditClose}>
+            <i className="bi bi-x-circle me-2"></i>Cancel
+        </Button>
+        <Button 
+            variant="outline-success" 
+            onClick={handleEditSubmit}
+            disabled={loading}
+        >
+            {loading ? (
+                <>
+                    <span className="spinner-border spinner-border-sm me-2" />
+                    Updating...
+                </>
+            ) : (
+                <>
+                    <i className="bi bi-check-circle me-2"></i>
+                    Update Student
+                </>
+            )}
+        </Button>
+    </Modal.Footer>
 </Modal>
-
         </Card.Body>
         </Card>
         </Container>

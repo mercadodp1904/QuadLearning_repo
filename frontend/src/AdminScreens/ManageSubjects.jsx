@@ -330,6 +330,7 @@ const filteredSemesters = semesters.filter(semester =>
                     <Form.Label>Subject Name</Form.Label>
                     <Form.Control
                         type="text"
+                        placeholder='Enter subject name'
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         required
@@ -349,13 +350,13 @@ const filteredSemesters = semesters.filter(semester =>
 
                                     <div className="d-flex gap-2">
                                         <Button
-                                            variant="secondary"
+                                            variant="outline-secondary"
                                             onClick={() => navigate('/admin/ManageSubjects')}
                                         >
                                             Cancel
                                         </Button>
                                         <Button
-                                            variant="primary"
+                                            variant="outline-success"
                                             type="submit"
                                             disabled={loading}
                                         >
@@ -401,8 +402,10 @@ const filteredSemesters = semesters.filter(semester =>
                                     </div>
                                 </div>
 
-                               <Table striped bordered hover>
-                               <thead>
+                                <Card className="shadow-sm">
+                    <Card.Body className="p-0">
+                    <Table responsive hover className='custom-table text-center align-middle'>
+                            <thead className="bg-light">
                     <tr>
                         <th>Subject Name</th>
                         <th>Subject Code</th>
@@ -423,43 +426,57 @@ const filteredSemesters = semesters.filter(semester =>
                 {`${subject.semester?.name} - ${subject.semester?.strand?.name || ''}`}
             </td>
             <td>
-                <button
-                    className="btn btn-primary custom-btn"
-                    onClick={() => handleEditShow(subject._id)}
-                >
-                    Edit
-                </button>
-                <button
-                    className="btn btn-danger custom-btn"
-                    onClick={() => handleShow(subject._id)}
-                >
-                    Delete
-                </button>
-            </td>
+                                                    <div className="action-buttons">
+                                                        <Button 
+                                                            variant="outline-success" 
+                                                            size="sm" 
+                                                                className="btn-action"
+                                                                onClick={() => handleEditShow(subject._id)}
+                                                        >
+                                                            <i className="bi bi-pencil-square me-1"></i>
+                                                            Edit
+                                                        </Button>
+                                                        <Button 
+                                                            variant="outline-danger" 
+                                                            size="sm" 
+                                                            className="btn-action"
+                                                            onClick={() => handleShow(subject._id)}
+                                                        >
+                                                            <i className="bi bi-trash me-1"></i>
+                                                            Delete
+                                                        </Button>
+                                                    </div>
+                                                </td>
         </tr>
     ))}
 </tbody>
 
 
                             </Table>
+                            </Card.Body>
+                        </Card>
 
 
-                                <div className="d-flex justify-content-between">
-                                    <Button
-                                        variant="secondary"
-                                        onClick={() => handlePageChange('prev')}
+                            <div className="d-flex justify-content-between mt-3">
+                                    <Button 
+                                        variant="outline-primary" 
+                                        size="sm"
                                         disabled={currentPage === 1}
+                                        onClick={() => handlePageChange('prev')}
                                     >
                                         Previous
                                     </Button>
-                                    <Button
-                                        variant="secondary"
-                                        onClick={() => handlePageChange('next')}
+                                    <span>Page {currentPage} of {totalPages}</span>
+                                    <Button 
+                                        variant="outline-primary" 
+                                        size="sm"
                                         disabled={currentPage === totalPages}
+                                        onClick={() => handlePageChange('next')}
                                     >
                                         Next
                                     </Button>
                                 </div>
+
                             </Card.Body>
                         </Card>
                     </Container>
@@ -469,11 +486,11 @@ const filteredSemesters = semesters.filter(semester =>
         </Modal.Header>
         <Modal.Body>The data will be erased and cannot be retrieved. Are you sure you want to continue?</Modal.Body>
         <Modal.Footer className='justify-content-center'>
-        <Button variant="primary" className="px-4" onClick={() => setShow(false)}>
+        <Button variant="outline-secondary" className="px-4" onClick={() => setShow(false)}>
             Cancel
           </Button>
       <Button 
-            variant="danger" 
+            variant="outline-danger" 
             className="px-4" 
             onClick={() => selectedSubjectId && deleteHandler(selectedSubjectId)}
         >
@@ -543,6 +560,7 @@ const filteredSemesters = semesters.filter(semester =>
                     <Form.Label>Subject Name</Form.Label>
                     <Form.Control
                         type="text"
+                        placeholder='Enter subject name'
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         required
@@ -562,10 +580,10 @@ const filteredSemesters = semesters.filter(semester =>
         </Form>
     </Modal.Body>
     <Modal.Footer>
-        <Button variant="secondary" onClick={handleCloseModal}>
+        <Button variant="outline-secondary" onClick={handleCloseModal}>
             Cancel
         </Button>
-        <Button variant="primary" onClick={handleSaveChanges}>
+        <Button variant="outline-success" onClick={handleSaveChanges}>
             Save Changes
         </Button>
     </Modal.Footer>

@@ -26,6 +26,7 @@ import TeacherEncodeGrade from './TeacherScreens/TeacherEncodeGrade';
 import TeacherGenerateForm from './TeacherScreens/TeacherGenerateForm';
 import StudentProfile from './StudentScreens/StudentProfile';
 import StudentViewGrades from './StudentScreens/StudentViewGrades';
+
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path='/' element={<App />}>

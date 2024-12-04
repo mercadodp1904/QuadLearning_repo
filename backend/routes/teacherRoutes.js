@@ -1,6 +1,6 @@
 import express from 'express';
 
-import { addGrade, updateGrade,  generateForm137, getTeacherSections, fillOutStudentForm, getStudentData, getTeacherSubjects, getSubjectGrades, getSubjectStudents, getTeacherAdvisoryClass } from '../controllers/teacherController.js';
+import { addGrade, updateGrade,  generateForm137, getTeacherSections, fillOutStudentForm, getTeacherDashboard, getStudentData, getTeacherSubjects, getSubjectGrades, getSubjectStudents, getTeacherAdvisoryClass } from '../controllers/teacherController.js';
 import { protect, authorizeRoles, teacher } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -26,5 +26,6 @@ router.get('/subjects', protect, teacher, getTeacherSubjects); // GET route for 
 router.get('/subject-grades/:subjectId', protect, teacher, getSubjectGrades); // GET route for fetching subject grades
 router.get('/subject-students', protect, teacher, getSubjectStudents); // GET route for fetching subject students
 router.get('/advisory-class', protect, teacher, getTeacherAdvisoryClass); // GET route for fetching teacher advisory class
+router.get('/dashboard', protect, teacher, getTeacherDashboard); // GET route for fetching teacher dashboard
 export default router;
 
