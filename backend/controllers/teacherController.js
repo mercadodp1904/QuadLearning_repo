@@ -412,24 +412,22 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
     try {
         const { studentId } = req.params;
 
-  
+        // Fetch the student data with necessary relationships populated
         const student = await Student.findById(studentId)
-            .populate('user')
-            .populate('yearLevel')
-            .populate('section')
-            .populate('strand')
-            .populate({
+        .populate([
+            { path: 'user' },
+            { path: 'yearLevel' },
+            { path: 'section' },
+            { path: 'strand' },
+            {
                 path: 'grades',
                 populate: [
                     { path: 'semester' },
                     { path: 'subjects.subject', model: 'Subject' }
                 ]
-            })
-            .lean();
-
-            console.log('Found student data:', student); // Debug log
-
-            
+            }
+        ])
+        .lean();
 
         if (!student) {
             res.status(404);
@@ -437,7 +435,7 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
         }
 
         // Compute full name dynamically
-        const fullName = `${student.firstName || ''} ${student.middleInitial ? student.middleInitial + '.' : ''} ${student.lastName || ''}`.trim();
+        const fullName = `${student.firstName} ${student.middleInitial ? student.middleInitial + '.' : ''} ${student.lastName}`.trim();
         const sanitizedStudentName = fullName.replace(/[\/\\?%*:|"<>]/g, '_');
 
         // Set up PDF document
@@ -496,11 +494,11 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 
         // Replace LRN with user.username
         drawField('LRN', student.user.username || 'N/A', 30, startY);
-        drawField('Name', fullName || 'N/A', 30, startY + 20);
-        drawField('Strand', student.strand?.name || 'N/A', 30, startY + 40);
-        drawField('Year Level', student.yearLevel?.name || 'N/A', 30, startY + 60);
-        drawField('Section', student.section?.name || 'N/A', 30, startY + 80);
-        drawField('Address', student.address || 'N/A', 30, startY + 100);
+        drawField('Name', fullName || 'N/A', 305, startY);
+        drawField('Strand', student.strand?.name || 'N/A', 30, startY + 20);
+        drawField('Year Level', student.yearLevel || 'N/A', 305, startY + 20);
+        drawField('Section', student.section?.name || 'N/A', 30, startY + 40);
+        drawField('Address', student.address || 'N/A', 305, startY + 40);
 
         doc.fontSize(15).text('Scholastic Grades\n', 220, 285, { underline: true });
 
