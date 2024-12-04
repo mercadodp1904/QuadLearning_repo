@@ -414,8 +414,20 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 
         // Fetch the student data with necessary relationships populated
         const student = await Student.findById(studentId)
-            .populate('section strand grades.subjects.subject grades.semester user')
-            .lean();
+        .populate([
+            { path: 'user' },
+            { path: 'yearLevel' },
+            { path: 'section' },
+            { path: 'strand' },
+            {
+                path: 'grades',
+                populate: [
+                    { path: 'semester' },
+                    { path: 'subjects.subject', model: 'Subject' }
+                ]
+            }
+        ])
+        .lean();
 
         if (!student) {
             res.status(404);
