@@ -424,7 +424,7 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
 
         // Fetch the student data with necessary relationships populated
         const student = await Student.findById(studentId)
-            .populate('section strand grades.subjects.subject grades.semester user')
+            .populate('section strand grades.subjects.subject grades.semester user yearLevel')
             .lean();
 
         if (!student) {
@@ -488,7 +488,7 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
         drawField('LRN', student.user.username || 'N/A', 30, startY);
         drawField('Name', fullName || 'N/A', 30, startY + 20);
         drawField('Strand', student.strand?.name || 'N/A', 30, startY + 40);
-        drawField('Year Level', student.yearLevel || 'N/A', 30, startY + 60);
+        drawField('Year Level', student.yearLevel?.name || 'N/A', 30, startY + 60);
         drawField('Section', student.section?.name || 'N/A', 30, startY + 80);
         drawField('Address', student.address || 'N/A', 30, startY + 100);
 
