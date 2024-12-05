@@ -40,19 +40,16 @@ const userSchema = mongoose.Schema({
         required: function() { return this.role === 'student'; }
     },
        // For teachers: multiple semesters
-       semesters: {
-        type: [{
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Semester'
-        }],
-        select: function() {
-            return this.role === 'teacher';
-        }
-    },
+    // For teachers: multiple semesters
+    semesters: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Semester'
+    }],
        // For teachers only - their advisory section
        advisorySection: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Section',
+        required: function() { return this.role === 'teacher'; }    
         // This will only be populated for teachers
     },
 
