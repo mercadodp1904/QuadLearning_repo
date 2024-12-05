@@ -84,7 +84,7 @@ const StudentViewGrades = () => {
                 ) : (
                     grades.map((semester, index) => (
                         <Card key={index} className="mb-4">
-                            <Card.Header className="bg-primary text-white">
+                            <Card.Header className="bg-success text-white">
                                 <h5 className="mb-0">{semester.name} - {semester.strand}</h5>
                             </Card.Header>
                             <Card.Body className="p-0">

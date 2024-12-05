@@ -73,8 +73,7 @@ const LoginScreen = () => {
               style={{ width: '100px', marginBottom: '20px' }}
             />
             <h1 className="h3 mb-3 fw-bold text-success">
-              <i className="bi bi-shield-lock me-2"></i>
-              Institutional Access Portal
+              TVNHS Access Portal
             </h1>
             <p className="text-muted">
               Secure login for administrators, teachers, and students
