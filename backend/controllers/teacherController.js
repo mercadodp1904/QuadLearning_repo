@@ -516,7 +516,9 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
         drawField('LRN', student.user.username || 'N/A', 30, startY);
         drawField('Name', fullName || 'N/A', 305, startY);
         drawField('Strand', student.strand?.name || 'N/A', 30, startY + 20);
+
         drawField('Year Level', student.yearLevel?.name || 'N/A', 305, startY + 20);
+
         drawField('Section', student.section?.name || 'N/A', 30, startY + 40);
         drawField('Address', student.address || 'N/A', 305, startY + 40);
 

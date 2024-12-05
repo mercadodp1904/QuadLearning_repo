@@ -8,15 +8,8 @@ const router = express.Router();
 router.post('/grades', protect, authorizeRoles('teacher'), addGrade);
 router.put('/grades/:id', protect, authorizeRoles('teacher'), updateGrade);
 
-// Route for generating Form 137 for a specific student
-/* router.post(
-    '/generate-form137/:studentId',
-    //protect, // Ensure the user is authenticated
-    //authorizeRoles('teacher'), // Allow only teachers
-    generateForm137 // Generate Form 137
-); */
 
-router.get('/generate-form137/:studentId', protect, teacher, generateForm137);
+router.post('/generate-form137/:studentId', protect, teacher, generateForm137);
 router.get('/sections', protect, teacher, getTeacherSections);
 
 
