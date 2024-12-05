@@ -39,15 +39,16 @@ const UpdateStudentModal = ({ show, handleClose, studentId, token }) => {
                     'Authorization': `Bearer ${token}`
                 }
             });
- 
+     
             if (!response.ok) {
                 throw new Error('Failed to fetch student data');
             }
- 
+     
             const data = await response.json();
             console.log('Received student data:', data);
- 
-            setFormData({
+     
+            setFormData(prevData => ({
+                ...prevData,
                 firstName: data.firstName || '',
                 lastName: data.lastName || '',
                 middleInitial: data.middleInitial || '',
@@ -64,17 +65,33 @@ const UpdateStudentModal = ({ show, handleClose, studentId, token }) => {
                     name: data.guardian?.name || '',
                     occupation: data.guardian?.occupation || ''
                 },
-                yearLevel: data.yearLevel?.name || '',
-                section: data.section?.name || '',
-                strand: data.strand?.name || '',
+                // Ensure these are populated with multiple fallback options
+                yearLevel: 
+                    data.yearLevel?.name || 
+                    data.yearLevel || 
+                    data.yearLevelName || 
+                    prevData.yearLevel || 
+                    '',
+                section: 
+                    data.section?.name || 
+                    data.section || 
+                    data.sectionName || 
+                    prevData.section || 
+                    '',
+                strand: 
+                    data.strand?.name || 
+                    data.strand || 
+                    data.strandName || 
+                    prevData.strand || 
+                    '',
                 school: {
-                    name: 'Tropical Village National Highschool',
+                    name: data.school?.name || 'Tropical Village National Highschool',
                     year: data.school?.year || ''
                 },
                 attendance: {
                     totalYears: data.attendance?.totalYears || ''
                 }
-            });
+            }));
         } catch (error) {
             console.error('Error fetching student data:', error);
             alert('Failed to load student data: ' + error.message);

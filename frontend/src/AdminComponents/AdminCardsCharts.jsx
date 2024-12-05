@@ -5,7 +5,20 @@ import './AdminSidebar.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import AdminSidebar from './AdminSidebar';
+import '../AdminComponents/AdminTableList.css';
 import { useState, useEffect } from 'react';
+const getRoleBadgeColor = (role) => {
+    switch (role.toLowerCase()) {
+        case 'admin':
+            return 'danger';
+        case 'teacher':
+            return 'success';
+        case 'student':
+            return 'info';
+        default:
+            return 'secondary';
+    }
+};
 
 const AdminCardsCharts = () => {
     const [dashboardData, setDashboardData] = useState({
@@ -219,7 +232,7 @@ const AdminCardsCharts = () => {
                 </InputGroup>
             </div>
         
-            <Table responsive hover>
+            <Table responsive hover className='custom-table text-center align-middle'>
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -235,7 +248,9 @@ const AdminCardsCharts = () => {
                         <tr key={user._id}>
                             <td>{user.username}</td>
                             <td>{user.createdAt}</td>
-                            <td>{user.role}</td>
+                            <td className='text-capitalize'><span className={`status-badge bg-${getRoleBadgeColor(user.role)}`}>
+                                                        {user.role}
+                                                    </span></td>
                         </tr>
                     ))}
             </tbody>

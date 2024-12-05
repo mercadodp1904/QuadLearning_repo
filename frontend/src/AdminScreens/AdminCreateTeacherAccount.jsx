@@ -418,13 +418,13 @@ useEffect(() => {
                                         />
                                     </InputGroup>
                                     <button 
-        className='btn btn-outline-success mx-2 px-10'
-        style={{ width: '150px' }} // Fixed width of 150 pixels
-        size="sm" 
-        onClick={() => setShowAddModal(true)}
-    >
-        Add Users
-    </button>
+    className='btn btn-outline-success mx-2 px-10'
+    style={{ width: '150px' }} // Fixed width of 150 pixels
+    size="sm" 
+    onClick={() => setShowAddModal(true)}
+>
+    Add Users
+</button>
                                 </div>
 
                                 {/* Teachers Table */}
@@ -432,92 +432,99 @@ useEffect(() => {
     <thead>
         <tr>
             <th>Teacher ID</th>
-            <th>Sections Handled</th>
+            <th>Sections</th>
             <th>Advisory Section</th>
             <th>Subjects</th>
             <th>Actions</th>
         </tr>
     </thead>
     <tbody>
-        {filteredUsers
-            .slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage)
-            .map(user => (
-                <tr key={user._id}>
-                    <td>
-                        <div className="d-flex align-items-center justify-content-center">
-                            {user.username}
-                        </div>
-                    </td>
-                    <td>
-                        <div className="subjects-list">
-                            {user.sections?.map((section) => (
-                                <span key={section._id} className="subject-pill">
-                                    {section.name}
+    {filteredUsers
+        .slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage)
+        .map(user => (
+            <tr key={user._id}>
+                <td>
+                    <div className="d-flex align-items-center justify-content-center">
+                        {user.username}
+                    </div>
+                </td>
+                <td>
+                    <div className="subjects-list">
+                        {user.sections?.length > 0 ? (
+                            user.sections.map((section) => (
+                                <span key={section?._id} className="subject-pill">
+                                    {section?.name || 'Unnamed Section'}
                                 </span>
-                            )) || 'No Sections'}
-                        </div>
-                    </td>
-                    <td>
-                        <span className="text-muted">
-                            {user.advisorySection?.name || 'Not Assigned'}
-                        </span>
-                    </td>
-                    <td>
-                        <div className="subjects-list">
-                            {user.subjects?.map((subject) => (
-                                <span key={subject._id} className="subject-pill">
-                                    {subject.name}
+                            ))
+                        ) : (
+                            'No Sections'
+                        )}
+                    </div>
+                </td>
+                <td>
+                    <span className="text-muted">
+                        {user.advisorySection ? user.advisorySection.name : 'Not Assigned'}
+                    </span>
+                </td>
+                <td>
+                    <div className="subjects-list">
+                        {user.subjects?.length > 0 ? (
+                            user.subjects.map((subject) => (
+                                <span key={subject?._id} className="subject-pill">
+                                    {subject?.name || 'Unnamed Subject'}
                                 </span>
-                            )) || 'No Subjects'}
-                        </div>
-                    </td>
-                    <td>
-                        <div className="action-buttons">
-                            <Button 
-                                variant="outline-success" 
-                                size="sm" 
-                                className="btn-action"
-                                onClick={() => handleEditShow(user)}
-                            >
-                                <i className="bi bi-pencil-square me-1"></i>
-                                Edit
-                            </Button>
-                            <Button 
-                                variant="outline-danger" 
-                                size="sm" 
-                                className="btn-action"
-                                onClick={() => handleShow(user._id)}
-                            >
-                                <i className="bi bi-trash me-1"></i>
-                                Delete
-                            </Button>
-                        </div>
-                    </td>
-                </tr>
-            ))}
-    </tbody>
-</Table>
-
-                                {/* Pagination controls */}
-                                <div className="d-flex justify-content-between mt-3">
-                                    <Button
-                                        variant="outline-primary" 
-                                        size="sm"
-                                        disabled={currentPage === 1}
-                                        onClick={() => handlePageChange('prev')}
-                                    >
-                                        Previous
-                                    </Button>
-                                    <span>Page {currentPage} of {totalPages}</span>
-                                    <Button 
-                                        variant="outline-primary" 
-                                        size="sm"
-                                        disabled={currentPage === totalPages}
-                                        onClick={() => handlePageChange('next')}
-                                    >
-                                        Next
-                                    </Button>
-                                </div>
+                            ))
+                        ) : (
+                            'No Subjects'
+                        )}
+                    </div>
+                </td>
+                <td>
+                    <div className="action-buttons">
+                        <Button 
+                            variant="outline-success" 
+                            size="sm" 
+                            className="btn-action"
+                            onClick={() => handleEditShow(user)}
+                        >
+                            <i className="bi bi-pencil-square me-1"></i>
+                            Edit
+                        </Button>
+                        <Button 
+                            variant="outline-danger" 
+                            size="sm" 
+                            className="btn-action"
+                            onClick={() => handleShow(user._id)}
+                        >
+                            <i className="bi bi-trash me-1"></i>
+                            Delete
+                        </Button>
+                    </div>
+                </td>
+            </tr>
+        ))}
+</tbody>
+</Table> {/* Closing tag for Table */} 
+{/* Pagination controls */}
+<div className="d-flex justify-content-between mt-3">
+    <Button
+        variant="outline-primary" 
+        size="sm"
+        disabled={currentPage === 1}
+        onClick={() => handlePageChange('prev')}
+    >
+        Previous
+    </Button>
+    <span>Page {currentPage} of {totalPages}</span>
+    <Button 
+        variant="outline-primary" 
+        size="sm"
+        disabled={currentPage === totalPages}
+        onClick={() => handlePageChange('next')}
+    >
+        Next
+    </Button>
+</div>
 
                                 {/* Add Modal */}
 <Modal 

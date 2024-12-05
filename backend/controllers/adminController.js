@@ -474,10 +474,17 @@ const deleteUserAccount = asyncHandler(async (req, res) => {
 const getAllUsers = asyncHandler(async (req, res) => {
     const users = await User.find()
         .select('-password') // Exclude the password field
+        .populate('semesters', 'name') // Populate the semesters with their name field
         .populate('strand', 'name') // Replace `strand` ID with the document, selecting only the `name` field
         .populate('sections', 'name') // Replace `section` ID with the document, selecting only the `name` field
-        .populate('subjects', 'name'); // Replace `subjects` IDs with documents, selecting only the `name` field
-    res.json(users);
+        .populate('subjects', 'name') // Replace `subjects` IDs with documents, selecting only the `name` field
+        .populate({
+            path: 'advisorySection',
+            match: { /* Add any conditions here if needed */ },
+            options: { lean: true }
+        })
+        .exec();
+        res.json(users);
 });
 
 
@@ -653,7 +660,7 @@ const updateSection = asyncHandler(async (req, res) => {
     }
 
     // Find year level record
-    const yearLevelRecord = await YearLevel.findOne({ name: yearLevel });
+    const yearLevelRecord = await YearLevel.findById(yearLevel); // Change to findById
     if (!yearLevelRecord) {
         res.status(404);
         throw new Error('Year level not found');
@@ -665,7 +672,7 @@ const updateSection = asyncHandler(async (req, res) => {
         {
             name: name || section.name,
             strand: strand || section.strand,
-            yearLevel: yearLevelRecord._id // Use the year level record's ID
+            yearLevel: yearLevelRecord._id // Use _id to ensure correct reference
         },
         { new: true }
     ).populate('strand').populate('yearLevel');
@@ -792,8 +799,14 @@ const filterSubjects = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/subjects/:id
 // @access  Private (admin role)
 const updateSubject = asyncHandler(async (req, res) => {
-    const { name, code, semester, yearLevel, strand, } = req.body;
+    const { name, code, semester, yearLevel, strand } = req.body;
     const { id } = req.params;
+
+    // Validate inputs
+    if (!name || !code || !semester || !yearLevel || !strand) {
+        res.status(400);
+        throw new Error('All fields are required');
+    }
 
     const subject = await Subject.findById(id);
     if (!subject) {
@@ -801,14 +814,20 @@ const updateSubject = asyncHandler(async (req, res) => {
         throw new Error('Subject not found');
     }
 
+    // Update subject
     subject.name = name;
     subject.strand = strand;
     subject.yearLevel = yearLevel;
     subject.code = code;
     subject.semester = semester;
-    const updatedSubject = await subject.save();
 
-    res.json(updatedSubject);
+    try {
+        const updatedSubject = await subject.save();
+        res.json(updatedSubject);
+    } catch (error) {
+        res.status(500);
+        throw new Error('Failed to update subject: ' + error.message);
+    }
 });
 
 // @desc    Delete a subject
@@ -871,18 +890,25 @@ const createSemester = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/strands
 // @access  Private (admin role)
 const getAllSemesters = asyncHandler(async (req, res) => {
-    const semesters = await Semester.find()
-        .populate('strand', 'name') // Populate the strand field
-        .populate('yearLevel', 'name') // Populate the year level field
-        .sort({ createdAt: -1 });
+    try {
+        const semesters = await Semester.find()
+            .populate('strand', 'name') // Populate strand's name field
+            .populate('yearLevel', 'name') // Populate yearLevel's name field
+            .sort({ createdAt: -1 })
+            .lean(); // Use lean to simplify the returned objects
 
-          // Transform the data to include the combined name
-    const formattedSemesters = semesters.map(semester => ({
-        ...semester._doc,
-        displayName: `${semester.name} - ${semester.strand.name}`
-    }));
-    res.json(formattedSemesters);
+        const formattedSemesters = semesters.map((semester) => ({
+            ...semester,
+            displayName: `${semester.name} - ${semester.strand?.name || 'No Strand'}`, // Fallback for strand.name
+        }));
+
+        res.status(200).json(formattedSemesters);
+    } catch (error) {
+        console.error('Error fetching semesters:', error);
+        res.status(500).json({ message: 'Failed to fetch semesters' });
+    }
 });
+
 
 // @desc    Update a semester
 // @route   PUT /api/admin/semesters/:id
