@@ -205,7 +205,7 @@ const TeacherGenerateForm = () => {
                                         <td className="px-4 py-3">{student.strand}</td>
                                         <td>
                                             <Button
-                                                variant="outline-primary" 
+                                                variant="outline-success" 
                                                 size="sm"
                                                 onClick={() => handleSelectStudent(student._id)}
                                             >

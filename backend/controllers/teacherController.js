@@ -3,13 +3,14 @@ import User from '../models/userModel.js';
 import Section from '../models/sectionModel.js';
 import Student from '../models/studentModel.js';
 import Subject from '../models/subjectModel.js';
+import Semester from '../models/semesterModel.js';
 import PDFDocument from 'pdfkit';
 import blobStream from 'blob-stream';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import ExcelJS from 'exceljs';
-
+import mongoose from 'mongoose';
 // Derive __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename)
@@ -247,99 +248,90 @@ const importStudents = asyncHandler(async (req, res) => {
 });
 
 
-// @desc    Add grade for a student
-// @route   POST /api/teacher/grades
-// @access  Private (teacher role)
 const addGrade = asyncHandler(async (req, res) => {
+  const { studentId, subjectId, gradeType, gradeValue, semesterId } = req.body;
 
+  // Validate input
+  if (!studentId || !subjectId || !gradeType || !semesterId) {
+    res.status(400);
+    throw new Error("All fields are required");
+  }
 
-    const { studentId, subjectId, gradeType, gradeValue, semesterId } = req.body;
+  if (gradeValue < 0 || gradeValue > 100) {
+    res.status(400);
+    throw new Error("Grade must be between 0 and 100");
+  }
 
-    // Validate input
-    if (!studentId || !subjectId || !gradeType || !semesterId) {
-        res.status(400);
-        throw new Error('All fields are required');
+  try {
+    // Step 1: Find the student
+    const student = await Student.findOne({ user: studentId });
+    if (!student) {
+      res.status(404);
+      throw new Error("Student not found");
     }
 
-    // Validate grade value
-    if (gradeValue < 0 || gradeValue > 100) {
-
-        res.status(400);
-        throw new Error('Grade must be between 0 and 100');
+    // Step 2: Find or create the semester
+    let semester = student.grades.find((g) => g.semester.toString() === semesterId);
+    if (!semester) {
+      // Add a new semester if it doesn't exist
+      semester = { semester: semesterId, subjects: [] };
+      student.grades.push(semester);
     }
 
-
-    try {
-        // Find the student
-        const student = await Student.findOne({ user: studentId });
-        if (!student) {
-            res.status(404);
-            throw new Error('Student not found');
-        }
-
-        // Find or create semester grades
-        let semesterGrades = student.grades.find(g => 
-            g.semester.toString() === semesterId
-        );
-
-        if (!semesterGrades) {
-            student.grades.push({
-                semester: semesterId,
-                subjects: []
-            });
-            semesterGrades = student.grades[student.grades.length - 1];
-        }
-
-        // Find or create subject grades
-        let subjectGrade = semesterGrades.subjects.find(s => 
-            s.subject.toString() === subjectId
-        );
-
-        if (!subjectGrade) {
-            semesterGrades.subjects.push({
-                subject: subjectId,
-                midterm: null,
-                finals: null,
-                finalRating: null,
-                action: null
-            });
-            subjectGrade = semesterGrades.subjects[semesterGrades.subjects.length - 1];
-        }
-
-        // Update the grade
-        if (gradeType === 'midterm') {
-            subjectGrade.midterm = gradeValue;
-        } else if (gradeType === 'finals') {
-            subjectGrade.finals = gradeValue;
-        }
-
-        // Calculate final rating if both grades exist
-        if (subjectGrade.midterm !== null && subjectGrade.finals !== null) {
-            subjectGrade.finalRating = (subjectGrade.midterm + subjectGrade.finals) / 2;
-            subjectGrade.action = subjectGrade.finalRating >= 75 ? 'PASSED' : 'FAILED';
-        }
-
-        // Save the updated student record
-        await student.save();
-
-        res.status(200).json({
-            success: true,
-            data: {
-                studentId,
-                subjectId,
-                gradeType,
-                gradeValue,
-                finalRating: subjectGrade.finalRating,
-                action: subjectGrade.action
-            }
-        });
-
-    } catch (error) {
-        console.error('Error saving grade:', error);
-        res.status(500);
-        throw new Error('Error saving grade: ' + error.message);
+    // Step 3: Find or create the subject
+    let subject = semester.subjects.find((s) => s.subject.toString() === subjectId);
+    if (!subject) {
+      // Add a new subject if it doesn't exist
+      subject = {
+        subject: subjectId,
+        midterm: null,
+        finals: null,
+        finalRating: null,
+        action: null,
+      };
+      semester.subjects.push(subject);
     }
+
+    // Step 4: Update the grade
+    if (gradeType === "midterm") subject.midterm = gradeValue;
+    if (gradeType === "finals") subject.finals = gradeValue;
+
+    // Step 5: Calculate final rating and action if both grades exist
+    if (subject.midterm !== null && subject.finals !== null) {
+      subject.finalRating = (subject.midterm + subject.finals) / 2;
+      subject.action = subject.finalRating >= 75 ? "PASSED" : "FAILED";
+    }
+
+    // Step 6: Save the updated student record
+    const updatedStudent = await Student.findOneAndUpdate(
+      { user: studentId }, // filter to find the student
+      { $set: { "grades": student.grades } }, // update grades array
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedStudent) {
+      res.status(404);
+      throw new Error("Failed to update student grades");
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        studentId,
+        subjectId,
+        gradeType,
+        gradeValue,
+        finalRating: subject.finalRating,
+        action: subject.action,
+      },
+    });
+  } catch (error) {
+    console.error("Error saving grade:", error);
+    res.status(500);
+    throw new Error("Error saving grade: " + error.message);
+  }
 });
+    
 // @desc    Update grade for a student
 // @route   PUT /api/grades/:id
 // @access  Private (teacher role)
@@ -606,10 +598,16 @@ const getTeacherSections = asyncHandler(async (req, res) => {
                 .populate({
                     path: 'students',
                     model: 'User',
-                    select: 'username yearLevel strand sections' // Only select fields we need
+                    select: 'username yearLevel strand sections' 
                 })
-                .populate('yearLevel')
-                .populate('strand')
+                .populate({
+                    path: 'yearLevel',
+                    select: 'name'
+                })
+                .populate({
+                    path: 'strand',
+                    select: 'name'
+                })
                 .lean(),
             
             User.findById(req.user._id)
@@ -617,29 +615,31 @@ const getTeacherSections = asyncHandler(async (req, res) => {
                 .lean()
         ]);
 
+        // Check if sections exist
+        if (!sections || sections.length === 0) {
+            return res.status(200).json([]);
+        }
+
         // Format the sections data
         const formattedSections = sections.map(section => ({
             ...section,
-            students: section.students.map(student => {
-                return {
-                    _id: student._id,
-                    username: student.username,
-                    // Use the student's own yearLevel, not the section's
-                    yearLevel: student.yearLevel || 'Not Set',
-                    // Use the section's strand instead of student's "Not Set" value
-                    strand: section.strand?.name || 'Not Set',
-                    sectionName: section.name,
-                    isAdvisory: teacherData.advisorySection?._id.toString() === section._id.toString()
-                };
-            })
+            students: section.students.map(student => ({
+                _id: student._id,
+                username: student.username,
+                yearLevel: student.yearLevel || 'Not Set',
+                strand: section.strand?.name || 'Not Set',
+                sectionName: section.name,
+                isAdvisory: teacherData.advisorySection?._id.toString() === section._id.toString()
+            }))
         }));
 
         console.log('Formatted sections:', JSON.stringify(formattedSections, null, 2)); // Debug log
 
-        res.json(formattedSections);
+        res.status(200).json(formattedSections);
     } catch (error) {
         console.error('Error fetching teacher sections:', error);
         res.status(500).json({ 
+            success: false,
             message: 'Error fetching sections',
             error: error.message 
         });
@@ -715,9 +715,24 @@ const getStudentData = asyncHandler(async (req, res) => {
                     },
                     contactNumber: student.contactNumber,
                     // Academic info
-                    yearLevel: user?.yearLevel?.name || '',
-                    section: user?.sections?.[0]?.name || '',
-                    strand: user?.strand?.name || ''
+                    yearLevel: 
+                    student.yearLevel?.name || 
+                    user?.yearLevel?.name || 
+                    student.yearLevel || 
+                    user?.yearLevel || 
+                    '',
+                section: 
+                    student.section?.name || 
+                    user?.sections?.[0]?.name || 
+                    student.section || 
+                    user?.sections?.[0] || 
+                    '',
+                strand: 
+                    student.strand?.name || 
+                    user?.strand?.name || 
+                    student.strand || 
+                    user?.strand || 
+                    '',
                 }
             });
         } catch (error) {
@@ -736,26 +751,46 @@ const getStudentData = asyncHandler(async (req, res) => {
 const getTeacherSubjects = asyncHandler(async (req, res) => {
     const { semesterId } = req.query; // Get semester from query params
 
+    // Validate semesterId
+    if (!semesterId) {
+        return res.status(400).json({
+            success: false,
+            message: 'Semester ID is required'
+        });
+    }
+
     try {
         // Get teacher's subjects filtered by semester
         const teacherData = await User.findById(req.user._id)
             .populate({
                 path: 'subjects',
-                match: { semester: semesterId }, // Only get subjects for this semester
-                select: 'name semester'
+                match: { semester: semesterId }, 
+                select: 'name semester _id'
             })
-            .select('subjects');
+            .select('subjects')
+            .lean();
 
-        if (!teacherData || !teacherData.subjects) {
-            return res.json([]);
+        if (!teacherData) {
+            return res.status(404).json({
+                success: false,
+                message: 'Teacher not found'
+            });
         }
 
-        res.json(teacherData.subjects);
+        // Return subjects or empty array
+        const subjects = teacherData.subjects || [];
+
+        console.log('Fetched Subjects:', subjects); // Debug log
+
+        res.status(200).json(subjects);
         
     } catch (error) {
         console.error('Error in getTeacherSubjects:', error);
-        res.status(500);
-        throw new Error('Error fetching subjects: ' + error.message);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching subjects',
+            error: error.message
+        });
     }
 });
 
@@ -887,7 +922,14 @@ const getSubjectGrades = asyncHandler(async (req, res) => {
 const getTeacherAdvisoryClass = asyncHandler(async (req, res) => {
     try {
         const teacher = await Teacher.findOne({ user: req.user._id })
-            .populate('advisoryClass')
+            .populate({
+                path: 'advisoryClass',
+                populate: {
+                    path: 'yearLevel',
+                    select: 'name'
+                }
+            })
+            .populate('yearLevel')
             .lean();
 
         if (!teacher || !teacher.advisoryClass) {
@@ -897,19 +939,28 @@ const getTeacherAdvisoryClass = asyncHandler(async (req, res) => {
             });
         }
 
+        // Add more detailed logging
+        console.log('Teacher Advisory Class:', {
+            advisoryClass: teacher.advisoryClass,
+            yearLevel: teacher.advisoryClass?.yearLevel
+        });
+
         res.status(200).json({
             success: true,
             advisoryClassId: teacher.advisoryClass._id,
-            advisoryClassName: teacher.advisoryClass.name
+            advisoryClassName: teacher.advisoryClass.name,
+            yearLevel: teacher.advisoryClass.yearLevel?.name
         });
     } catch (error) {
         console.error('Error fetching teacher advisory class:', error);
         res.status(500).json({
             success: false,
-            message: 'Error fetching advisory class information'
+            message: 'Error fetching advisory class information',
+            errorDetails: error.message
         });
     }
 });
+
 
 // @desc    Get teacher dashboard data
 // @route   GET /api/teacher/dashboard

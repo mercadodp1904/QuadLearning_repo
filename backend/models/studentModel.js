@@ -98,13 +98,19 @@ const studentSchema = mongoose.Schema(
                             required: true,
                         },
                         midterm: {
-                            type: Number, // Midterm grade
+                            type: Number,
+                            min: 0,
+                            max: 100
                         },
                         finals: {
-                            type: Number, // Finals grade
+                            type: Number,
+                            min: 0,
+                            max: 100
                         },
                         finalRating: {
-                            type: Number, // Average grade
+                            type: Number,
+                            min: 0,
+                            max: 100
                         },
                         action: {
                             type: String, // Pass/Fail
@@ -134,6 +140,7 @@ studentSchema.virtual('userData', {
 // Ensure virtuals are included when converting document to JSON
 studentSchema.set('toJSON', { virtuals: true });
 studentSchema.set('toObject', { virtuals: true });
+// Compound unique index to prevent duplicates
 
 // Create the Student model
 const Student = mongoose.model('Student', studentSchema);

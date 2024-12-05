@@ -66,6 +66,7 @@ useEffect(() => {
             }
             
             
+            
             setSections(sectionsData);
 
             // Extract unique strands and year levels from sections
@@ -91,9 +92,10 @@ useEffect(() => {
 
 
 
-// Update the handleViewStudent function to refresh data after modal closes
 const handleViewStudent = (student) => {
     setSelectedStudentId(student._id);
+    
+    // Pass the student's section, strand, and year level details directly
     setShowModal(true);
 };
 
