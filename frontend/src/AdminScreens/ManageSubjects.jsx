@@ -27,11 +27,13 @@ const ManageSubjects = () => {
     const [editModalShow, setEditModalShow] = useState(false);
     const [yearLevels, setYearLevels] = useState([]);
 
-// Update your filteredSemesters logic
-const filteredSemesters = semesters.filter(semester => 
-    semester.strand._id === selectedStrand && 
-    semester.yearLevel._id === selectedYearLevel
-);
+    // Update your filteredSemesters logic
+    // Filtering and Pagination
+    const filteredSemesters = Array.isArray(semesters)
+    ? semesters.filter((semester) =>
+          semester.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : [];  // Default to an empty array if it's not an array
 
 
     const handleClose = () => {

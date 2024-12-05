@@ -5,7 +5,7 @@ import User from '../models/userModel.js'
 const protect = async (req, res, next) => {
     let token;
  const authHeader = req.headers.authorization; // Get the Authorization header
-    console.log('Authorization Header:', authHeader); // Log the header for debugging
+    //console.log('Authorization Header:', authHeader); // Log the header for debugging
     // Check if token is in headers
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         try {
