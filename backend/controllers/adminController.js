@@ -653,7 +653,7 @@ const updateSection = asyncHandler(async (req, res) => {
     }
 
     // Find year level record
-    const yearLevelRecord = await YearLevel.findOne({ name: yearLevel });
+    const yearLevelRecord = await YearLevel.findById(yearLevel); // Change to findById
     if (!yearLevelRecord) {
         res.status(404);
         throw new Error('Year level not found');
@@ -665,7 +665,7 @@ const updateSection = asyncHandler(async (req, res) => {
         {
             name: name || section.name,
             strand: strand || section.strand,
-            yearLevel: yearLevelRecord._id // Use the year level record's ID
+            yearLevel: yearLevelRecord._id // Use _id to ensure correct reference
         },
         { new: true }
     ).populate('strand').populate('yearLevel');
@@ -792,8 +792,14 @@ const filterSubjects = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/subjects/:id
 // @access  Private (admin role)
 const updateSubject = asyncHandler(async (req, res) => {
-    const { name, code, semester, yearLevel, strand, } = req.body;
+    const { name, code, semester, yearLevel, strand } = req.body;
     const { id } = req.params;
+
+    // Validate inputs
+    if (!name || !code || !semester || !yearLevel || !strand) {
+        res.status(400);
+        throw new Error('All fields are required');
+    }
 
     const subject = await Subject.findById(id);
     if (!subject) {
@@ -801,14 +807,20 @@ const updateSubject = asyncHandler(async (req, res) => {
         throw new Error('Subject not found');
     }
 
+    // Update subject
     subject.name = name;
     subject.strand = strand;
     subject.yearLevel = yearLevel;
     subject.code = code;
     subject.semester = semester;
-    const updatedSubject = await subject.save();
 
-    res.json(updatedSubject);
+    try {
+        const updatedSubject = await subject.save();
+        res.json(updatedSubject);
+    } catch (error) {
+        res.status(500);
+        throw new Error('Failed to update subject: ' + error.message);
+    }
 });
 
 // @desc    Delete a subject

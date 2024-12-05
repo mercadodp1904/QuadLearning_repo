@@ -81,7 +81,7 @@ const filteredSemesters = semesters.filter(semester =>
         const updatedSubject = {
             name,
             code,
-            semester,
+            semester: selectedSemester,
             yearLevel: selectedYearLevel,
             strand: selectedStrand
         };

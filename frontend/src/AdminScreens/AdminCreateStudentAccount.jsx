@@ -667,7 +667,7 @@ console.log('Filtered Users:', filteredUsers);
                             <option value="">Select Strand</option>
                             {strands.map(strand => (
                                 <option key={strand._id} value={strand._id}>
-                                    {strand.name}
+                                    {strand.name} 
                                 </option>
                             ))}
                         </Form.Select>
@@ -684,7 +684,7 @@ console.log('Filtered Users:', filteredUsers);
                             <option value="">Select Semester</option>
                             {semesters.map(semester => (
                                 <option key={semester._id} value={semester._id}>
-                                    {semester.name} - {semester.strand.name}
+                                    {semester.name} - {semester.strand.name} - {semester.yearLevel.name}
                                 </option>
                             ))}
                         </Form.Select>
@@ -701,7 +701,7 @@ console.log('Filtered Users:', filteredUsers);
                             <option value="">Select Section</option>
                             {filteredSections.map(section => (
                                 <option key={section._id} value={section._id}>
-                                    {section.name}
+                                    {section.name} - {section.yearLevel.name}
                                 </option>
                             ))}
                         </Form.Select>
