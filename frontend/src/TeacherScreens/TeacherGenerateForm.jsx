@@ -11,16 +11,26 @@ const TeacherGenerateForm = () => {
 
     const handleGenerateForm = async (studentId) => {
         try {
-            console.log('Generating form for student:', studentId);
+            console.log('Attempting to generate form for studentId:', studentId);
+    
+            // Verify studentId before fetch
+            if (!studentId) {
+                throw new Error('Invalid Student ID');
+            }
     
             const response = await fetch(`/api/teacher/generate-form137/${studentId}`, {
+                method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
                 }
             });
     
+            console.log('Response Status:', response.status);
+    
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: 'Failed to generate Form 137' }));
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Error Response:', errorData);
                 throw new Error(errorData.message || 'Failed to generate Form 137');
             }
     
@@ -28,14 +38,14 @@ const TeacherGenerateForm = () => {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `form137-${studentId}.pdf`;
+            a.download = `form137-${studentId}`.pdf;
             document.body.appendChild(a);
             a.click();
             a.remove();
-            window.URL.revokeObjectURL(url); // Clean up
+            window.URL.revokeObjectURL(url);
         } catch (error) {
-            console.error('Error generating Form 137:', error);
-            setError('Failed to generate Form 137: ' + error.message);
+            console.error('Detailed Error generating Form 137:', error);
+            setError(`Failed to generate Form 137: ${error.message}`);
         }
     };
 

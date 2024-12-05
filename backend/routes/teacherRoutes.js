@@ -9,7 +9,7 @@ router.post('/grades', protect, authorizeRoles('teacher'), addGrade);
 router.put('/grades/:id', protect, authorizeRoles('teacher'), updateGrade);
 
 
-router.post('/generate-form137/:studentId', protect, teacher, generateForm137);
+router.get('/generate-form137/:studentId', protect, teacher, generateForm137);
 router.get('/sections', protect, teacher, getTeacherSections);
 
 
@@ -22,4 +22,3 @@ router.get('/subject-students', protect, teacher, getSubjectStudents); // GET ro
 router.get('/advisorySections', protect, teacher, getTeacherAdvisoryClass); // GET route for fetching teacher advisory class
 router.get('/dashboard', protect, teacher, getTeacherDashboard); // GET route for fetching teacher dashboard
 export default router;
-

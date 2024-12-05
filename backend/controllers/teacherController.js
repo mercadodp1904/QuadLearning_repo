@@ -466,12 +466,12 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
             fs.mkdirSync(pdfDirectory, { recursive: true });
         }
 
-        const filePath = path.join(pdfDirectory, `form137-${sanitizedStudentName}`.pdf);
+        const filePath = path.join(pdfDirectory, `form137-${sanitizedStudentName}.pdf`);
         const writeStream = fs.createWriteStream(filePath);
 
         // Configure PDF response headers
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=form137-${sanitizedStudentName}`.pdf);
+        res.setHeader('Content-Disposition', `attachment; filename=form137-${sanitizedStudentName}.pdf`);
 
         doc.pipe(res);
         doc.pipe(writeStream);
