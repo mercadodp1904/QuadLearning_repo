@@ -361,7 +361,7 @@ const ManageSections = () => {
                         <tbody className='text-center'>
                             {currentEntries.map((section) => (
                                 <tr key={section._id}>
-                                    <td>{`${section.name ? section.name : 'N/A'} - ${section.yearLevel ? section.yearLevel.name : 'N/A'}`}</td>
+                                    <td>{`${section.name ? section.name : 'N/A'}`}</td>
                                     <td>{section.strand ? section.strand.name : 'N/A'}</td>
                                     <td>{section.yearLevel ? section.yearLevel.name : 'N/A'}</td> {/* Update this line */}
                                     <td>

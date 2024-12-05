@@ -486,7 +486,7 @@ useEffect(() => {
                                 variant="outline-danger" 
                                 size="sm" 
                                 className="btn-action"
-                                onClick={() => handleDelete(user._id)}
+                                onClick={() => handleShow(user._id)}
                             >
                                 <i className="bi bi-trash me-1"></i>
                                 Delete
@@ -580,7 +580,7 @@ useEffect(() => {
             >
                 {sections.map((section) => (
                     <option key={section._id} value={section._id}>
-                        {section.name}
+                        {section.name} - {section.yearLevel.name}
                     </option>
                 ))}
             </Form.Select>
@@ -616,7 +616,7 @@ useEffect(() => {
             >
                 {semesters.map((semester) => (
                     <option key={semester._id} value={semester._id}>
-                        {semester.name}
+                        {semester.name} - {semester.strand.name} - {semester.yearLevel.name}
                     </option>
                 ))}
             </Form.Select>
@@ -704,24 +704,24 @@ useEffect(() => {
             <div style={{...modalStyles.formSection, ...modalStyles.fullWidth}}>
                 <h6 className="mb-3">Teaching Assignment</h6>
                 <div style={modalStyles.formGrid}>
-                    <Form.Group>
-                        <Form.Label>Sections*</Form.Label>
-                        <Form.Select
-                            multiple
-                            value={editUser.sections}
-                            onChange={(e) => setEditUser({
-                                ...editUser,
-                                sections: Array.from(e.target.selectedOptions, option => option.value)
-                            })}
-                            required
-                        >
-                            {sections.map((section) => (
-                                <option key={section._id} value={section._id}>
-                                    {section.name}
-                                </option>
-                            ))}
-                        </Form.Select>
-                    </Form.Group>
+                <Form.Group>
+    <Form.Label>Sections*</Form.Label>
+    <Form.Select
+        multiple
+        value={editUser.sections}
+        onChange={(e) => setEditUser({
+            ...editUser,
+            sections: Array.from(e.target.selectedOptions, option => option.value)
+        })}
+        required
+    >
+        {sections.map((section) => (
+            <option key={section._id} value={section._id}>
+                {section.name} - {section.yearLevel.name || 'No Year Level'}
+            </option>
+        ))}
+    </Form.Select>
+</Form.Group>
 
                     <Form.Group>
                         <Form.Label>Advisory Section</Form.Label>
