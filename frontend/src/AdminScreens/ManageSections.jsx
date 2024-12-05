@@ -305,13 +305,13 @@ const ManageSections = () => {
 
                                     <div className="d-flex gap-2">
                                         <Button
-                                            variant="secondary"
+                                            variant="outline-secondary"
                                             onClick={() => navigate('/admin/ManageSections')}
                                         >
                                             Cancel
                                         </Button>
                                         <Button
-                                            variant="primary"
+                                            variant="outline-success"
                                             type="submit"
                                             disabled={loading}
                                         >
@@ -347,61 +347,73 @@ const ManageSections = () => {
                                     </Form.Select>
                                 </div>
 
-                                <Table striped bordered hover responsive>
-    <thead>
-        <tr className='text-center'>
-            <th>Section Name</th>
-            <th>Strand</th>
-            <th>Year Level</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody className='text-center'>
-        {currentEntries.map((section) => (
-            <tr key={section._id}>
-                <td>{`${section.name ? section.name : 'N/A'} - ${section.yearLevel ? section.yearLevel.name : 'N/A'}`}</td>
-                <td>{section.strand ? section.strand.name : 'N/A'}</td>
-                <td>{section.yearLevel ? section.yearLevel.name : 'N/A'}</td> {/* Update this line */}
-                <td>
-                    <div className="button-group">
-                        <button
-                            className="btn btn-primary custom-btn"
-                            onClick={() => handleEditShow(section._id)}
-                        >
-                            Edit
-                        </button>
-                        <button
-                            className="btn btn-danger custom-btn"
-                            onClick={() => handleShow(section._id)}
-                        >
-                            Delete
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        ))}
-    </tbody>
-</Table>
+                                <Card className="shadow-sm">
+                    <Card.Body className="p-0">
+                    <Table responsive hover className='custom-table text-center align-middle'>
+                            <thead className="bg-light">
+                            <tr className='text-center'>
+                                <th>Section Name</th>
+                                <th>Strand</th>
+                                <th>Year Level</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className='text-center'>
+                            {currentEntries.map((section) => (
+                                <tr key={section._id}>
+                                    <td>{`${section.name ? section.name : 'N/A'} - ${section.yearLevel ? section.yearLevel.name : 'N/A'}`}</td>
+                                    <td>{section.strand ? section.strand.name : 'N/A'}</td>
+                                    <td>{section.yearLevel ? section.yearLevel.name : 'N/A'}</td> {/* Update this line */}
+                                    <td>
+                                                    <div className="action-buttons">
+                                                        <Button 
+                                                            variant="outline-success" 
+                                                            size="sm" 
+                                                                className="btn-action"
+                                                                onClick={() => handleEditShow(section._id)}
+                                                        >
+                                                            <i className="bi bi-pencil-square me-1"></i>
+                                                            Edit
+                                                        </Button>
+                                                        <Button 
+                                                            variant="outline-danger" 
+                                                            size="sm" 
+                                                            className="btn-action"
+                                                            onClick={() => handleShow(section._id)}
+                                                        >
+                                                            <i className="bi bi-trash me-1"></i>
+                                                            Delete
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </Table>
+                                    </Card.Body>
+                                </Card>
 
-                                <div className="d-flex justify-content-between">
-                                    <Button
-                                        variant="outline-primary"
-                                        onClick={() => handlePageChange('prev')}
+                                <div className="d-flex justify-content-between mt-3">
+                                    <Button 
+                                        variant="outline-primary" 
+                                        size="sm"
                                         disabled={currentPage === 1}
+                                        onClick={() => handlePageChange('prev')}
                                     >
                                         Previous
                                     </Button>
-                                    <span>
-                                        Page {currentPage} of {totalPages}
-                                    </span>
-                                    <Button
-                                        variant="outline-primary"
-                                        onClick={() => handlePageChange('next')}
+                                    <span>Page {currentPage} of {totalPages}</span>
+                                    <Button 
+                                        variant="outline-primary" 
+                                        size="sm"
                                         disabled={currentPage === totalPages}
+                                        onClick={() => handlePageChange('next')}
                                     >
                                         Next
                                     </Button>
                                 </div>
+
+
                             </Card.Body>
                         </Card>
                     </Container>
@@ -411,11 +423,11 @@ const ManageSections = () => {
         </Modal.Header>
         <Modal.Body>The data will be erased and cannot be retrieved. Are you sure you want to continue?</Modal.Body>
         <Modal.Footer className='justify-content-center'>
-        <Button variant="primary" className="px-4" onClick={() => setShow(false)}>
+        <Button variant="outline-secondary" className="px-4" onClick={() => setShow(false)}>
             Cancel
           </Button>
       <Button 
-            variant="danger" 
+            variant="outline-danger" 
             className="px-4" 
             onClick={() => selectedSectionId && deleteHandler(selectedSectionId)}
         >
@@ -479,10 +491,10 @@ const ManageSections = () => {
                                         </Form>
                                 </Modal.Body>
                                 <Modal.Footer>
-                                    <Button variant="secondary" onClick={handleCloseModal}>
+                                    <Button variant="outline-secondary" onClick={handleCloseModal}>
                                         Cancel
                                     </Button>
-                                    <Button variant="primary" onClick={handleSaveChanges}>
+                                    <Button variant="outline-success" onClick={handleSaveChanges}>
                                         Save Changes
                                     </Button>
                                 </Modal.Footer>

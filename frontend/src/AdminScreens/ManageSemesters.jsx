@@ -318,13 +318,13 @@ const handleEdit = (semester) => {
 
                                     <div className="d-flex gap-2">
                                         <Button 
-                                            variant="secondary" 
+                                            variant="outline-secondary" 
                                             onClick={() => navigate('/admin/ManageSemesters')}
                                         >
                                             Cancel
                                         </Button>
                                         <Button 
-                                            variant="primary" 
+                                            variant="outline-success" 
                                             type="submit"
                                             disabled={loading}
                                         >
@@ -368,7 +368,7 @@ const handleEdit = (semester) => {
                                 </div>
 
                                 {/* Update the table to show strand information */}
-                                    <Table striped bordered hover>
+                                <Table responsive hover className='custom-table text-center align-middle'>
                                         <thead className='text-center'>
                                             <tr>
                                                 <th>Strand</th>
@@ -388,22 +388,27 @@ const handleEdit = (semester) => {
                                                     <td>{new Date(semester.startDate).toLocaleDateString()}</td>
                                                     <td>{new Date(semester.endDate).toLocaleDateString()}</td>
                                                     <td>
-                                                        <Button
-                                                            variant="primary"
-                                                            size="sm"
-                                                            className="me-2"
-                                                            onClick={() => handleEdit(semester)}
+                                                    <div className="action-buttons">
+                                                        <Button 
+                                                            variant="outline-success" 
+                                                            size="sm" 
+                                                                className="btn-action"
+                                                                onClick={() => handleEdit(semester)}
                                                         >
+                                                            <i className="bi bi-pencil-square me-1"></i>
                                                             Edit
                                                         </Button>
-                                                        <Button
-                                                            variant="danger"
-                                                            size="sm"
+                                                        <Button 
+                                                            variant="outline-danger" 
+                                                            size="sm" 
+                                                            className="btn-action"
                                                             onClick={() => handleShow(semester._id)}
                                                         >
+                                                            <i className="bi bi-trash me-1"></i>
                                                             Delete
                                                         </Button>
-                                                    </td>
+                                                    </div>
+                                                </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -439,11 +444,11 @@ const handleEdit = (semester) => {
         </Modal.Header>
         <Modal.Body>The data will be erased and cannot be retrieved. Are you sure you want to continue?</Modal.Body>
         <Modal.Footer className='justify-content-center'>
-        <Button variant="primary" className="px-4" onClick={() => setShow(false)}>
+        <Button variant="outline-secondary" className="px-4" onClick={() => setShow(false)}>
             Cancel
           </Button>
       <Button 
-            variant="danger" 
+            variant="outline-danger" 
             className="px-4" 
             onClick={() => selectedSemesterId && deleteHandler(selectedSemesterId)}
         >
@@ -527,11 +532,11 @@ const handleEdit = (semester) => {
         </Form>
     </Modal.Body>
     <Modal.Footer>
-        <Button variant="secondary" onClick={handleCloseModal}>
+        <Button variant="outline-secondary" onClick={handleCloseModal}>
             Cancel
         </Button>
         <Button
-            variant="primary"
+            variant="outline-success"
             onClick={handleSaveChanges}
             disabled={loading}
         >

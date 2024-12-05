@@ -9,6 +9,7 @@ import '../AdminComponents/AdminTableList.css';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import Header from '../components/Header';
+import '../AdminComponents/AdminTableList.css';
 import axios from 'axios';
 const AdminViewAllUsersScreen = () => {
     const [show, setShow] = useState(false);
@@ -27,6 +28,20 @@ const AdminViewAllUsersScreen = () => {
         password: '',
         role: ''
     });
+
+    // Add this helper function
+const getRoleBadgeColor = (role) => {
+    switch (role.toLowerCase()) {
+        case 'admin':
+            return 'danger';
+        case 'teacher':
+            return 'success';
+        case 'student':
+            return 'info';
+        default:
+            return 'secondary';
+    }
+};
   
     useEffect(() => {
         const fetchUsers = async () => {
@@ -126,89 +141,106 @@ const AdminViewAllUsersScreen = () => {
         <Header/>
         <AdminSidebar/>
         <div className='d-flex'>
-        <main className="main-content flex-grow-1">
-        <Container fluid>
-             {/* User Accounts Table */}
-             <Card>
-        <Card.Body>
-            <Card.Title>User Accounts</Card.Title>
-            
-            {/* Table Controls */}
-            <div className="d-flex justify-content-between align-items-center mb-3">
-                <div className="d-flex align-items-center">
-                    <span>Show</span>
-                    <Form.Select 
-                        size="sm"
-                        className="mx-2"
-                        style={{ width: 'auto' }}
-                        value={entriesPerPage}
-                        onChange={(e) => setEntriesPerPage(Number(e.target.value))}
-                    >
-                        <option value={10}>10</option>
-                        <option value={25}>25</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                    </Form.Select>
-                    <span>entries</span>
-                </div>
-
-                <InputGroup style={{ width: '200px' }}>
-                    <InputGroup.Text>
-                        <FaSearch />
-                    </InputGroup.Text>
-                    <Form.Control
-                        placeholder="Search..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </InputGroup>
-            </div>
-        
-            <Table responsive hover className='table-striped table-bordered text-center'>
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Date Created</th>
-            <th>Role</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {filteredAccounts
-            .slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage)
-            .map(user => (
-                <tr key={user._id}>
-                    <td>{user.username || user.name}</td>
-                    <td>{user.createdAt}</td>
-                    <td>{user.role}</td>
-                    <td>
-                    <button onClick={() => handleShow(user._id)} className='btn btn-primary custom-btn'>Edit</button>
-                    </td>
-                </tr>
-            ))}
-    </tbody>
-</Table>
-
-
-             <div className="d-flex justify-content-between mt-3">
-                                    <Button 
-                                        variant="outline-primary" 
+            <main className="main-content flex-grow-1">
+                <Container fluid>
+                    <Card className="table-container">
+                        <Card.Body>
+                            <Card.Title className="mb-4">User Accounts</Card.Title>
+                            
+                            {/* Table Controls */}
+                            <div className="table-controls">
+                                <div className="d-flex align-items-center">
+                                    <span>Show</span>
+                                    <Form.Select 
                                         size="sm"
-                                        disabled={currentPage === 1}
-                                        onClick={() => handlePageChange('prev')}
+                                        className="entries-select mx-2"
+                                        value={entriesPerPage}
+                                        onChange={(e) => setEntriesPerPage(Number(e.target.value))}
                                     >
-                                        Previous
-                                    </Button>
-                                    <span>Page {currentPage} of {totalPages}</span>
-                                    <Button 
-                                        variant="outline-primary" 
-                                        size="sm"
-                                        disabled={currentPage === totalPages}
-                                        onClick={() => handlePageChange('next')}
-                                    >
-                                        Next
-                                    </Button>
-                                </div> 
+                                        <option value={10}>10</option>
+                                        <option value={25}>25</option>
+                                        <option value={50}>50</option>
+                                        <option value={100}>100</option>
+                                    </Form.Select>
+                                    <span>entries</span>
+                                </div>
+
+                                <div className="search-container">
+                                    <FaSearch className="search-icon" />
+                                    <Form.Control
+                                        className="search-input"
+                                        placeholder="Search..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        
+                            <Table responsive hover className='custom-table text-center align-middle'>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Date Created</th>
+                                        <th>Role</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredAccounts
+                                        .slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage)
+                                        .map(user => (
+                                            <tr key={user._id}>
+                                                <td>{user.username || user.name}</td>
+                                                <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                                                <td className='text-capitalize text-white'>
+                                                    <span className={`status-badge bg-${getRoleBadgeColor(user.role)}`}>
+                                                        {user.role}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div className="action-buttons">
+                                                        <Button 
+                                                            variant="outline-success" 
+                                                            size="sm" 
+                                                            className="btn-action"
+                                                            onClick={() => handleShow(user._id)}
+                                                        >
+                                                            <i className="bi bi-pencil-square me-1"></i>
+                                                            Edit
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                </tbody>
+                            </Table>
+
+                            <div className="pagination-container">
+                                <Button 
+                                    variant="outline-primary" 
+                                    size="sm"
+                                    disabled={currentPage === 1}
+                                    onClick={() => handlePageChange('prev')}
+                                >
+                                    <i className="bi bi-chevron-left me-1"></i>
+                                    Previous
+                                </Button>
+                                <span>Page {currentPage} of {totalPages}</span>
+                                <Button 
+                                    variant="outline-primary" 
+                                    size="sm"
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => handlePageChange('next')}
+                                >
+                                    Next
+                                    <i className="bi bi-chevron-right ms-1"></i>
+                                </Button>
+                            </div>
+                        </Card.Body>
+                    </Card>
+                </Container>
+            </main>
+        </div>
                                 <Modal show={show} onHide={handleClose}>
             <Modal.Header closeButton>
                 <Modal.Title>Reset Password</Modal.Title>
@@ -243,12 +275,6 @@ const AdminViewAllUsersScreen = () => {
                 </Form>
             </Modal.Body>
         </Modal>
-      
-        </Card.Body>
-        </Card>
-        </Container>
-        </main>
-        </div>
             </>
      );
 }

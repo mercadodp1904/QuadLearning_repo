@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import TeacherDashboardNavbar from '../TeacherComponents/TeacherDashboardNavbar';
-import { Table, Container, Alert, Form, Row, Col, Button } from 'react-bootstrap';
-
+import { Table, Container, Alert, Form, Row, Col, Button, Card, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import './TeacherViewStudent.css'
 const TeacherEncodeGrade = () => {
     const [sections, setSections] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -39,6 +39,14 @@ const [editMode, setEditMode] = useState({});
 const [tempGrades, setTempGrades] = useState({});
 const [saving, setSaving] = useState(false);
 
+// Add new state for bulk editing
+const [bulkEditMode, setBulkEditMode] = useState(false);
+
+const [searchTerm, setSearchTerm] = useState('');
+
+
+
+
 
 
 // Add function to handle temporary grade changes
@@ -52,53 +60,63 @@ const handleTempGradeChange = (studentId, gradeType, value) => {
     }));
 };
 
-// Add function to handle save
 const handleSaveGrades = async (studentId) => {
     try {
         setSaving(true);
         setError('');
         
-        // Get the temporary grades for this student
         const grades = tempGrades[studentId];
         if (!grades) return;
 
-        // Save midterm and finals grades if they exist
-        const promises = [];
+        const savePromises = [];
+        
+        // Only save grades that have been changed
         if (grades.midterm !== undefined) {
-            promises.push(handleGradeChange(
-                studentId,
-                selectedSubject,
-                'midterm',
-                grades.midterm,
-                currentSemester
-            ));
+            savePromises.push(
+                handleGradeChange(
+                    studentId,
+                    selectedSubject,
+                    'midterm',
+                    grades.midterm,
+                    currentSemester
+                )
+            );
         }
+        
         if (grades.finals !== undefined) {
-            promises.push(handleGradeChange(
-                studentId,
-                selectedSubject,
-                'finals',
-                grades.finals,
-                currentSemester
-            ));
+            savePromises.push(
+                handleGradeChange(
+                    studentId,
+                    selectedSubject,
+                    'finals',
+                    grades.finals,
+                    currentSemester
+                )
+            );
         }
 
-        await Promise.all(promises);
+        // Wait for all grade saves to complete
+        await Promise.all(savePromises);
         
-        // Clear temp grades and edit mode for this student
+        // Clear temp grades and edit mode
         setTempGrades(prev => {
             const newTemp = { ...prev };
             delete newTemp[studentId];
             return newTemp;
         });
+        
         setEditMode(prev => ({
             ...prev,
             [studentId]: false
         }));
 
+        // Refresh grades after saving
+        await getSubjectGrades();
+        
         setSuccessMessage('Grades saved successfully');
     } catch (error) {
-        setError('Failed to save grades: ' + error.message);
+        setError(error.message);
+        console.error('Save grades error:', error);
     } finally {
         setSaving(false);
     }
@@ -209,8 +227,7 @@ const handleGradeChange = async (studentId, subjectId, gradeType, gradeValue, se
         // Validate grade value
         const numericGrade = Number(gradeValue);
         if (isNaN(numericGrade) || numericGrade < 0 || numericGrade > 100) {
-            setError('Grade must be between 0 and 100');
-            return;
+            throw new Error('Grade must be between 0 and 100');
         }
 
         const response = await fetch('/api/teacher/grades', {
@@ -222,7 +239,7 @@ const handleGradeChange = async (studentId, subjectId, gradeType, gradeValue, se
             body: JSON.stringify({
                 studentId,
                 subjectId,
-                gradeType,  // 'midterm' or 'finals'
+                gradeType,
                 gradeValue: numericGrade,
                 semesterId
             })
@@ -243,18 +260,16 @@ const handleGradeChange = async (studentId, subjectId, gradeType, gradeValue, se
                 [subjectId]: {
                     ...prev[studentId]?.[subjectId],
                     [gradeType]: numericGrade,
-                    finalRating: data.data.finalRating,
-                    action: data.data.action
+                    finalRating: data.finalRating,
+                    action: data.action
                 }
             }
         }));
 
-        // Show success message
-        setSuccessMessage('Grade saved successfully');
-        
+        return data; // Return the response data for error handling
     } catch (error) {
         console.error('Error saving grade:', error);
-        setError(error.message || 'Failed to save grade');
+        throw new Error(`Error saving grade: ${error.message}`);
     } finally {
         setLoading(false);
     }
@@ -325,7 +340,7 @@ useEffect(() => {
                  // Find the section where advisoryClass exists
             const advisorySection = sectionsData.find(section => {
                 console.log('Checking section:', section.name, 'Advisory:', section.advisoryClass);
-                return section.name === 'STEM202'; // Since we know this is the advisory section
+                return section.advisoryClass;
             });
             
             console.log('Found advisory section:', advisorySection);
@@ -412,12 +427,44 @@ useEffect(() => {
     if (loading) return <div>Loading...</div>;
     if (error) return <div>Error: {error}</div>;
 
+   
+    
     return (
         <>
             <TeacherDashboardNavbar />
             <Container className="mt-4">
-                <h2>Encode Grades</h2>
+            <Card className="mb-4 border-0 shadow-sm">
+    <Card.Body className="p-4">
+        <div className="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 className="mb-1 fw-bold">Encode Grades</h2>
+                <small className="text-muted">
+                    Grade Management System
+                    <OverlayTrigger
+                        placement="right"
+                        overlay={
+                            <Tooltip>
+                                Accurate grade entry is crucial for student records
+                            </Tooltip>
+                        }
+                    >
+                        <i className="bi bi-info-circle text-muted ms-2"></i>
+                    </OverlayTrigger>
+                </small>
+            </div>
+        </div>
 
+        <div className="p-3 bg-light rounded-3">
+            <div className="d-flex align-items-center">
+            <i className="bi bi-exclamation-triangle text-warning me-3"></i>
+            <p className="text-secondary mb-0">
+                In this section, you can encode the grades for your students. Please ensure that you enter accurate and complete information. 
+                The grades must be provided in the following format: Midterm, Finals, and Final Rating.
+            </p>
+            </div>
+        </div>
+    </Card.Body>
+</Card>
                        {/* Add Alerts here, right after the header */}
             {successMessage && (
                 <Alert 
@@ -439,7 +486,8 @@ useEffect(() => {
                     {error}
                 </Alert>
             )}
-
+<Card className="mb-4 shadow-sm">
+<Card.Body>
                {/* Semester Selection */}
         <Row className="mb-3">
             <Col md={12}>
@@ -483,112 +531,243 @@ useEffect(() => {
                 </Col>
             </Row>
 )}
-                {/* Advisory Class Filter */}
-                <Row className="mb-3">
-                    <Col>
-                        <Form.Check 
-                            type="switch"
-                            id="advisory-switch"
-                            label="Show Only Advisory Class"
-                            checked={showAdvisoryOnly}
-                            onChange={(e) => {
-                                setShowAdvisoryOnly(e.target.checked);
-                                if (e.target.checked) {
-                                    setSelectedStrand('');
-                                    setSelectedYearLevel('');
-                                    setSelectedSection('');
-                                }
-                            }}
-                        />
-                    </Col>
-                </Row>
 
-                {/* Other Filters - Only show if not viewing advisory only */}
+</Card.Body>
+</Card>
+                {/* Controls Section */}
+        <Card className="mb-4 shadow-sm">
+            <Card.Body>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                    <Form.Check 
+                        type="switch"
+                        id="advisory-switch"
+                        label={<span className="fw-bold">Show Only Advisory Class</span>}
+                        checked={showAdvisoryOnly}
+                        onChange={(e) => {
+                            setShowAdvisoryOnly(e.target.checked);
+                            if (e.target.checked) {
+                                setSelectedStrand('');
+                                setSelectedYearLevel('');
+                                setSelectedSection('');
+                            }
+                        }}
+                        className="mb-0"
+                    />
+                    {!showAdvisoryOnly && (
+                        <Button 
+                            variant="outline-secondary" 
+                            size="sm"
+                            onClick={() => {
+                                setSelectedStrand('');
+                                setSelectedYearLevel('');
+                                setSelectedSection('');
+                            }}
+                        >
+                            Clear Filters
+                        </Button>
+                    )}
+                </div>
+
+                {/* Filters Section */}
                 {!showAdvisoryOnly && (
-                    <Row className="mb-4">
+                    <Row className="g-3">
                         <Col md={4}>
                             <Form.Group>
-                                <Form.Label>Strand</Form.Label>
-                          {/* Strand Filter */}
-<Form.Select 
-    value={selectedStrand}
-    onChange={(e) => setSelectedStrand(e.target.value)}
->
-    <option value="">All Strands</option>
-    {strands.map((strand) => (
-        <option key={strand} value={strand}>
-            {strand}
-        </option>
-    ))}
-</Form.Select>
+                                <Form.Label className="fw-bold">
+                                    <i className="bi bi-funnel me-1"></i>
+                                    Strand
+                                </Form.Label>
+                                <Form.Select 
+                                    value={selectedStrand}
+                                    onChange={(e) => setSelectedStrand(e.target.value)}
+                                    className="shadow-sm"
+                                >
+                                    <option value="">All Strands</option>
+                                    {strands.map((strand, index) => (
+                                        <option key={index} value={strand}>{strand}</option>
+                                    ))}
+                                </Form.Select>
                             </Form.Group>
                         </Col>
                         <Col md={4}>
                             <Form.Group>
-                                <Form.Label>Year Level</Form.Label>
-                              {/* Year Level Filter */}
-<Form.Select
-    value={selectedYearLevel}
-    onChange={(e) => setSelectedYearLevel(e.target.value)}
->
-    <option value="">All Year Levels</option>
-    {yearLevels.map((yearLevel) => (
-        <option key={yearLevel} value={yearLevel}>
-            {yearLevel}
-        </option>
-    ))}
-</Form.Select>
+                                <Form.Label className="fw-bold">
+                                    <i className="bi bi-calendar me-1"></i>
+                                    Year Level
+                                </Form.Label>
+                                <Form.Select
+                                    value={selectedYearLevel}
+                                    onChange={(e) => setSelectedYearLevel(e.target.value)}
+                                    className="shadow-sm"
+                                >
+                                    <option value="">All Year Levels</option>
+                                    {yearLevels.map((yearLevel, index) => (
+                                        <option key={index} value={yearLevel}>{yearLevel}</option>
+                                    ))}
+                                </Form.Select>
                             </Form.Group>
                         </Col>
                         <Col md={4}>
                             <Form.Group>
-                                <Form.Label>Section</Form.Label>
-                            {/* Section Filter */}
-<Form.Select
-    value={selectedSection}
-    onChange={(e) => setSelectedSection(e.target.value)}
->
-    <option value="">All Sections</option>
-    {sections.map((section) => (
-        <option key={section._id} value={section.name}>
-            {section.name}
-        </option>
-    ))}
-</Form.Select>
+                                <Form.Label className="fw-bold">
+                                    <i className="bi bi-people me-1"></i>
+                                    Section
+                                </Form.Label>
+                                <Form.Select
+                                    value={selectedSection}
+                                    onChange={(e) => setSelectedSection(e.target.value)}
+                                    className="shadow-sm"
+                                >
+                                    <option value="">All Sections</option>
+                                    {availableSections.map((section) => (
+                                        <option key={section._id} value={section._id}>
+                                            {section.name}
+                                        </option>
+                                    ))}
+                                </Form.Select>
                             </Form.Group>
                         </Col>
                     </Row>
                 )}
-
+            </Card.Body>
+        </Card>
                 {/* Students Table */}
                 {!selectedSubject ? (
-                    <Alert variant="info">Please select a subject to encode grades.</Alert>
-                ) : filteredStudents.length === 0 ? (
-                    <Alert variant="info">
-                        {showAdvisoryOnly 
-                            ? "No advisory students found."
-                            : "No students found for the selected filters."}
-                    </Alert>
-                ) : (
-                    <Table striped bordered hover>
-                    <thead>
+            <Alert variant="info">Please select a subject to encode grades.</Alert>
+        ) : filteredStudents.length === 0 ? (
+            <Alert variant="info">
+                {showAdvisoryOnly 
+                    ? "No advisory students found."
+                    : "No students found for the selected filters."}
+            </Alert>
+        ) : (
+            <>
+                {/* Add Bulk Edit Button */}
+                <div className="mb-3">
+                    <Button
+                        variant={bulkEditMode ? "outline-secondary" : "outline-primary"}
+                        onClick={() => {
+                            if (bulkEditMode) {
+                                // If exiting bulk edit mode, clear all temporary changes
+                                setTempGrades({});
+                                setEditMode({});
+                            } else {
+                                // If entering bulk edit mode, set up temp grades for all students
+                                const newTempGrades = {};
+                                const newEditMode = {};
+                                filteredStudents.forEach(student => {
+                                    newTempGrades[student._id] = {
+                                        midterm: studentGrades[student._id]?.[selectedSubject]?.midterm || '',
+                                        finals: studentGrades[student._id]?.[selectedSubject]?.finals || ''
+                                    };
+                                    newEditMode[student._id] = true;
+                                });
+                                setTempGrades(newTempGrades);
+                                setEditMode(newEditMode);
+                            }
+                            setBulkEditMode(!bulkEditMode);
+                        }}
+                    >
+                        {bulkEditMode ? "Cancel Bulk Edit" : "Edit All Students"}
+                    </Button>
+                    
+                    {/* Add Save All Button when in bulk edit mode */}
+                    {bulkEditMode && (
+                      <Button
+                      variant="outline-success" 
+                      className="ms-2"
+                      onClick={async () => {
+                          try {
+                              setSaving(true);
+                              setError('');
+                  
+                              // Log the data you're sending
+                              console.log('Saving grades for students:', tempGrades);
+                  
+                              const savePromises = [];
+                  
+                              // Check if all grades are valid before saving
+                              Object.entries(tempGrades).forEach(([studentId, grades]) => {
+                                  if (!grades.midterm || !grades.finals) {
+                                      console.error(`Missing grades for student: ${studentId}`);
+                                  } else {
+                                      savePromises.push(
+                                          handleGradeChange(
+                                              studentId,
+                                              selectedSubject,
+                                              'midterm',
+                                              grades.midterm,
+                                              currentSemester
+                                          )
+                                      );
+                                      savePromises.push(
+                                          handleGradeChange(
+                                              studentId,
+                                              selectedSubject,
+                                              'finals',
+                                              grades.finals,
+                                              currentSemester
+                                          )
+                                      );
+                                  }
+                              });
+                  
+                              // Use Promise.allSettled to handle all promises and catch partial failures
+                              const results = await Promise.allSettled(savePromises);
+                  
+                              // Filter out and capture only rejected promises
+                              const errors = results.filter(result => result.status === 'rejected');
+                              if (errors.length > 0) {
+                                  const failedStudents = errors.map(error => error.reason.message); // Error message will now contain studentId
+                                  setError(`Failed to save grades for the following students: ${failedStudents.join(', ')}`);
+                              } else {
+                                  setSuccessMessage('All grades saved successfully');
+                              }
+                  
+                              // Refresh data after saving
+                              await getSubjectGrades();
+                  
+                              // Reset states
+                              setTempGrades({});
+                              setEditMode({});
+                              setBulkEditMode(false);
+                          } catch (error) {
+                              setError('Failed to save all grades: ' + error.message);
+                              console.error('Bulk save error:', error);
+                          } finally {
+                              setSaving(false);
+                          }
+                      }}
+                      disabled={saving}
+                  >
+                      {saving ? 'Saving All...' : 'Save All Changes'}
+                  </Button>
+                  
+                  
+                    )}
+                </div>
+                <Card className="shadow-sm">
+                <Card.Body className="p-0">
+                <Table responsive hover className='custom-table text-center align-middle'>
+                    <thead className="bg-light">
                         <tr>
-                            <th>Student Name</th>
-                            <th>Section</th>
-                            <th>Midterm</th>
-                            <th>Finals</th>
-                            <th>Final Rating</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th className="px-4 py-3">Student Name</th>
+                            <th className="px-4 py-3">Section</th>
+                            <th className="px-4 py-3">Midterm</th>
+                            <th className="px-4 py-3">Finals</th>
+                            <th className="px-4 py-3">Final Rating</th>
+                            <th className="px-4 py-3">Status</th>
+                            {!bulkEditMode && <th className="px-4 py-3">Actions</th>}
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody text-align="center">
                         {filteredStudents.map((student) => (
                             <tr key={student._id}>
-                                <td>{student.username}</td>
-                                <td>{student.sectionName}</td>
-                                <td>
+                                <td className="px-4 py-3 fw-medium">{student.username}</td>
+                                <td className="px-4 py-3">{student.sectionName}</td>
+                                <td className="px-4 py-3">
                                     <Form.Control
+                                    className='text-center'
                                         type="number"
                                         min="0"
                                         max="100"
@@ -607,6 +786,7 @@ useEffect(() => {
                                 </td>
                                 <td>
                                     <Form.Control
+                                        className='text-center'
                                         type="number"
                                         min="0"
                                         max="100"
@@ -629,63 +809,68 @@ useEffect(() => {
                                 <td>
                                     {studentGrades[student._id]?.[selectedSubject]?.action || '-'}
                                 </td>
-                                <td>
-                                    {editMode[student._id] ? (
-                                        <>
+                                {!bulkEditMode && (
+                                    <td>
+                                        {editMode[student._id] ? (
+                                            <>
+                                                <Button
+                                                    variant="outline-success" 
+                                                    size="sm"
+                                                    onClick={() => handleSaveGrades(student._id)}
+                                                    disabled={saving}
+                                                >
+                                                    {saving ? 'Saving...' : 'Save'}
+                                                </Button>
+                                                {' '}
+                                                <Button
+                                                    variant="outline-secondary" 
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setEditMode(prev => ({
+                                                            ...prev,
+                                                            [student._id]: false
+                                                        }));
+                                                        setTempGrades(prev => {
+                                                            const newTemp = { ...prev };
+                                                            delete newTemp[student._id];
+                                                            return newTemp;
+                                                        });
+                                                    }}
+                                                    disabled={saving}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </>
+                                        ) : (
                                             <Button
-                                                variant="success"
-                                                size="sm"
-                                                onClick={() => handleSaveGrades(student._id)}
-                                                disabled={saving}
-                                            >
-                                                {saving ? 'Saving...' : 'Save'}
-                                            </Button>
-                                            {' '}
-                                            <Button
-                                                variant="secondary"
+                                                variant="outline-primary" 
                                                 size="sm"
                                                 onClick={() => {
                                                     setEditMode(prev => ({
                                                         ...prev,
-                                                        [student._id]: false
+                                                        [student._id]: true
                                                     }));
-                                                    setTempGrades(prev => {
-                                                        const newTemp = { ...prev };
-                                                        delete newTemp[student._id];
-                                                        return newTemp;
-                                                    });
+                                                    setTempGrades(prev => ({
+                                                        ...prev,
+                                                        [student._id]: {
+                                                            midterm: studentGrades[student._id]?.[selectedSubject]?.midterm || '',
+                                                            finals: studentGrades[student._id]?.[selectedSubject]?.finals || ''
+                                                        }
+                                                    }));
                                                 }}
-                                                disabled={saving}
                                             >
-                                                Cancel
+                                                Edit
                                             </Button>
-                                        </>
-                                    ) : (
-                                        <Button
-                                            variant="primary"
-                                            size="sm"
-                                            onClick={() => {
-                                                setEditMode(prev => ({
-                                                    ...prev,
-                                                    [student._id]: true
-                                                }));
-                                                setTempGrades(prev => ({
-                                                    ...prev,
-                                                    [student._id]: {
-                                                        midterm: studentGrades[student._id]?.[selectedSubject]?.midterm || '',
-                                                        finals: studentGrades[student._id]?.[selectedSubject]?.finals || ''
-                                                    }
-                                                }));
-                                            }}
-                                        >
-                                            Edit
-                                        </Button>
-                                    )}
-                                </td>
+                                        )}
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>
                 </Table>
+                </Card.Body>
+                </Card>
+                </>
                 )}
             </Container>
         </>

@@ -343,39 +343,67 @@ const addGrade = asyncHandler(async (req, res) => {
 // @desc    Update grade for a student
 // @route   PUT /api/grades/:id
 // @access  Private (teacher role)
-const updateGrade = asyncHandler(async (req, res) => {
-    const { subject, grade, year } = req.body;
-    const { id } = req.params; // Get the grade ID from the URL
+const updateGrade = async (req, res) => {
+    try {
+        const { studentId, subjectId, gradeType, gradeValue, semesterId } = req.body;
 
-    // Check if the user making the request is a teacher
-    if (req.user.role !== 'teacher') {
-        res.status(403);
-        throw new Error('Not authorized to update grades');
+        // Find the student's grade document
+        let studentGrade = await Grade.findOne({
+            student: studentId,
+            semester: semesterId
+        });
+
+        if (!studentGrade) {
+            // Create new grade document if it doesn't exist
+            studentGrade = new Grade({
+                student: studentId,
+                semester: semesterId,
+                subjects: []
+            });
+        }
+
+        // Find the subject in the grades array
+        const subjectIndex = studentGrade.subjects.findIndex(
+            s => s.subject.toString() === subjectId
+        );
+
+        if (subjectIndex === -1) {
+            // Add new subject grade if it doesn't exist
+            studentGrade.subjects.push({
+                subject: subjectId,
+                [gradeType]: gradeValue
+            });
+        } else {
+            // Update existing subject grade
+            studentGrade.subjects[subjectIndex][gradeType] = gradeValue;
+        }
+
+        // Calculate final rating and action
+        const subject = studentGrade.subjects[subjectIndex] || studentGrade.subjects[studentGrade.subjects.length - 1];
+        if (subject.midterm !== undefined && subject.finals !== undefined) {
+            subject.finalRating = (subject.midterm + subject.finals) / 2;
+            subject.action = subject.finalRating >= 75 ? 'Passed' : 'Failed';
+        }
+
+        // Save with { new: true } to return updated document
+        const updatedGrade = await studentGrade.save();
+
+        res.json({
+            success: true,
+            data: {
+                finalRating: subject.finalRating,
+                action: subject.action
+            }
+        });
+
+    } catch (error) {
+        console.error('Grade update error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
-
-    // Find the grade to update
-    const existingGrade = await Grade.findById(id);
-
-    if (!existingGrade) {
-        res.status(404);
-        throw new Error('Grade not found');
-    }
-
-    // Validate grade value
-    if (grade < 0 || grade > 100) {
-        res.status(400);
-        throw new Error('Grade must be between 0 and 100');
-    }
-
-    // Update the grade details
-    existingGrade.subject = subject || existingGrade.subject;
-    existingGrade.grade = grade || existingGrade.grade;
-    existingGrade.year = year || existingGrade.year;
-
-    const updatedGrade = await existingGrade.save();
-
-    res.json(updatedGrade);
-});
+};
 
 // @desc    Delete a grade for a student
 // @route   DELETE /api/grades/:id
@@ -496,7 +524,9 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
         drawField('LRN', student.user.username || 'N/A', 30, startY);
         drawField('Name', fullName || 'N/A', 305, startY);
         drawField('Strand', student.strand?.name || 'N/A', 30, startY + 20);
-        drawField('Year Level', student.yearLevel || 'N/A', 305, startY + 20);
+
+        drawField('Year Level', student.yearLevel?.name || 'N/A', 305, startY + 20);
+
         drawField('Section', student.section?.name || 'N/A', 30, startY + 40);
         drawField('Address', student.address || 'N/A', 305, startY + 40);
 
@@ -626,6 +656,11 @@ const getStudentData = asyncHandler(async (req, res) => {
             .populate('yearLevel')
             .populate('section')
             .populate('strand')
+            .populate({
+                path: 'grades',
+                populate: { path: 'semester' },
+                populate: { path: 'subjects.subject', model: 'Subject' }
+            })
             .lean();
 
         // Also get the user data to get yearLevel
@@ -876,7 +911,78 @@ const getTeacherAdvisoryClass = asyncHandler(async (req, res) => {
     }
 });
 
-    
+// @desc    Get teacher dashboard data
+// @route   GET /api/teacher/dashboard
+// @access  Private (teacher only)
+const getTeacherDashboard = asyncHandler(async (req, res) => {
+    try {
+        // Get teacher data with populated fields
+        const teacherData = await User.findById(req.user._id)
+            .populate('subjects')
+            .populate('sections')
+            .populate('advisorySection')
+            .populate('semesters')
+            .lean();
+
+        if (!teacherData) {
+            return res.status(404).json({
+                success: false,
+                message: 'Teacher not found'
+            });
+        }
+
+        // Get all students from teacher's sections
+        const sections = await Section.find({ 
+            _id: { $in: teacherData.sections }
+        }).populate('students');
+
+        // Calculate total unique students
+        const uniqueStudents = new Set();
+        sections.forEach(section => {
+            section.students.forEach(student => {
+                uniqueStudents.add(student._id.toString());
+            });
+        });
+
+        // Get today's schedule
+        const today = new Date();
+        const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+
+        // Format the dashboard data
+        const dashboardData = {
+            username: teacherData.username,
+            totalStudents: uniqueStudents.size,
+            totalSubjects: teacherData.subjects?.length || 0,
+            totalSections: teacherData.sections?.length || 0,
+            advisorySection: teacherData.advisorySection?.name || 'None',
+            sections: sections.map(section => ({
+                name: section.name,
+                studentCount: section.students.length,
+                isAdvisory: section._id.equals(teacherData.advisorySection?._id)
+            })),
+            subjects: teacherData.subjects.map(subject => ({
+                name: subject.name,
+                section: subject.section?.name,
+                schedule: subject.schedule // Assuming you have schedule in your subject model
+            })),
+            currentSemester: teacherData.semesters?.[teacherData.semesters.length - 1]?.name
+        };
+
+        res.json({
+            success: true,
+            data: dashboardData
+        });
+
+    } catch (error) {
+        console.error('Error fetching teacher dashboard:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching dashboard data',
+            error: error.message
+        });
+    }
+});
+  
 
 export { 
     getGradesByStudent, 
@@ -884,7 +990,7 @@ export {
     updateGrade, 
     deleteGrade, 
     generateForm137, 
-
+    getTeacherDashboard,
     fillOutStudentForm,
     importStudents,
     getTeacherSections,
