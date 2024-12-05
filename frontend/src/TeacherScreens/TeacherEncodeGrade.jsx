@@ -44,20 +44,65 @@ const [bulkEditMode, setBulkEditMode] = useState(false);
 
 const [searchTerm, setSearchTerm] = useState('');
 
-
-
-
-
-
-// Add function to handle temporary grade changes
 const handleTempGradeChange = (studentId, gradeType, value) => {
-    setTempGrades(prev => ({
-        ...prev,
-        [studentId]: {
-            ...prev[studentId],
-            [gradeType]: value
+    setTempGrades(prev => {
+        // Create a new object for the student, preserving existing grades
+        const existingStudentGrades = prev[studentId] || {};
+
+        // Validate and convert input
+        let processedValue = value;
+        
+        // If it's an empty string, keep it as is
+        if (processedValue === '') {
+            processedValue = '';
+        } else {
+            // Convert to number and validate
+            processedValue = Number(processedValue);
+            
+            // Ensure it's within 0-100 range
+            if (isNaN(processedValue) || processedValue < 0) {
+                processedValue = 0;
+            } else if (processedValue > 100) {
+                processedValue = 100;
+            }
         }
-    }));
+
+        return {
+            ...prev,
+            [studentId]: {
+                ...existingStudentGrades,
+                [gradeType]: processedValue
+            }
+        };
+    });
+};
+const getSubjectGrades = async () => {
+    try {
+        if (!selectedSubject || !currentSemester) {
+            setStudentGrades({});
+            return;
+        }
+
+        const response = await fetch(
+            `/api/teacher/subject-grades/${selectedSubject}?semesterId=${currentSemester}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch grades');
+        }
+
+        const data = await response.json();
+        setStudentGrades(data);
+    } catch (error) {
+        console.error('Error fetching grades:', error);
+        setError('Failed to fetch grades');
+        setStudentGrades({}); // Ensure grades are reset on error
+    }
 };
 
 const handleSaveGrades = async (studentId) => {
@@ -188,29 +233,56 @@ useEffect(() => {
 useEffect(() => {
     const fetchSemesters = async () => {
         try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+    
             const response = await fetch('/api/semesters', {
+                method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 }
             });
-            
+    
+            // Log full response for debugging
+            console.log('Semesters Response:', {
+                status: response.status,
+                headers: Object.fromEntries(response.headers.entries())
+            });
+    
+            // Check response status
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to fetch semesters');
+                // Try to parse error message from response
+                const errorBody = await response.text();
+                console.error('Error Response Body:', errorBody);
+    
+                throw new Error(`Semester fetch failed: ${response.status} - ${errorBody}`);
             }
-            
+    
+            // Parse JSON
             const data = await response.json();
-            console.log('Fetched semesters:', data); // Debug log
-            
-            if (Array.isArray(data) && data.length > 0) {
+    
+            // Validate data
+            if (!Array.isArray(data)) {
+                throw new Error('Invalid response format');
+            }
+    
+            // Set semesters
+            if (data.length > 0) {
                 setSemesters(data);
                 setCurrentSemester(data[0]._id);
             } else {
                 setError('No semesters found');
             }
         } catch (error) {
-            console.error('Error fetching semesters:', error);
-            setError(error.message || 'Failed to fetch semesters');
+            console.error('Semester Fetch Error:', {
+                message: error.message,
+                stack: error.stack
+            });
+            setError(`Failed to fetch semesters: ${error.message}`);
+            setLoading(false);
         }
     };
 
@@ -253,18 +325,27 @@ const handleGradeChange = async (studentId, subjectId, gradeType, gradeValue, se
         const data = await response.json();
         
         // Update local state with new grade
-        setStudentGrades(prev => ({
-            ...prev,
-            [studentId]: {
-                ...prev[studentId],
-                [subjectId]: {
-                    ...prev[studentId]?.[subjectId],
-                    [gradeType]: numericGrade,
-                    finalRating: data.finalRating,
-                    action: data.action
-                }
+        setStudentGrades(prev => {
+            // Create a deep copy of the previous state
+            const newState = { ...prev };
+            
+            // Ensure the student and subject entries exist
+            if (!newState[studentId]) {
+                newState[studentId] = {};
             }
-        }));
+            if (!newState[studentId][subjectId]) {
+                newState[studentId][subjectId] = {};
+            }
+
+            // Update the specific grade type
+            newState[studentId][subjectId][gradeType] = numericGrade;
+            
+            // Update final rating and action
+            newState[studentId][subjectId].finalRating = data.finalRating;
+            newState[studentId][subjectId].action = data.action;
+
+            return newState;
+        });
 
         return data; // Return the response data for error handling
     } catch (error) {
@@ -272,29 +353,6 @@ const handleGradeChange = async (studentId, subjectId, gradeType, gradeValue, se
         throw new Error(`Error saving grade: ${error.message}`);
     } finally {
         setLoading(false);
-    }
-};
-    
-const getSubjectGrades = async () => {
-    try {
-        const response = await fetch(
-            `/api/teacher/subject-grades/${selectedSubject}?semesterId=${currentSemester}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            }
-        );
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch grades');
-        }
-
-        const data = await response.json();
-        setStudentGrades(data);
-    } catch (error) {
-        console.error('Error fetching grades:', error);
-        setError('Failed to fetch grades');
     }
 };
 
@@ -307,35 +365,55 @@ useEffect(() => {
 }, [selectedSubject, currentSemester]);
     
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                if (!token) {
-                    throw new Error('No authentication token found');
-                }
-
-                // Fetch sections and subjects in parallel
-                const [sectionsResponse, subjectsResponse] = await Promise.all([
-                    fetch('/api/teacher/sections', {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
-                    }),
-                    fetch('/api/teacher/subjects', {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                ]);
-
-                if (!sectionsResponse.ok || !subjectsResponse.ok) {
-                    throw new Error('Failed to fetch data');
-                }
-
-                const sectionsData = await sectionsResponse.json();
-                const subjectsData = await subjectsResponse.json();
+       // Update the fetchData method similarly
+       const fetchData = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+    
+            // Ensure currentSemester is set before fetching
+            if (!currentSemester) {
+                console.warn('No semester selected. Skipping data fetch.');
+                return;
+            }
+    
+            // Fetch sections and subjects in parallel
+            const [sectionsResponse, subjectsResponse] = await Promise.all([
+                fetch('/api/teacher/sections', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }),
+                fetch(`/api/teacher/subjects?semesterId=${currentSemester}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                })
+            ]);
+    
+            // Check sections response
+            if (!sectionsResponse.ok) {
+                const errorText = await sectionsResponse.text();
+                console.error('Sections Error:', errorText);
+                throw new Error(`Sections fetch failed: ${sectionsResponse.status} - ${errorText}`);
+            }
+    
+            // Check subjects response
+            if (!subjectsResponse.ok) {
+                const errorText = await subjectsResponse.text();
+                console.error('Subjects Error:', errorText);
+                throw new Error(`Subjects fetch failed: ${subjectsResponse.status} - ${errorText}`);
+            }
+    
+            // Parse responses
+            const sectionsData = await sectionsResponse.json();
+            const subjectsData = await subjectsResponse.json();
 
                  // Find the section where advisoryClass exists
             const advisorySection = sectionsData.find(section => {
@@ -499,11 +577,21 @@ useEffect(() => {
                         disabled={loading}
                     >
                         <option value="">Select Semester</option>
-                        {semesters.map(semester => (
-                            <option key={semester._id} value={semester._id}>
-                                {semester.name} - {semester.strand?.name}
-                            </option>
-                        ))}
+{semesters.map(semester => {
+    // Safe property access with fallback
+    const semesterName = semester.name || 'Unnamed Semester';
+    const strandName = semester.strand?.name || 'No Strand';
+    const yearLevelName = semester.yearLevel?.name || 'No Year Level';
+
+    return (
+        <option 
+            key={semester._id} 
+            value={semester._id}
+        >
+            {`${semesterName} - ${strandName} - ${yearLevelName}`}
+        </option>
+    );
+})}
                     </Form.Select>
                 </Form.Group>
             </Col>
@@ -644,107 +732,151 @@ useEffect(() => {
             <>
                 {/* Add Bulk Edit Button */}
                 <div className="mb-3">
-                    <Button
-                        variant={bulkEditMode ? "outline-secondary" : "outline-primary"}
-                        onClick={() => {
-                            if (bulkEditMode) {
-                                // If exiting bulk edit mode, clear all temporary changes
-                                setTempGrades({});
-                                setEditMode({});
-                            } else {
-                                // If entering bulk edit mode, set up temp grades for all students
-                                const newTempGrades = {};
-                                const newEditMode = {};
-                                filteredStudents.forEach(student => {
-                                    newTempGrades[student._id] = {
-                                        midterm: studentGrades[student._id]?.[selectedSubject]?.midterm || '',
-                                        finals: studentGrades[student._id]?.[selectedSubject]?.finals || ''
-                                    };
-                                    newEditMode[student._id] = true;
-                                });
-                                setTempGrades(newTempGrades);
-                                setEditMode(newEditMode);
-                            }
-                            setBulkEditMode(!bulkEditMode);
-                        }}
-                    >
-                        {bulkEditMode ? "Cancel Bulk Edit" : "Edit All Students"}
-                    </Button>
+<Button
+    variant={bulkEditMode ? "outline-secondary" : "outline-primary"}
+    onClick={() => {
+        if (bulkEditMode) {
+            // Exiting bulk edit mode
+            setTempGrades({});
+            setEditMode({});
+            setBulkEditMode(false);
+        } else {
+            // Entering bulk edit mode
+            const newTempGrades = {};
+            const newEditMode = {};
+            
+            filteredStudents.forEach(student => {
+                // Get existing grades or set to empty string
+                const existingMidterm = studentGrades[student._id]?.[selectedSubject]?.midterm ?? '';
+                const existingFinals = studentGrades[student._id]?.[selectedSubject]?.finals ?? '';
+                
+                newTempGrades[student._id] = {
+                    midterm: existingMidterm,
+                    finals: existingFinals
+                };
+                newEditMode[student._id] = true;
+            });
+            
+            setTempGrades(newTempGrades);
+            setEditMode(newEditMode);
+            setBulkEditMode(true);
+        }
+    }}
+>
+    {bulkEditMode ? "Cancel Bulk Edit" : "Edit All Students"}
+</Button>
                     
                     {/* Add Save All Button when in bulk edit mode */}
                     {bulkEditMode && (
-                      <Button
-                      variant="outline-success" 
-                      className="ms-2"
-                      onClick={async () => {
-                          try {
-                              setSaving(true);
-                              setError('');
-                  
-                              // Log the data you're sending
-                              console.log('Saving grades for students:', tempGrades);
-                  
-                              const savePromises = [];
-                  
-                              // Check if all grades are valid before saving
-                              Object.entries(tempGrades).forEach(([studentId, grades]) => {
-                                  if (!grades.midterm || !grades.finals) {
-                                      console.error(`Missing grades for student: ${studentId}`);
-                                  } else {
-                                      savePromises.push(
-                                          handleGradeChange(
-                                              studentId,
-                                              selectedSubject,
-                                              'midterm',
-                                              grades.midterm,
-                                              currentSemester
-                                          )
-                                      );
-                                      savePromises.push(
-                                          handleGradeChange(
-                                              studentId,
-                                              selectedSubject,
-                                              'finals',
-                                              grades.finals,
-                                              currentSemester
-                                          )
-                                      );
-                                  }
-                              });
-                  
-                              // Use Promise.allSettled to handle all promises and catch partial failures
-                              const results = await Promise.allSettled(savePromises);
-                  
-                              // Filter out and capture only rejected promises
-                              const errors = results.filter(result => result.status === 'rejected');
-                              if (errors.length > 0) {
-                                  const failedStudents = errors.map(error => error.reason.message); // Error message will now contain studentId
-                                  setError(`Failed to save grades for the following students: ${failedStudents.join(', ')}`);
-                              } else {
-                                  setSuccessMessage('All grades saved successfully');
-                              }
-                  
-                              // Refresh data after saving
-                              await getSubjectGrades();
-                  
-                              // Reset states
-                              setTempGrades({});
-                              setEditMode({});
-                              setBulkEditMode(false);
-                          } catch (error) {
-                              setError('Failed to save all grades: ' + error.message);
-                              console.error('Bulk save error:', error);
-                          } finally {
-                              setSaving(false);
-                          }
-                      }}
-                      disabled={saving}
-                  >
-                      {saving ? 'Saving All...' : 'Save All Changes'}
-                  </Button>
-                  
-                  
-                    )}
+    <Button
+        variant="outline-success" 
+        className="ms-2"
+        onClick={async () => {
+            try {
+                setSaving(true);
+                setError('');
+                setSuccessMessage('');
+
+                // Validate all grades before saving
+                const validationErrors = [];
+                const validGrades = {};
+
+                // First, validate all grades
+                Object.entries(tempGrades).forEach(([studentId, grades]) => {
+                    // Ensure both midterm and finals exist and are valid
+                    const midterm = grades.midterm ?? '';
+                    const finals = grades.finals ?? '';
+
+                    // Check if both midterm and finals are valid
+                    if (
+                        midterm !== '' && 
+                        finals !== '' &&
+                        !isNaN(Number(midterm)) &&
+                        !isNaN(Number(finals)) &&
+                        Number(midterm) >= 0 &&
+                        Number(midterm) <= 100 &&
+                        Number(finals) >= 0 &&
+                        Number(finals) <= 100
+                    ) {
+                        validGrades[studentId] = {
+                            midterm: Number(midterm),
+                            finals: Number(finals)
+                        };
+                    } else {
+                        validationErrors.push(`Invalid grades for student ${studentId}`);
+                    }
+                });
+
+                // If there are validation errors, show them and stop
+                if (validationErrors.length > 0) {
+                    setError(`Please correct the following issues: ${validationErrors.join(', ')}`);
+                    return;
+                }
+
+                // Prepare save promises with sequential saving
+                const saveResults = [];
+                for (const [studentId, grades] of Object.entries(validGrades)) {
+                    try {
+                        // Save midterm grade first
+                        await handleGradeChange(
+                            studentId,
+                            selectedSubject,
+                            'midterm',
+                            grades.midterm,
+                            currentSemester
+                        );
+
+                        // Then save finals grade
+                        await handleGradeChange(
+                            studentId,
+                            selectedSubject,
+                            'finals',
+                            grades.finals,
+                            currentSemester
+                        );
+
+                        saveResults.push({ studentId, status: 'success' });
+                    } catch (error) {
+                        saveResults.push({ 
+                            studentId, 
+                            status: 'failed', 
+                            error: error.message 
+                        });
+                    }
+                }
+
+                // Check for any failed saves
+                const failedSaves = saveResults.filter(result => result.status === 'failed');
+
+                if (failedSaves.length > 0) {
+                    const errorMessages = failedSaves.map(fail => 
+                        `Student ${fail.studentId}: ${fail.error}`
+                    );
+                    
+                    setError(`Failed to save some grades: ${errorMessages.join(', ')}`);
+                } else {
+                    setSuccessMessage('All grades saved successfully');
+                }
+
+                // Refresh grades
+                await getSubjectGrades();
+
+                // Reset states
+                setTempGrades({});
+                setEditMode({});
+                setBulkEditMode(false);
+            } catch (error) {
+                setError('Failed to save all grades: ' + error.message);
+                console.error('Bulk save error:', error);
+            } finally {
+                setSaving(false);
+            }
+        }}
+        disabled={saving}
+    >
+        {saving ? 'Saving All...' : 'Save All Changes'}
+    </Button>
+)}
                 </div>
                 <Card className="shadow-sm">
                 <Card.Body className="p-0">
@@ -761,56 +893,56 @@ useEffect(() => {
                         </tr>
                     </thead>
                     <tbody text-align="center">
-                        {filteredStudents.map((student) => (
-                            <tr key={student._id}>
-                                <td className="px-4 py-3 fw-medium">{student.username}</td>
-                                <td className="px-4 py-3">{student.sectionName}</td>
-                                <td className="px-4 py-3">
-                                    <Form.Control
-                                    className='text-center'
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        value={
-                                            editMode[student._id]
-                                                ? tempGrades[student._id]?.midterm || ''
-                                                : studentGrades[student._id]?.[selectedSubject]?.midterm || ''
-                                        }
-                                        onChange={(e) => handleTempGradeChange(
-                                            student._id,
-                                            'midterm',
-                                            e.target.value
-                                        )}
-                                        disabled={!editMode[student._id] || saving}
-                                    />
-                                </td>
-                                <td>
-                                    <Form.Control
-                                        className='text-center'
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        value={
-                                            editMode[student._id]
-                                                ? tempGrades[student._id]?.finals || ''
-                                                : studentGrades[student._id]?.[selectedSubject]?.finals || ''
-                                        }
-                                        onChange={(e) => handleTempGradeChange(
-                                            student._id,
-                                            'finals',
-                                            e.target.value
-                                        )}
-                                        disabled={!editMode[student._id] || saving}
-                                    />
-                                </td>
-                                <td>
-                                    {studentGrades[student._id]?.[selectedSubject]?.finalRating?.toFixed(2) || '-'}
-                                </td>
-                                <td>
-                                    {studentGrades[student._id]?.[selectedSubject]?.action || '-'}
-                                </td>
-                                {!bulkEditMode && (
-                                    <td>
+                    {filteredStudents.map((student) => (
+    <tr key={student._id}>
+        <td className="px-4 py-3 fw-medium">{student.username}</td>
+        <td className="px-4 py-3">{student.sectionName}</td>
+        <td className="px-4 py-3">
+            <Form.Control
+                className='text-center'
+                type="number"
+                min="0"
+                max="100"
+                value={
+                    editMode[student._id]
+                        ? (tempGrades[student._id]?.midterm ?? '')
+                        : (studentGrades[student._id]?.[selectedSubject]?.midterm ?? '')
+                }
+                onChange={(e) => handleTempGradeChange(
+                    student._id,
+                    'midterm',
+                    e.target.value
+                )}
+                disabled={!editMode[student._id] || saving}
+            />
+        </td>
+        <td className="px-4 py-3">
+            <Form.Control
+                className='text-center'
+                type="number"
+                min="0"
+                max="100"
+                value={
+                    editMode[student._id]
+                        ? (tempGrades[student._id]?.finals ?? '')
+                        : (studentGrades[student._id]?.[selectedSubject]?.finals ?? '')
+                }
+                onChange={(e) => handleTempGradeChange(
+                    student._id,
+                    'finals',
+                    e.target.value
+                )}
+                disabled={!editMode[student._id] || saving}
+            />
+        </td>
+        <td>
+            {studentGrades[student._id]?.[selectedSubject]?.finalRating?.toFixed(2) || '-'}
+        </td>
+        <td>
+            {studentGrades[student._id]?.[selectedSubject]?.action || '-'}
+        </td>
+        {!bulkEditMode && (
+            <td>
                                         {editMode[student._id] ? (
                                             <>
                                                 <Button
