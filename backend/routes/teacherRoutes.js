@@ -22,4 +22,3 @@ router.get('/subject-students', protect, teacher, getSubjectStudents); // GET ro
 router.get('/advisorySections', protect, teacher, getTeacherAdvisoryClass); // GET route for fetching teacher advisory class
 router.get('/dashboard', protect, teacher, getTeacherDashboard); // GET route for fetching teacher dashboard
 export default router;
-

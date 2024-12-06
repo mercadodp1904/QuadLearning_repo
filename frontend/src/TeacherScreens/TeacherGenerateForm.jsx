@@ -38,7 +38,7 @@ const TeacherGenerateForm = () => {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `form137-${studentId}.pdf`;
+            a.download = `form137-${studentId}`.pdf;
             document.body.appendChild(a);
             a.click();
             a.remove();
