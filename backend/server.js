@@ -63,7 +63,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/superadmin', superadminRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/teacher', teacherRoutes);
-app.use('/api/semesters', semesterRoutes);
+app.use('/api/admin', semesterRoutes);
 app.use('/api/student', studentRoutes);
 
 // Basic route

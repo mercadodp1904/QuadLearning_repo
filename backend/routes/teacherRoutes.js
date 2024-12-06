@@ -9,7 +9,7 @@ router.post('/grades', protect, authorizeRoles('teacher'), addGrade);
 router.put('/grades/:id', protect, authorizeRoles('teacher'), updateGrade);
 
 
-router.post('/generate-form137/:studentId', protect, teacher, generateForm137);
+router.get('/generate-form137/:studentId', protect, teacher, generateForm137);
 router.get('/sections', protect, teacher, getTeacherSections);
 
 

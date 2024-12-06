@@ -474,17 +474,10 @@ const deleteUserAccount = asyncHandler(async (req, res) => {
 const getAllUsers = asyncHandler(async (req, res) => {
     const users = await User.find()
         .select('-password') // Exclude the password field
-        .populate('semesters', 'name') // Populate the semesters with their name field
         .populate('strand', 'name') // Replace `strand` ID with the document, selecting only the `name` field
         .populate('sections', 'name') // Replace `section` ID with the document, selecting only the `name` field
-        .populate('subjects', 'name') // Replace `subjects` IDs with documents, selecting only the `name` field
-        .populate({
-            path: 'advisorySection',
-            match: { /* Add any conditions here if needed */ },
-            options: { lean: true }
-        })
-        .exec();
-        res.json(users);
+        .populate('subjects', 'name'); // Replace `subjects` IDs with documents, selecting only the `name` field
+    res.json(users);
 });
 
 
@@ -890,25 +883,18 @@ const createSemester = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/strands
 // @access  Private (admin role)
 const getAllSemesters = asyncHandler(async (req, res) => {
-    try {
-        const semesters = await Semester.find()
-            .populate('strand', 'name') // Populate strand's name field
-            .populate('yearLevel', 'name') // Populate yearLevel's name field
-            .sort({ createdAt: -1 })
-            .lean(); // Use lean to simplify the returned objects
+    const semesters = await Semester.find()
+        .populate('strand', 'name') // Populate the strand field
+        .populate('yearLevel', 'name') // Populate the year level field
+        .sort({ createdAt: -1 });
 
-        const formattedSemesters = semesters.map((semester) => ({
-            ...semester,
-            displayName: `${semester.name} - ${semester.strand?.name || 'No Strand'}`, // Fallback for strand.name
-        }));
-
-        res.status(200).json(formattedSemesters);
-    } catch (error) {
-        console.error('Error fetching semesters:', error);
-        res.status(500).json({ message: 'Failed to fetch semesters' });
-    }
+          // Transform the data to include the combined name
+    const formattedSemesters = semesters.map(semester => ({
+        ...semester._doc,
+        displayName: `${semester.name} - ${semester.strand.name}`
+    }));
+    res.json(formattedSemesters);
 });
-
 
 // @desc    Update a semester
 // @route   PUT /api/admin/semesters/:id

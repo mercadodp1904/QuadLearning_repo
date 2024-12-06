@@ -27,18 +27,12 @@ const ManageSubjects = () => {
     const [editModalShow, setEditModalShow] = useState(false);
     const [yearLevels, setYearLevels] = useState([]);
 
-// Ensure that semesters is an array before applying .filter()
-const filteredSemesters = Array.isArray(semesters) 
+    const filteredSemesters = Array.isArray(semesters) 
     ? semesters.filter(semester => 
-        semester.strand._id === selectedStrand && 
-        semester.yearLevel._id === selectedYearLevel
-      )
-    : []; // Return an empty array if semesters is not a valid array
-
-// You can add additional checks to handle empty semesters or invalid data
-if (!filteredSemesters.length) {
-    console.log('No semesters found matching the selected strand and year level');
-}
+        semester.strand?._id === selectedStrand && 
+        semester.yearLevel?._id === selectedYearLevel
+    ) 
+    : [];
 
 
     const handleClose = () => {
@@ -161,7 +155,7 @@ if (!filteredSemesters.length) {
         try {
             const [subjectsResponse, semestersResponse, strandsResponse, yearLevelsResponse] = await Promise.all([
                 fetch('/api/admin/getSubjects', { headers }),
-                fetch('/api/admin/getSemesters', { headers }),
+                fetch('/api/admin/semesters', { headers }),
                 fetch('/api/admin/getStrands', { headers }),
                 fetch('/api/admin/yearLevels', { headers }) // Add this line
             ]);

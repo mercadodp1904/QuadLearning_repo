@@ -238,7 +238,7 @@ useEffect(() => {
                 throw new Error('No authentication token found');
             }
     
-            const response = await fetch('/api/semesters', {
+            const response = await fetch('/api/admin/semesters', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,

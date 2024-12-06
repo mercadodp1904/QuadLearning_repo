@@ -80,45 +80,93 @@ const AdminCreateTeacherAccount = () => {
     const [semesters, setSemesters] = useState([]);
 
         // First, modify your fetchData function to get available advisory sections
-const fetchData = async () => {
-    const token = localStorage.getItem('token');
-    try {
-        const [usersRes, sectionsRes, subjectsRes, semestersRes, advisorySectionsRes] = await Promise.all([
-            fetch('/api/admin/users?role=teacher', { 
-                headers: { Authorization: `Bearer ${token}` } 
-            }),
-            fetch('/api/admin/getSections', { 
-                headers: { Authorization: `Bearer ${token}` } 
-            }),
-            fetch('/api/admin/getSubjects', { 
-                headers: { Authorization: `Bearer ${token}` } 
-            }),
-            fetch('/api/admin/getSemesters', { 
-                headers: { Authorization: `Bearer ${token}` } 
-            }),
-            // New fetch for advisory sections (sections without advisers)
-            fetch('/api/admin/advisorySections', { 
-                headers: { Authorization: `Bearer ${token}` } 
-            })
-        ]);
-
-        const [users, sections, subjects, semesters, advisorySections] = await Promise.all([
-            usersRes.json(),
-            sectionsRes.json(),
-            subjectsRes.json(),
-            semestersRes.json(),
-            advisorySectionsRes.json()
-        ]);
-
-        setUsers(users);
-        setSections(sections);
-        setSubjects(subjects);
-        setSemesters(semesters);
-        setAdvisorySections(advisorySections); // Set available advisory sections
-    } catch (error) {
-        console.error('Error fetching data:', error);
-    }
-};
+        const fetchData = async () => {
+            const token = localStorage.getItem('token');
+            try {
+                const [usersRes, sectionsRes, subjectsRes, semestersRes, advisorySectionsRes] = await Promise.all([
+                    fetch('/api/admin/users?role=teacher', { 
+                        headers: { Authorization: `Bearer ${token}` } 
+                    }),
+                    fetch('/api/admin/getSections', { 
+                        headers: { Authorization: `Bearer ${token}` } 
+                    }),
+                    fetch('/api/admin/getSubjects', { 
+                        headers: { Authorization: `Bearer ${token}` } 
+                    }),
+                    fetch('/api/admin/semesters', { 
+                        headers: { Authorization: `Bearer ${token}` } 
+                    }),
+                    fetch('/api/admin/advisorySections', { 
+                        headers: { Authorization: `Bearer ${token}` } 
+                    })
+                ]);
+        
+                // Helper function to handle JSON parsing with error logging
+                const parseResponse = async (response, label) => {
+                    if (!response.ok) {
+                        console.error(`${label} Error:`, {
+                            status: response.status,
+                            statusText: response.statusText
+                        });
+                        try {
+                            const errorBody = await response.text();
+                            console.error(`${label} Error Body:`, errorBody);
+                        } catch (parseError) {
+                            console.error(`Failed to parse error body for ${label}:`, parseError);
+                        }
+                        return null;
+                    }
+                    
+                    try {
+                        const data = await response.json();
+                        console.log(`${label} Data:`, data);
+                        return data;
+                    } catch (parseError) {
+                        console.error(`Failed to parse ${label} response:`, parseError);
+                        return null;
+                    }
+                };
+        
+                const [users, sections, subjects, semesters, advisorySections] = await Promise.all([
+                    parseResponse(usersRes, 'Users'),
+                    parseResponse(sectionsRes, 'Sections'),
+                    parseResponse(subjectsRes, 'Subjects'),
+                    parseResponse(semestersRes, 'Semesters'),
+                    parseResponse(advisorySectionsRes, 'Advisory Sections')
+                ]);
+        
+                // Validate and set data with fallbacks
+                const safeSetState = (setter, data) => {
+                    if (data && Array.isArray(data)) {
+                        setter(data);
+                    } else {
+                        console.warn(`Invalid data for ${setter.name}:`, data);
+                        setter([]);
+                    }
+                };
+        
+                // Safely set states
+                if (users) safeSetState(setUsers, users);
+                if (sections) safeSetState(setSections, sections);
+                if (subjects) safeSetState(setSubjects, subjects);
+                if (semesters) {
+                    // Additional validation for semesters
+                    const validSemesters = semesters.filter(semester => 
+                        semester._id && 
+                        semester.name && 
+                        semester.strand && 
+                        semester.yearLevel
+                    );
+                    safeSetState(setSemesters, validSemesters);
+                }
+                if (advisorySections) safeSetState(setAdvisorySections, advisorySections);
+        
+            } catch (error) {
+                console.error('Comprehensive Fetch Error:', error);
+                // Optionally set an error state to show to the user
+                setError('Failed to load data. Please try again.');
+            }
+        };
 
     useEffect(() => {
         fetchData();
@@ -418,13 +466,13 @@ useEffect(() => {
                                         />
                                     </InputGroup>
                                     <button 
-    className='btn btn-outline-success mx-2 px-10'
-    style={{ width: '150px' }} // Fixed width of 150 pixels
-    size="sm" 
-    onClick={() => setShowAddModal(true)}
->
-    Add Users
-</button>
+        className='btn btn-outline-success mx-2 px-10'
+        style={{ width: '150px' }} // Fixed width of 150 pixels
+        size="sm" 
+        onClick={() => setShowAddModal(true)}
+    >
+        Add Users
+    </button>
                                 </div>
 
                                 {/* Teachers Table */}
@@ -432,99 +480,92 @@ useEffect(() => {
     <thead>
         <tr>
             <th>Teacher ID</th>
-            <th>Sections</th>
+            <th>Sections Handled</th>
             <th>Advisory Section</th>
             <th>Subjects</th>
             <th>Actions</th>
         </tr>
     </thead>
     <tbody>
-    {filteredUsers
-        .slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage)
-        .map(user => (
-            <tr key={user._id}>
-                <td>
-                    <div className="d-flex align-items-center justify-content-center">
-                        {user.username}
-                    </div>
-                </td>
-                <td>
-                    <div className="subjects-list">
-                        {user.sections?.length > 0 ? (
-                            user.sections.map((section) => (
-                                <span key={section?._id} className="subject-pill">
-                                    {section?.name || 'Unnamed Section'}
+        {filteredUsers
+            .slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage)
+            .map(user => (
+                <tr key={user._id}>
+                    <td>
+                        <div className="d-flex align-items-center justify-content-center">
+                            {user.username}
+                        </div>
+                    </td>
+                    <td>
+                        <div className="subjects-list">
+                            {user.sections?.map((section) => (
+                                <span key={section._id} className="subject-pill">
+                                    {section.name}
                                 </span>
-                            ))
-                        ) : (
-                            'No Sections'
-                        )}
-                    </div>
-                </td>
-                <td>
-                    <span className="text-muted">
-                        {user.advisorySection ? user.advisorySection.name : 'Not Assigned'}
-                    </span>
-                </td>
-                <td>
-                    <div className="subjects-list">
-                        {user.subjects?.length > 0 ? (
-                            user.subjects.map((subject) => (
-                                <span key={subject?._id} className="subject-pill">
-                                    {subject?.name || 'Unnamed Subject'}
+                            )) || 'No Sections'}
+                        </div>
+                    </td>
+                    <td>
+                        <span className="text-muted">
+                            {user.advisorySection?.name || 'Not Assigned'}
+                        </span>
+                    </td>
+                    <td>
+                        <div className="subjects-list">
+                            {user.subjects?.map((subject) => (
+                                <span key={subject._id} className="subject-pill">
+                                    {subject.name}
                                 </span>
-                            ))
-                        ) : (
-                            'No Subjects'
-                        )}
-                    </div>
-                </td>
-                <td>
-                    <div className="action-buttons">
-                        <Button 
-                            variant="outline-success" 
-                            size="sm" 
-                            className="btn-action"
-                            onClick={() => handleEditShow(user)}
-                        >
-                            <i className="bi bi-pencil-square me-1"></i>
-                            Edit
-                        </Button>
-                        <Button 
-                            variant="outline-danger" 
-                            size="sm" 
-                            className="btn-action"
-                            onClick={() => handleShow(user._id)}
-                        >
-                            <i className="bi bi-trash me-1"></i>
-                            Delete
-                        </Button>
-                    </div>
-                </td>
-            </tr>
-        ))}
-</tbody>
-</Table> {/* Closing tag for Table */} 
-{/* Pagination controls */}
-<div className="d-flex justify-content-between mt-3">
-    <Button
-        variant="outline-primary" 
-        size="sm"
-        disabled={currentPage === 1}
-        onClick={() => handlePageChange('prev')}
-    >
-        Previous
-    </Button>
-    <span>Page {currentPage} of {totalPages}</span>
-    <Button 
-        variant="outline-primary" 
-        size="sm"
-        disabled={currentPage === totalPages}
-        onClick={() => handlePageChange('next')}
-    >
-        Next
-    </Button>
-</div>
+                            )) || 'No Subjects'}
+                        </div>
+                    </td>
+                    <td>
+                        <div className="action-buttons">
+                            <Button 
+                                variant="outline-success" 
+                                size="sm" 
+                                className="btn-action"
+                                onClick={() => handleEditShow(user)}
+                            >
+                                <i className="bi bi-pencil-square me-1"></i>
+                                Edit
+                            </Button>
+                            <Button 
+                                variant="outline-danger" 
+                                size="sm" 
+                                className="btn-action"
+                                onClick={() => handleShow(user._id)}
+                            >
+                                <i className="bi bi-trash me-1"></i>
+                                Delete
+                            </Button>
+                        </div>
+                    </td>
+                </tr>
+            ))}
+    </tbody>
+</Table>
+
+                                {/* Pagination controls */}
+                                <div className="d-flex justify-content-between mt-3">
+                                    <Button
+                                        variant="outline-primary" 
+                                        size="sm"
+                                        disabled={currentPage === 1}
+                                        onClick={() => handlePageChange('prev')}
+                                    >
+                                        Previous
+                                    </Button>
+                                    <span>Page {currentPage} of {totalPages}</span>
+                                    <Button 
+                                        variant="outline-primary" 
+                                        size="sm"
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => handlePageChange('next')}
+                                    >
+                                        Next
+                                    </Button>
+                                </div>
 
                                 {/* Add Modal */}
 <Modal 
@@ -621,11 +662,21 @@ useEffect(() => {
                 required
                 style={{ borderColor: '#ced4da' }} // Override default validation styling
             >
-                {semesters.map((semester) => (
-                    <option key={semester._id} value={semester._id}>
-                        {semester.name} - {semester.strand.name} - {semester.yearLevel.name}
-                    </option>
-                ))}
+               {semesters && Array.isArray(semesters) ? (
+    semesters.map((semester) => {
+        // Safely access nested properties
+        const strandName = semester.strand?.name || 'Unknown Strand';
+        const yearLevelName = semester.yearLevel?.name || 'Unknown Year Level';
+
+        return (
+            <option key={semester._id} value={semester._id}>
+                {semester.name || 'Unnamed Semester'} - {strandName} - {yearLevelName}
+            </option>
+        );
+    })
+) : (
+    <option value="">No semesters available</option>
+)}
             </Form.Select>
         </Form.Group>
     </div>
