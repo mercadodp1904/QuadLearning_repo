@@ -12,6 +12,18 @@ import Header from '../components/Header';
 
 const AdminCreateStudentAccount = () => {
 
+        // Declare editUser state with a default value BEFORE any useEffects
+        const [editUser, setEditUser] = useState({
+            id: '',
+            username: '',
+            role: 'student',
+            strand: '',
+            section: '',
+            subjects: [],
+            semester: '',
+            yearLevel: '',
+        });
+
     // First, add these styles at the top of your file
 const modalStyles = {
     modal: {
@@ -89,85 +101,137 @@ const modalStyles = {
     const [yearLevels, setYearLevels] = useState([]);
 
 
-  // Add a new useEffect to filter subjects based on strand, semester, and year level
+ // Modify the useEffect for filtering subjects to be more defensive
 useEffect(() => {
-    if (newUser.strand && newUser.semester && newUser.yearLevel) {
-        console.log('Filtering subjects for:', {
-            strand: newUser.strand,
-            semester: newUser.semester,
-            yearLevel: newUser.yearLevel
-        });
+    const activeUser = showAddModal ? newUser : editUser;
 
-        // Filter subjects that match all criteria
-        const filteredSubjects = subjects.filter(subject => 
-            subject.strand._id === newUser.strand &&
-            subject.semester._id === newUser.semester &&
-            subject.yearLevel._id === newUser.yearLevel
-        );
+    const safeFilterSubjects = () => {
+        // Ensure all required fields are present and valid
+        if (!activeUser.strand || !activeUser.semester || !activeUser.yearLevel) {
+            return [];
+        }
 
-        console.log('Filtered subjects:', filteredSubjects);
-        setAvailableSubjects(filteredSubjects);
-    } else {
-        setAvailableSubjects([]);
-    }
-}, [newUser.strand, newUser.semester, newUser.yearLevel, subjects]);
-    
-        const fetchData = async () => {
-            console.log("fetchData function executed"); // Debug log
-            const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-    
-            try {
-                const [usersRes, strandsRes, sectionsRes, subjectsRes, semestersRes, yearLevelsRes] = await Promise.all([
-                    fetch('/api/admin/users?role=student', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
-                    fetch('/api/admin/getStrands', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
-                    fetch('/api/admin/getSections', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
-                    fetch('/api/admin/getSubjects', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
-                    fetch('/api/admin/getSemesters', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
-                    fetch('/api/admin/yearLevels', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
-                ]);
-    
-                const handleResponse = async (res, label) => {
-                    if (!res.ok) {
-                        const errorDetails = await res.clone().json();
-                        console.error(`${label} Error:`, errorDetails);
+        return subjects.filter(subject => {
+            // Comprehensive validation of subject properties
+            const strandMatch = subject.strand && 
+                (typeof subject.strand === 'object' 
+                    ? subject.strand._id === activeUser.strand 
+                    : subject.strand === activeUser.strand);
+            
+            const semesterMatch = subject.semester && 
+                (typeof subject.semester === 'object' 
+                    ? subject.semester._id === activeUser.semester 
+                    : subject.semester === activeUser.semester);
+            
+            const yearLevelMatch = subject.yearLevel && 
+                (typeof subject.yearLevel === 'object' 
+                    ? subject.yearLevel._id === activeUser.yearLevel 
+                    : subject.yearLevel === activeUser.yearLevel);
 
-                        return null;
-
-                    }
-                    return await res.json();
-                };
-    
-
-                const [user, strands, sections, subjects, semesters, yearLevels] = await Promise.all([
-
-                    handleResponse(usersRes, 'Users'),
-                    handleResponse(strandsRes, 'Strands'),
-                    handleResponse(sectionsRes, 'Sections'),
-                    handleResponse(subjectsRes, 'Subjects'),
-                    handleResponse(semestersRes, 'Semesters'),
-                    handleResponse(yearLevelsRes, 'Year Levels'),
-                ]);
-    
-
-                if (user) {
-                    console.log('Fetched Users:', user); // Ensure this logs user data correctly
-                }
-    
-                if (strands && sections && subjects && semesters && yearLevels) {
-                    setUsers(user);
-                    setStrands(strands);
-                    setSections(sections);
-                    setSubjects(subjects);
-                    setSemesters(semesters);
-                    setYearLevels(yearLevels);
-                } else {
-                    console.error('Failed to fetch some or all dropdown data');
-                }
-
-            } catch (error) {
-                console.error('Error fetching dropdown data:', error.message);
+            // Logging for debugging
+            if (!strandMatch || !semesterMatch || !yearLevelMatch) {
+                console.log('Subject filtering details:', {
+                    subject,
+                    activeUserStrand: activeUser.strand,
+                    activeUserSemester: activeUser.semester,
+                    activeUserYearLevel: activeUser.yearLevel,
+                    strandMatch,
+                    semesterMatch,
+                    yearLevelMatch
+                });
             }
+
+            return strandMatch && semesterMatch && yearLevelMatch;
+        });
+    };
+
+    const filteredSubjects = safeFilterSubjects();
+    
+    console.log('Filtered Subjects:', filteredSubjects);
+    setAvailableSubjects(filteredSubjects);
+}, [
+    newUser.strand, 
+    newUser.semester, 
+    newUser.yearLevel,
+    editUser?.strand, 
+    editUser?.semester, 
+    editUser?.yearLevel,
+    subjects, 
+    showAddModal
+]);
+    
+const fetchData = async () => {
+    console.log("fetchData function executed"); // Debug log
+    const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+
+    try {
+        const [usersRes, strandsRes, sectionsRes, subjectsRes, semestersRes, yearLevelsRes] = await Promise.all([
+            fetch('/api/admin/users?role=student', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
+            fetch('/api/admin/getStrands', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
+            fetch('/api/admin/getSections', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
+            fetch('/api/admin/getSubjects', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
+            fetch('/api/admin/semesters', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
+            fetch('/api/admin/yearLevels', { method: 'GET', headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+
+        const handleResponse = async (res, label) => {
+            if (!res.ok) {
+                const errorDetails = await res.clone().text();
+                console.error(`${label} Error:`, {
+                    status: res.status,
+                    statusText: res.statusText,
+                    errorDetails
+                });
+                return null;
+            }
+            return await res.json();
         };
+
+        const [
+            users, 
+            strands, 
+            sections, 
+            subjects, 
+            semesters, 
+            yearLevels
+        ] = await Promise.all([
+            handleResponse(usersRes, 'Users'),
+            handleResponse(strandsRes, 'Strands'),
+            handleResponse(sectionsRes, 'Sections'),
+            handleResponse(subjectsRes, 'Subjects'),
+            handleResponse(semestersRes, 'Semesters'),
+            handleResponse(yearLevelsRes, 'Year Levels'),
+        ]);
+
+        // Sanitize and validate each dataset
+        const sanitizeUsers = (users) => 
+            (users || []).map(user => ({
+                ...user,
+                sections: user.sections || [],
+                strand: user.strand || {},
+                yearLevel: user.yearLevel || {},
+                subjects: user.subjects || []
+            }));
+
+        const sanitizeData = (data) => data || [];
+
+        if (users && strands && sections && subjects && semesters && yearLevels) {
+            setUsers(sanitizeUsers(users));
+            setStrands(sanitizeData(strands));
+            setSections(sanitizeData(sections));
+            setSubjects(sanitizeData(subjects));
+            setSemesters(sanitizeData(semesters));
+            setYearLevels(sanitizeData(yearLevels));
+        } else {
+            console.error('Failed to fetch some or all dropdown data');
+            setError('Failed to load some data. Please refresh the page.');
+        }
+
+    } catch (error) {
+        console.error('Comprehensive Error fetching dropdown data:', error);
+        setError('An unexpected error occurred while fetching data');
+    }
+};
     
 
     useEffect(() => {
@@ -265,65 +329,90 @@ useEffect(() => {
     };
 
 
-// Update the editUser state
-const [editUser, setEditUser] = useState({
-    id: '',
-    username: '',
-    role: 'student',
-    strand: '',
-    section: '',
-    subjects: [],
-    semester: '',
-    yearLevel: '',
-});
 
 
-// Update useEffect for sections filtering
+
+
 useEffect(() => {
-    if (editUser.strand) {
-        console.log('Filtering sections for strand:', editUser.strand);
-        const sectionsForStrand = sections.filter(section => 
-            section.strand._id === editUser.strand
-        );
-        console.log('Filtered sections:', sectionsForStrand);
-        setFilteredSections(sectionsForStrand);
-    } else if (newUser.strand) {
-        const sectionsForStrand = sections.filter(section => 
-            section.strand._id === newUser.strand
-        );
-        setFilteredSections(sectionsForStrand);
-    } else {
-        setFilteredSections([]);
+    const safeFilterSections = (strandId) => {
+        if (!strandId || !sections || sections.length === 0) {
+            return [];
+        }
+
+        return sections.filter(section => {
+            // Ensure section and its properties are valid
+            if (!section || !section.strand) {
+                console.warn('Invalid section or missing strand:', section);
+                return false;
+            }
+
+            const sectionStrandId = typeof section.strand === 'object' 
+                ? section.strand._id 
+                : section.strand;
+
+            return sectionStrandId && sectionStrandId === strandId;
+        });
+    };
+
+    let filteredSectionsResult = [];
+
+    // Use optional chaining and provide a fallback
+    const activeStrand = (showAddModal ? newUser.strand : editUser?.strand) || '';
+
+    if (activeStrand) {
+        filteredSectionsResult = safeFilterSections(activeStrand);
     }
-}, [newUser.strand, editUser.strand, sections]);
 
-// Update the useEffect for filtering subjects
+    setFilteredSections(filteredSectionsResult);
+}, [newUser.strand, editUser?.strand, sections, showAddModal]);
+
 useEffect(() => {
-    const activeUser = showAddModal ? newUser : editUser;
-    
+    // Use a default empty object to prevent initialization error
+    const activeUser = showAddModal ? newUser : (editUser || {
+        id: '',
+        username: '',
+        role: 'student',
+        strand: '',
+        section: '',
+        subjects: [],
+        semester: '',
+        yearLevel: '',
+    });
+
     if (activeUser.strand && activeUser.semester && activeUser.yearLevel) {
-        console.log('Filtering subjects for:', {
-            strand: activeUser.strand,
-            semester: activeUser.semester,
-            yearLevel: activeUser.yearLevel
+        const filteredSubjects = subjects.filter(subject => {
+            // Ensure subject and its properties are valid
+            if (!subject || !subject.strand || !subject.semester || !subject.yearLevel) {
+                console.warn('Invalid subject or missing properties:', subject);
+                return false;
+            }
+
+            return (
+                (typeof subject.strand === 'object' 
+                    ? subject.strand._id 
+                    : subject.strand) === activeUser.strand &&
+                (typeof subject.semester === 'object' 
+                    ? subject.semester._id 
+                    : subject.semester) === activeUser.semester &&
+                (typeof subject.yearLevel === 'object' 
+                    ? subject.yearLevel._id 
+                    : subject.yearLevel) === activeUser.yearLevel
+            );
         });
 
-        // Filter subjects that match all criteria
-        const filteredSubjects = subjects.filter(subject => 
-            subject.strand._id === activeUser.strand &&
-            subject.semester._id === activeUser.semester &&
-            subject.yearLevel._id === activeUser.yearLevel
-        );
-
-        console.log('Filtered subjects:', filteredSubjects);
         setAvailableSubjects(filteredSubjects);
     } else {
         setAvailableSubjects([]);
     }
 }, [
-    newUser.strand, newUser.semester, newUser.yearLevel,
-    editUser.strand, editUser.semester, editUser.yearLevel,
-    subjects, showAddModal
+    newUser.strand, 
+    newUser.semester, 
+    newUser.yearLevel,
+    editUser?.strand, 
+    editUser?.semester,     
+    editUser?.yearLevel,
+    subjects, 
+    showAddModal
 ]);
 
 // Update handleEditShow
@@ -398,13 +487,13 @@ const handleEditSubmit = async (e) => {
     
     
 
-const filteredUsers = users
-.filter((user) => user.role === "student")
-.filter((user) => (selectedStrand ? user.strand?._id === selectedStrand : true))
-.filter((user) => (selectedSection ? user.sections?.some(section => section._id === selectedSection) : true))
-.filter((user) =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase())
-);
+const filteredUsers = (users || [])
+    .filter((user) => user.role === "student")
+    .filter((user) => (selectedStrand ? user.strand?._id === selectedStrand : true))
+    .filter((user) => (selectedSection ? user.sections?.some(section => section._id === selectedSection) : true))
+    .filter((user) =>
+        user.username?.toLowerCase().includes(searchTerm.toLowerCase()) || false
+    );
 console.log('Filtered Users:', filteredUsers);
 
 
@@ -515,64 +604,68 @@ console.log('Filtered Users:', filteredUsers);
         </tr>
     </thead>
     <tbody>
-        {filteredUsers
-            .slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage)
-            .map(user => (
-                <tr key={user._id}>
-                    <td>
-                        <div className="d-flex align-items-center justify-content-center">
-                            {user.username}
-                        </div>
-                    </td>
-                    <td>
-                        <span className="text-muted">
-                            {user.sections?.[0]?.name || 'Not Assigned'}
-                        </span>
-                    </td>
-                    <td>
-                        <span className="text-muted">
-                            {user.strand?.name || 'Not Assigned'}
-                        </span>
-                    </td>
-                    <td>
-                        <span className="text-muted">
-                            {user.yearLevel?.name || 'Not Assigned'}
-                        </span>
-                    </td>
-                    <td>
-    <div className="subjects-list">
-        {user.subjects?.map((subject, index) => (
-            <span key={subject._id} className="subject-pill">
-                {subject.name}
-            </span>
-        )) || 'No Subjects'}
-    </div>
-</td>
-                    <td>
-                        <div className="action-buttons">
-                            <Button 
-                                variant="outline-success" 
-                                size="sm" 
-                                className="btn-action"
-                                onClick={() => handleEditShow(user)}
-                            >
-                                <i className="bi bi-pencil-square me-1"></i>
-                                Edit
-                            </Button>
-                            <Button 
-                                variant="outline-danger" 
-                                size="sm" 
-                                className="btn-action"
-                                onClick={() => handleShow(user._id)}
-                            >
-                                <i className="bi bi-trash me-1"></i>
-                                Delete
-                            </Button>
-                        </div>
-                    </td>
-                </tr>
-            ))}
-    </tbody>
+    {filteredUsers
+        .slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage)
+        .map(user => (
+            <tr key={user._id}>
+                <td>
+                    <div className="d-flex align-items-center justify-content-center">
+                        {user.username || 'N/A'}
+                    </div>
+                </td>
+                <td>
+                    <span className="text-muted">
+                        {user.sections?.[0]?.name || 'Not Assigned'}
+                    </span>
+                </td>
+                <td>
+                    <span className="text-muted">
+                        {user.strand?.name || 'Not Assigned'}
+                    </span>
+                </td>
+                <td>
+                    <span className="text-muted">
+                        {user.yearLevel?.name || 'Not Assigned'}
+                    </span>
+                </td>
+                <td>
+                    <div className="subjects-list">
+                        {user.subjects && user.subjects.length > 0 
+                            ? user.subjects.map((subject) => (
+                                <span key={subject._id || subject} className="subject-pill">
+                                    {typeof subject === 'object' 
+                                        ? (subject.name || 'Unnamed Subject') 
+                                        : 'Unnamed Subject'}
+                                </span>
+                            ))
+                            : 'No Subjects'}
+                    </div>
+                </td>
+                <td>
+                    <div className="action-buttons">
+                        <Button 
+                            variant="outline-success" 
+                            size="sm" 
+                            className="btn-action"
+                            onClick={() => handleEditShow(user)}
+                        >
+                            <i className="bi bi-pencil-square me-1"></i>
+                            Edit
+                        </Button>
+                        <Button 
+                            variant="outline-danger" 
+                            size="sm" 
+                            className="btn-action"
+                            onClick={() => handleShow(user._id)}
+                        >
+                            <i className="bi bi-trash me-1"></i>
+                            Delete
+                        </Button>
+                    </div>
+                </td>
+            </tr>
+        ))}
+</tbody>
 </Table>
 
 
@@ -660,35 +753,98 @@ console.log('Filtered Users:', filteredUsers);
                     <Form.Group>
                         <Form.Label>Strand</Form.Label>
                         <Form.Select
-                            value={newUser.strand}
-                            onChange={(e) => setNewUser({...newUser, strand: e.target.value, section: '', subjects: []})}
-                            required
-                        >
-                            <option value="">Select Strand</option>
-                            {strands.map(strand => (
-                                <option key={strand._id} value={strand._id}>
-                                    {strand.name} 
-                                </option>
-                            ))}
-                        </Form.Select>
+    value={newUser .strand}
+    onChange={(e) => setNewUser ({...newUser , strand: e.target.value, section: '', subjects: []})}
+    required
+>
+    <option value="">Select Strand</option>
+    {strands.map(strand => (
+        <option key={strand._id} value={strand._id}>
+            {strand.name || 'Unnamed Strand'}
+        </option>
+    ))}
+</Form.Select>
                     </Form.Group>
 
+    
                     <Form.Group>
-                        <Form.Label>Semester</Form.Label>
-                        <Form.Select
-                            value={newUser.semester}
-                            onChange={(e) => setNewUser({...newUser, semester: e.target.value, subjects: []})}
-                            required
-                            disabled={!newUser.strand || !newUser.yearLevel}
-                        >
-                            <option value="">Select Semester</option>
-                            {semesters.map(semester => (
-                                <option key={semester._id} value={semester._id}>
-                                    {semester.name} - {semester.strand.name} - {semester.yearLevel.name}
-                                </option>
-                            ))}
-                        </Form.Select>
-                    </Form.Group>
+    <Form.Label>Semester</Form.Label>
+    <Form.Select
+        value={newUser.semester}
+        onChange={(e) => {
+            const selectedSemesterId = e.target.value;
+            
+            // Find the selected semester to validate its properties
+            const selectedSemester = semesters.find(
+                semester => semester._id === selectedSemesterId
+            );
+
+            // Ensure the selected semester matches the current strand and year level
+            if (selectedSemester) {
+                const strandMatch = 
+                    (typeof selectedSemester.strand === 'object' 
+                        ? selectedSemester.strand._id 
+                        : selectedSemester.strand) === newUser.strand;
+                
+                const yearLevelMatch = 
+                    (typeof selectedSemester.yearLevel === 'object' 
+                        ? selectedSemester.yearLevel._id 
+                        : selectedSemester.yearLevel) === newUser.yearLevel;
+
+                if (strandMatch && yearLevelMatch) {
+                    setNewUser({
+                        ...newUser, 
+                        semester: selectedSemesterId, 
+                        subjects: [] // Reset subjects when semester changes
+                    });
+                } else {
+                    // Optionally, show an error or prevent selection
+                    console.error('Selected semester does not match current strand or year level');
+                }
+            }
+        }}
+        required
+        disabled={!newUser.strand || !newUser.yearLevel}
+    >
+        <option value="">Select Semester</option>
+        {semesters
+            .filter(semester => {
+                // More comprehensive filtering
+                const hasValidStrand = semester.strand && 
+                    (typeof semester.strand === 'object' 
+                        ? semester.strand._id === newUser.strand 
+                        : semester.strand === newUser.strand);
+                
+                const hasValidYearLevel = semester.yearLevel && 
+                    (typeof semester.yearLevel === 'object' 
+                        ? semester.yearLevel._id === newUser.yearLevel 
+                        : semester.yearLevel === newUser.yearLevel);
+                
+                return hasValidStrand && hasValidYearLevel;
+            })
+            .map(semester => {
+                // Safely extract strand and year level names
+                const strandName = 
+                    (semester.strand && semester.strand.name) 
+                    || (typeof semester.strand === 'string' ? semester.strand : 'Unknown Strand');
+                
+                const yearLevelName = 
+                    (semester.yearLevel && semester.yearLevel.name) 
+                    || (typeof semester.yearLevel === 'string' ? semester.yearLevel : 'Unknown Year Level');
+
+                return (
+                    <option 
+                        key={semester._id} 
+                        value={semester._id}
+                    >
+                        {semester.name} - {strandName} - {yearLevelName}
+                    </option>
+                );
+            })
+        }
+    </Form.Select>
+</Form.Group>
+
 
                     <Form.Group>
                         <Form.Label>Section</Form.Label>
@@ -842,23 +998,58 @@ console.log('Filtered Users:', filteredUsers);
                             ))}
                         </Form.Select>
                     </Form.Group>
-
                     <Form.Group>
-                        <Form.Label>Semester</Form.Label>
-                        <Form.Select
-                            value={editUser.semester}
-                            onChange={(e) => setEditUser({...editUser, semester: e.target.value, subjects: []})}
-                            required
-                            disabled={!editUser.strand || !editUser.yearLevel}
-                        >
-                            <option value="">Select Semester</option>
-                            {semesters.map(semester => (
-                                <option key={semester._id} value={semester._id}>
-                                    {semester.name}
-                                </option>
-                            ))}
-                        </Form.Select>
-                    </Form.Group>
+    <Form.Label>Semester</Form.Label>
+    <Form.Select
+        value={editUser.semester}
+        onChange={(e) => setEditUser({...editUser, semester: e.target.value, subjects: []})}
+        required
+        disabled={!editUser.strand || !editUser.yearLevel}
+    >
+        <option value="">Select Semester</option>
+        {semesters
+            .filter(semester => {
+                // Ensure semester has valid strand and year level
+                const hasValidStrand = semester.strand && 
+                    (typeof semester.strand === 'object' 
+                        ? semester.strand._id === editUser.strand 
+                        : semester.strand === editUser.strand);
+                
+                const hasValidYearLevel = semester.yearLevel && 
+                    (typeof semester.yearLevel === 'object' 
+                        ? semester.yearLevel._id === editUser.yearLevel 
+                        : semester.yearLevel === editUser.yearLevel);
+                
+                return hasValidStrand && hasValidYearLevel;
+            })
+            .map(semester => {
+                // Safely extract strand and year level names
+                const strandName = 
+                    (semester.strand && 
+                        (typeof semester.strand === 'object' 
+                            ? semester.strand.name 
+                            : semester.strand)) 
+                    || 'Unknown Strand';
+                
+                const yearLevelName = 
+                    (semester.yearLevel && 
+                        (typeof semester.yearLevel === 'object' 
+                            ? semester.yearLevel.name 
+                            : semester.yearLevel)) 
+                    || 'Unknown Year Level';
+
+                return (
+                    <option 
+                        key={semester._id} 
+                        value={semester._id}
+                    >
+                        {semester.name} - {strandName} - {yearLevelName}
+                    </option>
+                );
+            })
+        }
+    </Form.Select>
+</Form.Group>
 
                     <Form.Group>
                         <Form.Label>Section</Form.Label>

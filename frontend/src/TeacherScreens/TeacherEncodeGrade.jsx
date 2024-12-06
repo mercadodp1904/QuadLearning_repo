@@ -77,7 +77,8 @@ const TeacherGenerateForm = () => {
         try {
             console.log('Fetching student with ID:', studentId); // Debug log
     
-            const response = await fetch(`/api/teacher/student/${studentId}`, {
+            const response = await fetch('/api/admin/semesters', {
+                method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }

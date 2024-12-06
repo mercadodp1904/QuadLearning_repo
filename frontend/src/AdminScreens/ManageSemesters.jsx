@@ -34,27 +34,83 @@ const ManageSemesters = () => {
         };
     
         try {
+            // Add comprehensive logging
+            console.log('Fetching data with token:', token);
+    
             const [semestersRes, strandsRes, yearLevelsRes] = await Promise.all([
-                fetch('/api/admin/getSemesters', { headers }),
+                fetch('/api/admin/semesters', { headers }),
                 fetch('/api/admin/getStrands', { headers }),
-                fetch('/api/admin/yearLevels', { headers }) // You'll need to create this endpoint
+                fetch('/api/admin/yearLevels', { headers })
             ]);
     
-            if (!semestersRes.ok || !strandsRes.ok || !yearLevelsRes.ok) {
-                throw new Error('One or more requests failed');
-            }
+            // Comprehensive error logging for each response
+            const logResponse = async (response, resourceName) => {
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`${resourceName} Fetch Error:`, {
+                        status: response.status,
+                        statusText: response.statusText,
+                        errorText
+                    });
+                    throw new Error(`Failed to fetch ${resourceName}`);
+                }
+                return response;
+            };
     
+            // Log and validate each response
+            await Promise.all([
+                logResponse(semestersRes, 'Semesters'),
+                logResponse(strandsRes, 'Strands'),
+                logResponse(yearLevelsRes, 'Year Levels')
+            ]);
+    
+            // Parse responses
             const [semestersData, strandsData, yearLevelsData] = await Promise.all([
                 semestersRes.json(),
                 strandsRes.json(),
                 yearLevelsRes.json()
             ]);
     
-            setSemesters(semestersData);
-            setStrands(strandsData);
-            setYearLevels(yearLevelsData);
+            // Comprehensive validation and sanitization
+            const validateArray = (data, resourceName) => {
+                if (!Array.isArray(data)) {
+                    console.error(`Expected an array for ${resourceName}, got:`, data);
+                    return [];
+                }
+                return data.filter(item => item && item._id);
+            };
+    
+            // Sanitize and set data
+            const sanitizedSemesters = validateArray(semestersData, 'Semesters').map(semester => ({
+                ...semester,
+                name: semester.name || 'Unnamed Semester',
+                strand: semester.strand || { name: 'No Strand', _id: null },
+                yearLevel: semester.yearLevel || { name: 'No Year Level', _id: null }
+            }));
+    
+            const sanitizedStrands = validateArray(strandsData, 'Strands');
+            const sanitizedYearLevels = validateArray(yearLevelsData, 'Year Levels');
+    
+            // Extensive logging of parsed and sanitized data
+            console.log('Parsed and Sanitized Data:', {
+                semesters: sanitizedSemesters,
+                strands: sanitizedStrands,
+                yearLevels: sanitizedYearLevels
+            });
+    
+            // Set states with sanitized data
+            setSemesters(sanitizedSemesters);
+            setStrands(sanitizedStrands);
+            setYearLevels(sanitizedYearLevels);
+    
         } catch (error) {
-            console.error('Error fetching data:', error);
+            console.error('Comprehensive Fetch Error:', {
+                message: error.message,
+                stack: error.stack
+            });
+            
+            // Set user-friendly error message
+            setError(`Failed to load data: ${error.message}`);
         }
     };
     
@@ -464,22 +520,26 @@ const handleEdit = (semester) => {
     <Modal.Body>
         {error && <div className="alert alert-danger">{error}</div>}
         <Form>
-            <Form.Group className="mb-3">
-                <Form.Label>Strand</Form.Label>
-                <Form.Control
-                    as="select"
-                    value={selectedStrand}
-                    onChange={(e) => setSelectedStrand(e.target.value)}
-                    required
-                >
-                    <option value="">Select Strand</option>
-                    {strands.map(strand => (
-                        <option key={strand._id} value={strand._id}>
-                            {strand.name}
-                        </option>
-                    ))}
-                </Form.Control>
-            </Form.Group>
+        <Form.Group className="mb-3">
+    <Form.Label>Strand</Form.Label>
+    <Form.Control
+        as="select"
+        value={selectedStrand}
+        onChange={(e) => setSelectedStrand(e.target.value)}
+        required
+    >
+        <option value="">Select Strand</option>
+        {strands && strands.length > 0 ? (
+            strands.map(strand => (
+                <option key={strand._id} value={strand._id}>
+                    {strand.name || 'Unnamed Strand'}
+                </option>
+            ))
+        ) : (
+            <option disabled>No strands available</option>
+        )}
+    </Form.Control>
+</Form.Group>
 
             <Form.Group className="mb-3">
                 <Form.Label>Semester Name</Form.Label>
@@ -496,21 +556,25 @@ const handleEdit = (semester) => {
             </Form.Group>
 
             <Form.Group className="mb-3">
-                <Form.Label>Year Level</Form.Label>
-                <Form.Control
-                    as="select"
-                    value={selectedYearLevel}
-                    onChange={(e) => setSelectedYearLevel(e.target.value)}
-                    required
-                >
-                    <option value="">Select Year Level</option>
-                    {yearLevels.map(yearLevel => (
-                        <option key={yearLevel._id} value={yearLevel._id}>
-                            {yearLevel.name}
-                        </option>
-                    ))}
-                </Form.Control>
-            </Form.Group>
+    <Form.Label>Year Level</Form.Label>
+    <Form.Control
+        as="select"
+        value={selectedYearLevel}
+        onChange={(e) => setSelectedYearLevel(e.target.value)}
+        required
+    >
+        <option value="">Select Year Level</option>
+        {yearLevels && yearLevels.length > 0 ? (
+            yearLevels.map(yearLevel => (
+                <option key={yearLevel._id} value={yearLevel._id}>
+                    {yearLevel.name || 'Unnamed Year Level'}
+                </option>
+            ))
+        ) : (
+            <option disabled>No year levels available</option>
+        )}
+    </Form.Control>
+</Form.Group>
 
             <Form.Group className="mb-3">
                 <Form.Label>Start Date</Form.Label>

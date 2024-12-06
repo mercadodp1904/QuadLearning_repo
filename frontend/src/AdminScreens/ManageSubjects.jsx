@@ -27,11 +27,12 @@ const ManageSubjects = () => {
     const [editModalShow, setEditModalShow] = useState(false);
     const [yearLevels, setYearLevels] = useState([]);
 
-// Update your filteredSemesters logic
-const filteredSemesters = semesters.filter(semester => 
-    semester.strand._id === selectedStrand && 
-    semester.yearLevel._id === selectedYearLevel
-);
+    const filteredSemesters = Array.isArray(semesters) 
+    ? semesters.filter(semester => 
+        semester.strand?._id === selectedStrand && 
+        semester.yearLevel?._id === selectedYearLevel
+    ) 
+    : [];
 
 
     const handleClose = () => {
@@ -154,7 +155,7 @@ const filteredSemesters = semesters.filter(semester =>
         try {
             const [subjectsResponse, semestersResponse, strandsResponse, yearLevelsResponse] = await Promise.all([
                 fetch('/api/admin/getSubjects', { headers }),
-                fetch('/api/admin/getSemesters', { headers }),
+                fetch('/api/admin/semesters', { headers }),
                 fetch('/api/admin/getStrands', { headers }),
                 fetch('/api/admin/yearLevels', { headers }) // Add this line
             ]);

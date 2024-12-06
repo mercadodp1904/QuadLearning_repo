@@ -48,7 +48,6 @@ const TeacherGenerateForm = () => {
             setError(`Failed to generate Form 137: ${error.message}`);
         }
     };
-
     useEffect(() => {
         const fetchTeacherSections = async () => {
             try {

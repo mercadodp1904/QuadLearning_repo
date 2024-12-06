@@ -588,7 +588,6 @@ const generateForm137 = asyncHandler(async (req, res, next) => {
     }
 
 });
-
 const getTeacherSections = asyncHandler(async (req, res) => {
     try {
         const [sections, teacherData] = await Promise.all([
