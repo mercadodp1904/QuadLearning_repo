@@ -1,17 +1,14 @@
-import express from 'express';
-
-import { addGrade, updateGrade,  generateForm137, getTeacherSections, fillOutStudentForm, getTeacherDashboard, getStudentData, getTeacherSubjects, getSubjectGrades, getSubjectStudents, getTeacherAdvisoryClass } from '../controllers/teacherController.js';
-import { protect, authorizeRoles, teacher } from '../middleware/authMiddleware.js';
+const express = require('express');
+const { addGrade, updateGrade, generateForm137, getTeacherSections, fillOutStudentForm, getTeacherDashboard, getStudentData, getTeacherSubjects, getSubjectGrades, getSubjectStudents, getTeacherAdvisoryClass } = require('../controllers/teacherController.js');
+const { protect, authorizeRoles, teacher } = require('../middleware/authMiddleware.js');
 
 const router = express.Router();
 
 router.post('/grades', protect, authorizeRoles('teacher'), addGrade);
 router.put('/grades/:id', protect, authorizeRoles('teacher'), updateGrade);
 
-
 router.get('/generate-form137/:studentId', protect, teacher, generateForm137);
 router.get('/sections', protect, teacher, getTeacherSections);
-
 
 // Update these routes
 router.get('/student/:studentId', protect, teacher, getStudentData); // GET route for fetching student data
@@ -21,4 +18,5 @@ router.get('/subject-grades/:subjectId', protect, teacher, getSubjectGrades); //
 router.get('/subject-students', protect, teacher, getSubjectStudents); // GET route for fetching subject students
 router.get('/advisorySections', protect, teacher, getTeacherAdvisoryClass); // GET route for fetching teacher advisory class
 router.get('/dashboard', protect, teacher, getTeacherDashboard); // GET route for fetching teacher dashboard
-export default router;
+
+module.exports = router;

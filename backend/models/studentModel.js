@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+const mongoose = require('mongoose');
 
 const studentSchema = mongoose.Schema(
     {
@@ -11,18 +11,15 @@ const studentSchema = mongoose.Schema(
             unique: true
         },
         firstName: {
-
             type: String,
-            // required: true removed
         },
         lastName: {
             type: String,
             // required: true removed
         },
-        middleInitial: {
+        middleName: {
 
             type: String,
-            maxlength: 1,
         },
         middleInitial: {
             type: String, // Middle initial is optional
@@ -35,7 +32,6 @@ const studentSchema = mongoose.Schema(
         },
         birthdate: {
             type: Date,
-            // required: true removed
         },
         birthplace: {
             province: String,   
@@ -44,58 +40,61 @@ const studentSchema = mongoose.Schema(
         },
         address: {
             type: String,
-            // required: true removed
         },
         guardian: {
             name: {
                 type: String,
-                // required: true removed
             },
             occupation: String,
         },
         yearLevel: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'YearLevel'
+            ref: 'YearLevel',
+            required: false
+
         },
         section: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Section',
+            required: false
         },
         strand: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Strand',
+            required: false
         },
         school: {
             name: {
-                type: String,
-                // required: true removed
+                type: String,   
             },
             year: {
                 type: String,
-                // required: true removed
             }
         },
         attendance: {
             totalYears: {
                 type: Number,
-                // required: true removed
             }
         },
 
         // Grades structure with linked Semester
         grades: [
             {
+                schoolYear: {
+                    type: String,
+                },   
+                section: {
+                    type: mongoose.Schema.Types.ObjectId,
+                },
                 semester: {
                     type: mongoose.Schema.Types.ObjectId,
                     ref: 'Semester',
-                    required: true,
                 },
                 subjects: [
                     {
                         subject: { // Reference to Subject model
                             type: mongoose.Schema.Types.ObjectId,
                             ref: 'Subject',
-                            required: true,
                         },
                         midterm: {
                             type: Number,
@@ -145,4 +144,4 @@ studentSchema.set('toObject', { virtuals: true });
 // Create the Student model
 const Student = mongoose.model('Student', studentSchema);
 
-export default Student;
+module.exports = Student;
